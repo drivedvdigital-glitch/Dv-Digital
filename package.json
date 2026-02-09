@@ -1,0 +1,13 @@
+{
+  "name": "dv-digital-inventory-compliance",
+  "version": "1.0.0",
+  "description": "Agente Gerente de Estoque e Compliance para Google Sheets MCP",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test src/**/*.test.js"
+  },
+  "keywords": ["inventory", "compliance", "google-sheets", "mcp"],
+  "license": "MIT"
+}
