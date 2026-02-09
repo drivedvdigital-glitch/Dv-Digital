@@ -66,7 +66,7 @@ async function main() {
     },
   };
 
-  const spreadsheetId = process.env.SPREADSHEET_ID || "DEMO_SPREADSHEET";
+  const spreadsheetId = process.env.SPREADSHEET_ID || "1-GX9TTErcOsFykLLwJc9sBpKEi-y0p5SDTJ5vgiGRaA";
   const agent = createAgent(mockMcpClient, spreadsheetId);
 
   try {

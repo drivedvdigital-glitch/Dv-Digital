@@ -11,5 +11,6 @@
         "GOOGLE_SHEETS_TOKEN_PATH": "./config/token.json"
       }
     }
-  }
+  },
+  "spreadsheetId": "1-GX9TTErcOsFykLLwJc9sBpKEi-y0p5SDTJ5vgiGRaA"
 }
