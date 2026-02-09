@@ -93,6 +93,43 @@ export class SheetsService {
       sheet_id: templateSheetId,
       new_name: newName,
     });
+
+    // Move the new tab to the last position
+    await this.moveSheetToEnd(newName);
+  }
+
+  /**
+   * Move a sheet tab to the last position in the spreadsheet.
+   * Keeps tabs in sequential order (793, 794, 795...).
+   * @param {string} sheetName - Name of the tab to move
+   * @returns {Promise<void>}
+   */
+  async moveSheetToEnd(sheetName) {
+    const info = await this.mcp.callTool("sheets_get_spreadsheet_info", {
+      spreadsheet_id: this.spreadsheetId,
+    });
+
+    const sheetId = this._findSheetId(info, sheetName);
+    if (sheetId === null) {
+      throw new Error(`Aba "${sheetName}" não encontrada para mover.`);
+    }
+
+    const totalSheets = info?.sheets?.length || 0;
+
+    await this.mcp.callTool("sheets_batch_update", {
+      spreadsheet_id: this.spreadsheetId,
+      requests: [
+        {
+          updateSheetProperties: {
+            properties: {
+              sheetId: sheetId,
+              index: totalSheets - 1,
+            },
+            fields: "index",
+          },
+        },
+      ],
+    });
   }
 
   /**

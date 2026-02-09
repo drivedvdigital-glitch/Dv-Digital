@@ -47,15 +47,23 @@ async function main() {
   const input = args.join(" ");
 
   // In CLI mode without MCP, provide a mock client for testing
+  const createdSheets = [];
   const mockMcpClient = {
     callTool: async (toolName, params) => {
       console.log(`[MCP] ${toolName}`, JSON.stringify(params, null, 2));
-      // Return mock data for testing
+      // Track duplicated sheets
+      if (toolName === "sheets_duplicate_sheet") {
+        createdSheets.push({
+          properties: { title: params.new_name, sheetId: 100 + createdSheets.length },
+        });
+        return {};
+      }
       if (toolName === "sheets_get_spreadsheet_info") {
         return {
           sheets: [
             { properties: { title: "template", sheetId: 0 } },
             { properties: { title: "793 produto-teste", sheetId: 1 } },
+            ...createdSheets,
           ],
         };
       }
