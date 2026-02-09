@@ -11,9 +11,55 @@ import {
  */
 export class UrlAnalyzer {
   /**
+   * Fetch page content from a URL.
+   * @param {string} url - URL to fetch
+   * @returns {Promise<string>} Page text content (or empty on failure)
+   */
+  static async fetchPageContent(url) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        },
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) return "";
+
+      const html = await response.text();
+
+      // Strip HTML tags, keep text content
+      return html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&[a-z]+;/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    } catch {
+      return "";
+    }
+  }
+
+  /**
+   * Full analysis pipeline: fetch URL + analyze content.
+   * @param {string} url - The competitor product URL
+   * @returns {Promise<{ riscoAds: string, genero: string, reasons: string[] }>}
+   */
+  static async analyzeWithFetch(url) {
+    const pageContent = await this.fetchPageContent(url);
+    return this.analyze(url, pageContent);
+  }
+
+  /**
    * Analyze product content for risk and gender classification.
    * @param {string} url - The competitor product URL
-   * @param {string} [pageContent] - Optional pre-fetched page content for analysis
+   * @param {string} [pageContent] - Optional pre-fetched page content
    * @returns {{ riscoAds: string, genero: string, reasons: string[] }}
    */
   static analyze(url, pageContent = "") {
@@ -101,7 +147,6 @@ export class UrlAnalyzer {
         .split("/")
         .filter((s) => s.length > 0);
 
-      // Usually the last meaningful path segment is the product slug
       const slug = pathSegments[pathSegments.length - 1] || "";
       return slug
         .replace(/[-_]/g, " ")

@@ -59,11 +59,10 @@ export async function createProduct(sheets, productData) {
     };
   }
 
-  // 2. Analyze URL for compliance
-  const analysis = UrlAnalyzer.analyze(
-    productData.url_concorrente,
-    productData.page_content || ""
-  );
+  // 2. Analyze URL for compliance (fetch real page content)
+  const analysis = productData.page_content
+    ? UrlAnalyzer.analyze(productData.url_concorrente, productData.page_content)
+    : await UrlAnalyzer.analyzeWithFetch(productData.url_concorrente);
 
   // 3. Determine next number and generate ID
   const tabNames = await sheets.listTabs();

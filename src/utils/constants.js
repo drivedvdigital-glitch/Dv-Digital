@@ -54,11 +54,19 @@ export const BRAND_KEYWORDS = [
 
 /** Keywords that trigger "Atenção" risk for misleading health/beauty claims */
 export const HEALTH_CLAIM_KEYWORDS = [
+  // Português
   "emagrec", "emagrecimento", "antes e depois", "milagroso", "milagre",
   "rejuvenesce", "rejuvenescimento", "anti-idade", "anti-rugas",
   "queima gordura", "queima de gordura", "perda de peso", "perde peso",
   "elimina celulite", "acne", "manchas na pele", "clareamento",
   "crescimento capilar", "calvície", "queda de cabelo",
+  // Español (CO, GT, ES)
+  "crecimiento", "caída del cabello", "anticaída", "anti caída",
+  "adelgazar", "pérdida de peso", "quema grasa", "milagroso",
+  "antes y después", "rejuvenec", "anti-arrugas", "anti-edad",
+  "blanqueamiento", "aclarar la piel", "celulitis",
+  "crecimiento acelerado", "crecimiento capilar", "calvicie",
+  // English
   "whitening", "slimming", "weight loss", "fat burn", "miracle",
   "before and after", "anti-aging", "wrinkle", "skin lightening",
   "hair growth", "baldness", "acne removal",
