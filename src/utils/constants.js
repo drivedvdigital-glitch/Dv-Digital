@@ -15,6 +15,18 @@ export const GENERO_OPTIONS = ["Homem", "Mulher", "Ambos"];
 
 export const PAISES = ["CO", "RO", "GT", "ES", "PT", "CZ", "PL", "HU"];
 
+/** Mapeamento completo: sigla → nome do país */
+export const PAISES_NOMES = {
+  CO: "Colômbia",
+  RO: "Romênia",
+  GT: "Guatemala",
+  ES: "Espanha",
+  PT: "Portugal",
+  CZ: "República Tcheca",
+  PL: "Polônia",
+  HU: "Hungria",
+};
+
 /** Cell mapping for the product sheet template */
 export const CELL_MAP = {
   ID: "I2",
