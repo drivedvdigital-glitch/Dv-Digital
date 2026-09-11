@@ -614,75 +614,259 @@ Aqui a leitura da documentação **acrescentou versões que a passada 1 não tin
 
 ## 3. Principais reclamações dos usuários → oportunidades para o D&VFly
 
-Contexto: o PageFly tem ⚠️ ~4,9/5 com ~6.000 avaliações na App Store (≈95% cinco estrelas). As
-reclamações abaixo são de minoria, mas são **consistentes** e apontam exatamente onde um builder
-próprio ganha.
+> **Esta é a seção mais estratégica do documento.** Cada reclamação recorrente do líder de
+> mercado é um requisito do D&VFly disfarçado de queixa alheia.
 
-### 3.1 Código inchado e lentidão
+### 3.0 Base e método
 
-**O que dizem:** templates pesados contribuem para *code bloat*; "código sujo que deixa o site
-lento e atrapalha o SEO"; páginas ficam lentas com muitas imagens, widgets de terceiros ou
-seções complexas. A própria empresa vende "otimização de velocidade" como serviço do plano top.
+Números verificados na Shopify App Store:
 
-**Oportunidade D&VFly (a mais importante do projeto):**
-- Gerar **HTML semântico estático** no publish, não uma árvore renderizada por JS em runtime.
-- **CSS crítico por página**, escopado e minificado — só as regras dos blocos usados, nada de
-  folha global de 300 KB.
-- **Zero JavaScript por padrão**. JS só é emitido para blocos que realmente precisam (accordion,
-  countdown, carrossel, add-to-cart Ajax), carregado como módulo pequeno e adiado.
+| | |
+|---|---|
+| Nota geral | **4,9 / 5** |
+| Total de avaliações | **5.899** |
+| 5 estrelas | 95% (≈5.600) |
+| 4 estrelas | 3% (201) |
+| 3 estrelas | 27 avaliações |
+| 2 estrelas | 21 avaliações |
+| 1 estrela | 70 avaliações |
+
+No Trustpilot: **4,6 / 5 com 553 avaliações**, 99% delas de 5 estrelas — perfil típico de base
+coletada ativamente pelo fornecedor. G2 e Capterra não puderam ser lidos (bloqueio anti-bot).
+
+Foram lidos os **textos completos das avaliações de 1, 2 e 3 estrelas** (85 depoimentos, excluídas
+as respostas do fornecedor). A leitura muda o quadro em relação à passada 1: a minoria negativa é
+**muito** minoritária, mas é **notavelmente consistente**, e — o mais relevante — vem
+desproporcionalmente de **clientes antigos e de lojas grandes**, não de quem desistiu no primeiro
+dia. Há reviews de 1★ de contas com "mais de 4 anos usando o app" e de lojas com mais de 100
+páginas publicadas. Isso importa: são falhas que aparecem **com escala e com o tempo**, exatamente
+o tipo de problema que não se descobre num teste rápido.
+
+Abaixo, os padrões em ordem de frequência e de gravidade. Cada um vem com a leitura de causa
+provável — porque é a causa, não o sintoma, que o D&VFly precisa não repetir.
+
+### 3.1 O editor não bate com a página publicada
+
+**O padrão mais citado e o mais danoso.** "Divergências constantes entre o editor e a página
+ao vivo." "O que eu desenho no app não reflete o que é publicado." Cores que o editor mostra
+brancas e saem cinzas. Espaçamentos e fontes diferentes no mobile. Header, footer e barra de
+anúncio aparecendo na landing **mesmo com os toggles desligados** — com o suporte respondendo com
+trechos de CSS para colar manualmente, página por página.
+
+**Causa provável:** o editor renderiza a árvore num ambiente próprio e o storefront renderiza
+noutro, dentro do CSS do tema. São dois motores de renderização que precisam concordar, e não
+concordam. O próprio produto admite o problema ao oferecer um botão de "theme styling" no editor
+— e ao documentar que, em alguns temas, ligá-lo produz **tela em branco** e a orientação é
+desligar.
+
+**Oportunidade D&VFly — é uma decisão de arquitetura, não um bug a caçar:**
+- **Um motor de renderização só.** O editor deve renderizar exatamente o mesmo HTML/CSS que o
+  publish emite. Se o compilador for uma função pura `árvore → HTML + CSS`, o preview é o produto
+  dessa função dentro de um iframe com o CSS do tema real carregado. Não existe "divergência"
+  quando não existem dois caminhos.
+- **Isolamento explícito de CSS**, com prefixo/escopo próprio e sem herança acidental do tema.
+  O que o tema deve influenciar (tokens de marca) é escolha declarada, não acidente de cascata.
+- **Preview no contexto real do tema**, sempre, antes de publicar.
+
+### 3.2 Atualizações do app quebram páginas que já estavam prontas
+
+**O segundo padrão mais citado, e o de maior custo emocional.** "Você monta tudo perfeito, aí eles
+atualizam o app e todos os sites começam a ficar diferentes — espaçamentos, paddings, coisas que
+funcionavam param." "Ajustei esse botão cinco vezes; toda vez que eles atualizam algo, ele muda."
+"Eles forçaram um release no meio de uma construção de página, sem aviso, e o trabalho foi
+perdido." Há também o caso específico da **migração forçada de editor**: "a atualização obrigatória
+mudou todas as minhas páginas e não há como voltar ao editor antigo; sou obrigado a reformatar
+tudo".
+
+**Causa provável:** as páginas guardam **referências** ao runtime do app (classes, componentes,
+comportamentos padrão) em vez de guardarem o resultado. Quando o runtime muda, a página muda
+junto. É a mesma raiz do problema 3.1, vista no eixo do tempo em vez do eixo do ambiente.
+
+**Oportunidade D&VFly — o antídoto é publicar resultado, não referência:**
+- **O publish congela o output.** O HTML e o CSS de uma página publicada não mudam porque o
+  builder mudou. Uma página só muda quando alguém a edita e republica.
+- **Versionar o compilador junto com a página.** Cada versão publicada guarda com qual versão do
+  compilador foi gerada; atualizar o builder não reescreve nada retroativamente.
+- **Histórico de versões generoso e restauração em um clique** — o seguro contra qualquer erro,
+  nosso ou do usuário. O concorrente guarda 50 salvamentos manuais; num app privado, sem custo de
+  escala, dá para guardar bem mais e ainda oferecer **diff visual** entre versões.
+- **Nunca migrar o usuário à força.** Se um dia houver v2 do modelo de blocos, páginas v1 seguem
+  renderizando com o compilador v1.
+
+### 3.3 O app suja o tema, e a sujeira escala
+
+Relatos concretos e verificáveis: "depois de uma atualização de tema, o app fez **mais de 100
+alterações não autorizadas** na loja (confirmado pelo suporte do Shopify)"; "instalou código
+global no site mesmo eu tendo só uma página de teste"; "o sistema tem um problema de duplicação —
+se você faz backup do tema, ele pode duplicar toda página criada com ele; **acabamos com mais de
+3.000 páginas duplicadas**"; "sobraram tantos arquivos mesmo depois de desinstalar".
+
+**Isto não é só percepção — está na documentação do próprio fornecedor.** O guia oficial de
+desinstalação instrui o merchant a, manualmente: procurar "pagefly" no editor de código e
+**apagar os arquivos Liquid**, abrir o `theme.liquid` e **apagar o código do app**, abrir
+`locales/en.default.json` e **apagar um bloco de tradução inteiro**, e reverter `product.liquid`,
+`collection.liquid` e `index.liquid` para versões anteriores. Ou seja: o app escreve em arquivos
+centrais do tema, e a remoção automática não cobre tudo.
+
+**Oportunidade D&VFly:**
+- **Escrever o mínimo possível no tema, e saber exatamente o que escreveu.** Manter um inventário
+  explícito de cada arquivo e cada bloco inserido — o que permite uma remoção completa e auditável.
+- **Preferir Theme App Extension** (app embed/app block) ao invés de editar arquivos do tema
+  sempre que a funcionalidade couber lá; ver Apêndice A.3 e A.4.
+- **Nada de código global enquanto não houver página publicada.** Se não há conteúdo do builder na
+  loja, o storefront não deve carregar um único byte nosso.
+- **Rotina de desinstalação que de fato limpa**, documentada e testável.
+- Cuidado explícito com **backup/duplicação de tema**: a lógica de mapeamento página↔template
+  precisa ser idempotente e tolerar cópias do tema sem se multiplicar.
+
+### 3.4 Lock-in: as páginas não sobrevivem ao app
+
+Confirmado pela documentação e pelos relatos. Na desinstalação, **tudo é apagado imediatamente e
+de forma irreversível** — páginas, seções, analytics, testes A/B, swatches, fontes enviadas,
+estilos globais, templates salvos e até a lixeira — sem período de carência e sem backup do lado
+do fornecedor. *(Correção da passada 1: não existe a "janela de ~24 h" que estava registrada.)*
+
+O relato mais duro é o de escopo: "eles avisam que a desinstalação apaga o que você criou, mas não
+avisam que a limpeza leva **qualquer página da qual eles já tiveram registro** — mesmo as que eu
+reconstruí nativamente depois. Exportamos tudo antes, mas o formato não serve para nada além do
+próprio app. Estamos reconstruindo 100+ páginas."
+
+E o export confirma: sai em formato proprietário `.pagefly`, **sem as imagens**, importável apenas
+em outra loja que também tenha o app.
+
+**Oportunidade D&VFly — anti-lock-in como recurso, não como generosidade:**
+- **Export estático de HTML + CSS** por página, colável direto no tema. Quando a arquitetura já
+  compila para HTML estático, isso custa quase nada.
+- **O conteúdo publicado vive no Shopify**, não só no banco do app. Se o app sumir, a página
+  continua de pé.
+- **Export do documento de blocos em JSON aberto e documentado** — o nosso formato, mas legível e
+  reimportável sem depender de ninguém.
+- **Nunca apagar o que não criamos.** O inventário da 3.3 serve também aqui: a desinstalação só
+  toca no que está registrado como nosso.
+
+### 3.5 Instabilidade e indisponibilidade
+
+"O app trava constantemente e dá erros internos de servidor. **Pelo menos uma vez por mês
+perdemos o acesso ao console por meio dia ou mais.**" "A home e algumas páginas de produto pararam
+de carregar em certas versões de iPhone — terceira vez este ano." "O editor trava a cada poucos
+minutos; o suporte disse que minha página está perto do limite de tamanho (não acima dele)."
+
+Esse último é revelador: casa exatamente com o limite de **256 KB por página** documentado na
+seção 1.13. O editor degrada **antes** do teto, e o conselho oficial é remover elementos.
+
+**Oportunidade D&VFly:**
+- O app privado tem uma vantagem estrutural: **a loja não depende do nosso servidor para servir a
+  página**. Se o publish gera HTML que vive no tema do Shopify, nosso app pode estar fora do ar
+  sem que nenhum cliente perceba. Isso precisa ser um princípio, não um acaso — **nada do
+  storefront pode depender de uma chamada em tempo real ao nosso backend**.
+- **Orçamento de tamanho por página verificado no build**, com aviso no editor bem antes do teto,
+  mostrando o peso real do output compilado.
+- Editor que aguenta páginas longas: virtualização da árvore e do canvas, não renderização ingênua.
+
+### 3.6 Suporte: rápido em responder, caro em resolver
+
+É o tema mais frequente em absoluto nas notas 2 e 3 — e curiosamente também o mais elogiado nas
+de 5. O padrão nas negativas: muitos atendentes por ticket ("quatro agentes diferentes em três
+dias, cada um com uma resposta"), necessidade de reexplicar o problema do zero a cada troca,
+fuso horário, resposta em forma de "cole este CSS" em vez de correção do produto, e — o mais
+grave — **o suporte pedindo acesso de colaborador e editando o tema diretamente**, às vezes
+quebrando a loja, às vezes publicando página inacabada no ar fora do horário comercial do cliente.
+
+**Oportunidade D&VFly:** num app privado não há suporte — o que significa que **o produto tem de
+se explicar sozinho e ser reversível**. Concretamente:
+- Histórico de versões e restauração em um clique (ver 3.2) é o substituto do suporte.
+- **Publicar é sempre um ato explícito e reversível**, nunca um efeito colateral.
+- Mensagens de erro que dizem o que fazer, não códigos.
+
+### 3.7 Performance e SEO do output
+
+"Código sujo que deixa o site lento e atrapalha o SEO." "Montei um formulário de contato simples
+com o template base deles e o Lighthouse deu **23**. Quando você vai no site procurar como
+acelerar, o artigo é muito defensivo, culpando tudo menos eles." "Falta a funcionalidade básica de
+escolher só a imagem principal do produto — ele puxa as imagens de todas as variantes, o que
+derruba a velocidade." "Minha loja sumiu do Google depois que instalei."
+
+E de fato, como registrado em 1.13, a página oficial sobre velocidade afirma que **o app não
+impacta o PageSpeed da loja** e encaminha o merchant a otimizar imagens e revisar outros apps.
+
+**Oportunidade D&VFly — este é o núcleo do projeto:**
+- **Gerar HTML semântico estático no publish**, não uma árvore renderizada por JS em runtime.
+- **CSS crítico por página**, escopado e minificado — só as regras dos blocos usados.
+- **Zero JavaScript por padrão.** JS só para blocos que realmente precisam (accordion, countdown,
+  carrossel, add-to-cart Ajax), como módulo pequeno e adiado.
 - `loading="lazy"` + `srcset` + dimensões explícitas em toda imagem (mata CLS).
-- Meta de performance como requisito de aceite, não como aspiração: **LCP < 2,5 s, CLS < 0,1,
-  INP < 200 ms** em 4G simulado.
+- Puxar **só as mídias necessárias** do produto, com seleção explícita.
+- **Metas de performance como critério de aceite, não como aspiração:** LCP < 2,5 s, CLS < 0,1,
+  INP < 200 ms em 4G simulado, medidos no build.
 
-### 3.2 Lock-in: as páginas não sobrevivem sem o app
+### 3.8 Responsividade dá trabalho dobrado
 
-**O que dizem:** as páginas são construídas sobre a infraestrutura do app e "não se sustentam
-sozinhas"; ao desinstalar, os dados são apagados permanentemente (com janela de ~24 h) e há
-relatos de site quebrado depois da remoção; a desinstalação não limpa todos os vestígios.
+"As edições não se aplicam entre as visualizações (desktop, mobile, tablet), é super frustrante."
+"Não há jeito fácil de fazer a versão mobile de um design desktop: se você tem imagem paisagem no
+desktop e retrato no mobile, precisa criar dois designs — e nenhum dos dois fica otimizado para
+tablet, então é um terceiro."
 
-**Oportunidade D&VFly:**
-- **Export estático**: botão que gera HTML + CSS limpos da página, coláveis direto no tema.
-- O conteúdo publicado vive no Shopify (campo `body_html` da Page, ou seção/template do tema),
-  não só no banco do app. Se o app sumir, a página continua de pé.
-- Rotina de desinstalação que limpa o que injetou, documentada.
-
-### 3.3 Modelo de slots e preço
-
-**O que dizem:** pagar por página publicada é caro ao escalar; "ilimitado" só no plano mais caro;
-para fazer downgrade é preciso despublicar páginas.
-
-**Oportunidade D&VFly:** app privado — **sem slots, sem planos, sem billing**. Some uma classe
-inteira de código e de frustração.
-
-### 3.4 Suporte e confiabilidade
-
-**O que dizem:** demora em problemas sérios; tickets passando por vários atendentes com
-respostas desconexas; relatos de perder acesso às próprias páginas; conflito com outros apps
-quebrando home e página de produto.
+**Causa provável:** a cascata entre breakpoints não é herdada de forma previsível; cada faixa vira
+um design paralelo em vez de um conjunto de sobreposições sobre uma base.
 
 **Oportunidade D&VFly:**
-- **Histórico de versões generoso** e restauração em um clique — seu seguro contra qualquer erro.
-- **Preview antes de publicar**, sempre.
-- Isolamento de CSS por página (escopo por classe/prefixo próprio) para não colidir com o tema
-  nem com outros apps.
+- **Cascata explícita e visível.** Um valor definido no desktop vale para baixo até alguém
+  sobrescrevê-lo; a UI mostra claramente se o valor daquele campo é **herdado** ou **próprio**, e
+  permite limpar a sobreposição com um clique.
+- **Mobile-first de verdade** nos blocos padrão: empilhar sozinho, imagem com `art direction` via
+  `<picture>` quando o usuário fornecer duas imagens, sem exigir dois layouts.
 
-### 3.5 Limites de customização e curva de aprendizado
+### 3.9 Modelo de slots e preço
 
-**O que dizem:** usuários batem em paredes de customização; animações limitadas frente a
-concorrentes; controle fino exige cair no editor de código.
+"Pagar por página publicada fica caro ao escalar." "Seções salvas contam no total da assinatura —
+é uma tentativa idiota de aumentar a receita." "Para usar um layout no blog eu tenho que pagar um
+slot por post, ou 50 dólares por mês a mais." "Ao fazer downgrade, os recursos premium
+desaparecem imediatamente." "Não dá para usar as mesmas funções numa loja de desenvolvimento — é
+prática comum construir e testar antes de subir para produção; outros builders permitem."
+
+**Oportunidade D&VFly:** app privado — **sem slots, sem planos, sem billing, sem gate**. Some uma
+classe inteira de código e de frustração. E, de quebra: **funciona igual na loja de
+desenvolvimento**, porque não há nada a liberar.
+
+### 3.10 Curva de aprendizado e limites de customização
+
+"Completamente desenhado para desenvolvedores." "A barra lateral direita parece um painel de
+nave espacial: preciso navegar entre seção, linha, coluna para ajustar **um** parâmetro." "Isto
+não é drag and drop." Pedidos recorrentes: arrastar livre de verdade, sobreposição de camadas,
+lógica de interface parecida com a do Figma.
+
+Há também limitações funcionais pontuais e reveladoras: **links de produto na lista de coleção não
+são links HTML de verdade** — são handlers de clique, então não dá para copiar o endereço, nem
+abrir em nova aba com ctrl+clique, o que é ruim de usabilidade e de SEO. E preços com desconto do
+Shopify não aparecem corretamente na página do builder.
 
 **Oportunidade D&VFly:**
-- Escape hatch de primeira classe: bloco de HTML/Liquid e CSS por página, sem fricção.
-- Menos blocos, porém mais **componíveis** (um repetidor genérico bem feito > 30 blocos rígidos).
+- **Menos blocos, mais componíveis.** Um repetidor genérico bem feito vale mais que trinta blocos
+  rígidos.
+- **Escape hatch de primeira classe:** bloco HTML/Liquid e CSS por página e por elemento, sem
+  fricção — mas como complemento, não como a única saída.
+- **HTML correto por padrão.** Link é `<a href>`. Botão é `<button>`. Isso não é detalhe: é SEO,
+  acessibilidade e a diferença entre uma página de builder e uma página de verdade.
+- Interface enxuta: o inspector mostra o que é relevante para o elemento selecionado, com busca de
+  parâmetro — e a navegação pela árvore não deveria ser pré-requisito para mudar uma cor.
 
-### 3.6 Dependência do app para editar
+### 3.11 Dependência do app para editar
 
-**O que dizem:** por não gerar seções Liquid nativas, o conteúdo não é editável no Theme Editor
-do Shopify sem o app.
+Por não gerar seções Liquid nativas, o conteúdo não é editável no Theme Editor do Shopify sem o
+app — e, como visto em 3.4, some junto com ele.
 
-**Oportunidade D&VFly:** para seções, gerar uma **seção Liquid real** com `schema`, para que o
-conteúdo continue editável no Theme Editor. Recurso P1 de alto valor e baixo custo relativo.
+**Oportunidade D&VFly:** para seções, gerar uma **seção Liquid real com `schema`**, de modo que
+o conteúdo continue editável no editor de tema do Shopify mesmo sem o nosso app aberto. É um
+recurso P1 de alto valor e custo relativo baixo, e é a resposta estrutural a 3.4 e 3.11 ao mesmo
+tempo.
 
+### 3.12 Resumo: os cinco compromissos que saem desta seção
+
+1. **Um motor de renderização só** — o que o editor mostra é o que o publish emite (3.1).
+2. **O publish congela o output** — atualizar o builder nunca altera página publicada (3.2).
+3. **Pegada mínima e auditável no tema** — inventário do que escrevemos, remoção completa (3.3, 3.4).
+4. **O conteúdo sobrevive ao app** — HTML no tema, export estático, JSON aberto (3.4, 3.11).
+5. **Performance é critério de aceite** — orçamento verificado no build, não promessa (3.7).
 ---
 
 ## 4. Tabela de priorização: recurso → prioridade
