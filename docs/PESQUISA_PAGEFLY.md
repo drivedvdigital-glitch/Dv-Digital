@@ -1112,51 +1112,398 @@ Os números acima foram **contados nas tabelas 4.1 a 4.9**, não estimados.
 
 1. **O diferencial do D&VFly é o output, não o catálogo.** O mercado já resolveu "muitos blocos".
    Ninguém resolveu "página de builder que carrega como página de tema". Publicar HTML estático +
-   CSS crítico escopado + JS sob demanda é a decisão arquitetural mais importante do projeto.
+   CSS crítico escopado + JS sob demanda é a decisão arquitetural mais importante do projeto — e
+   a leitura direta reforçou o argumento: a própria documentação do concorrente admite um teto de
+   **256 KB por página** e recomenda *remover elementos* quando se chega perto dele.
 
-2. **O editor deve produzir um documento de dados, não HTML.** Guardar uma árvore JSON de blocos
-   e compilá-la para HTML/CSS no publish separa edição de renderização — e é o que permite
-   otimizar o output, versionar barato e exportar estático depois.
+2. **O editor deve produzir um documento de dados, não HTML.** Guardar uma árvore JSON de blocos e
+   compilá-la para HTML/CSS no publish separa edição de renderização — e é o que permite otimizar
+   o output, versionar barato e exportar estático depois.
 
-3. **Um repetidor genérico vale por dez blocos.** Depoimentos, comparativos, cards de benefício,
+3. **Um compilador só, usado nos dois lados.** Corolário direto de 2 e resposta à reclamação nº 1
+   dos usuários do concorrente (3.1): o preview do editor deve ser o resultado da **mesma** função
+   `árvore → HTML + CSS` que o publish usa, renderizado dentro do CSS real do tema. Dois caminhos
+   de renderização é o que produz "o editor não bate com a página".
+
+4. **O publish congela o output.** Uma página publicada não pode mudar porque o builder mudou
+   (3.2). Cada versão publicada registra com qual versão do compilador foi gerada, e páginas
+   antigas continuam sendo servidas como foram compiladas.
+
+5. **Nascer flex.** O concorrente gastou duas versões maiores (4.16 e 4.23) trocando o modelo de
+   linha/coluna por flexbox, e pagou com a base de usuários. Começar do lado certo é grátis
+   exatamente uma vez.
+
+6. **Um repetidor genérico vale por dez blocos.** Depoimentos, comparativos, cards de benefício,
    logos, FAQ — tudo é a mesma estrutura com estilos sincronizados. Investir nesse primitivo
-   reduz drasticamente o tamanho da biblioteca.
+   reduz o tamanho da biblioteca em vez de aumentá-lo, e por isso ele subiu para P0.
 
-4. **Caminho de publicação em duas trilhas:** (a) páginas avulsas via Admin GraphQL API
-   (`pageCreate`/`pageUpdate`); (b) produto/coleção/home via template alternativo do tema
-   (JSON template + seção Liquid do app). Isso precisa ser desenhado na Fase 2, incluindo os
-   scopes necessários (`write_products`, `write_themes`, `write_content`/Online Store pages,
-   `read_themes`) — a serem confirmados em `shopify.dev` antes de fechar o `shopify.app.toml`.
+7. **Caminho de publicação em duas trilhas, agora com a API confirmada** (ver Apêndice A):
+   (a) páginas avulsas via **Admin GraphQL** `pageCreate` / `pageUpdate` / `pageDelete`, com
+   `isPublished` e `publishDate`; (b) produto/coleção/home via **template alternativo de tema**
+   (arquivo JSON no tema + `templateSuffix` no recurso). A trilha (b) tem um risco de viabilidade
+   que **precisa ser resolvido antes de fechar a arquitetura** — ver A.4.
 
-5. **Anti-lock-in como feature.** Export estático e conteúdo que sobrevive ao app não são
-   generosidade: são a resposta direta à reclamação nº 2 dos usuários do concorrente, e custam
-   pouco quando a arquitetura já compila para HTML estático.
+8. **Pegada mínima e auditável no tema.** Manter o inventário exato de cada arquivo e cada bloco
+   que o app escreve, e garantir remoção completa. É a resposta a 3.3 e 3.4, e o que separa um app
+   que dá para desinstalar de um que prende.
 
-6. **A/B test e analytics são P1, não P0 — mas o modelo de dados precisa nascer preparado.**
-   Se `Page` já tiver o conceito de variante desde o início, o A/B test da Fase 4 é uma feature
-   de UI, não uma migração dolorosa.
+9. **Anti-lock-in como recurso.** Export estático de HTML+CSS, documento de blocos em JSON aberto,
+   e conteúdo que vive no Shopify. Não é generosidade: é a resposta direta à segunda reclamação
+   mais grave dos usuários do concorrente, e custa pouco quando a arquitetura já compila para HTML.
+
+10. **O storefront nunca depende do nosso backend.** Se o app estiver fora do ar, a loja continua
+    vendendo. Isso torna irrelevante para o cliente final a classe inteira de problemas da seção 3.5.
+
+11. **A/B test e analytics são P1 — mas o modelo de dados nasce preparado.** Se `Page` já tiver o
+    conceito de variante desde o início, o A/B test da Fase 4 é feature de UI, não migração.
+
+12. **A auditoria de página é quase de graça.** Boa parte do que o concorrente vende como IA
+    (um H1, hierarquia de headings, alt text, CTA presente, placeholder não preenchido) é análise
+    estática da árvore de blocos — que o D&VFly terá em mãos. Entrega 70% do valor com 5% do custo.
 
 ---
 
 ## 6. Fontes consultadas
 
-Documentação e material oficial do PageFly:
-- Central de ajuda: `help.pagefly.io` — estrutura de página e elementos, criação de páginas e
-  seções, configurações de página, otimização, integrações, preços e billing, últimas atualizações
-- Blog de releases: `pagefly.io/blogs/shopify` — notas das versões 1.2.0, 2.3.0, 3.0, 3.8/3.9,
-  3.15, 3.16, 3.18/3.19, 3.20, 3.24, 3.25, 3.27, 3.29, 3.30, 4.2, 4.6, 4.10, 4.13, 4.14, 4.18,
-  4.19, 4.20
-- Páginas de produto: `pagefly.io` — templates, A/B testing, heatmap, AI page builder, pricing
-- Listagem na Shopify App Store: `apps.shopify.com/pagefly` (descrição, planos, reviews)
+### 6.1 Lidas diretamente nesta revisão
 
-Avaliações e análises independentes:
-- Shopify App Store — reviews (incl. filtros de 1 e 2 estrelas)
-- Trustpilot — `trustpilot.com/review/pagefly.io`
-- G2, Capterra, GetApp — fichas de produto e reviews
-- Comparativos de agências e concorrentes: ATTN Agency, Avada, ecomm.design, dodropshipping,
-  Supdropshipping, Minea, EComposer, GemPages, Liquiflow, ShopDigest
-- Shopify Community — tópicos sobre uso de PageFly com temas e outros apps
+**Central de ajuda do PageFly** — `help.pagefly.io`. Árvore completa mapeada pelo
+`sitemap-pages.xml` e pelo índice `llms.txt`; **as 241 páginas em inglês foram baixadas em
+Markdown e lidas.** As mais usadas neste documento:
 
-> Reitero a limitação da seção 0.2: as fontes acima foram consultadas **via busca web**, não por
-> leitura direta das páginas, devido ao bloqueio de egresso do ambiente. Números exatos devem ser
-> reconfirmados antes de qualquer uso externo deste documento.
+- Introdução e planos: `getting-started/pricing-and-billing/pricing-plans`,
+  `getting-started/pricing-and-billing/what-happens-if-i-uninstall-pagefly`,
+  `getting-started/quick-start/switch-theme-process-in-pagefly`
+- Páginas e seções: `pages-and-sections-creation/general/page-settings`,
+  `.../general/what-type-of-pages-that-pagefly-support`, `.../general/export-import-pages`,
+  `.../sections/saved-section`, `.../pages/how-to-create-a-b-testing-page-with-pagefly`,
+  `.../pages/how-to-create-ai-sales-pages-with-pagefly`
+- Editor: `page-structure-and-elements/editor/user-interface/how-to-work-with-pagefly-editor`,
+  `.../elements-general-settings`, `.../elements-style-settings`, `.../page-outline`,
+  `.../how-to-use-autosave-and-version-history`,
+  `page-structure-and-elements/editor/extra-functions/global-styling-feature`,
+  `.../flymate-pageflys-ai-assistant`, `.../use-image-manager-to-upload-media-files`, `.../trash`
+- Elementos: `page-structure-and-elements/pagefly-elements/*` (containers, basic, media, social,
+  advanced, universal-elements) e `page-structure-and-elements/shopify-elements/*` (custom
+  content, product, collection, form, blog-posts)
+- Analytics e CRO: `page-structure-and-elements/analytics/page-analytics/*` (overview, dashboards,
+  section-insights, sales-funnel, ai-analytics-co-pilot), `.../analytics/a-b-test-analytics`
+- Otimização: `page-structure-and-elements/optimization/how-to-use-page-checkup-in-pagefly`,
+  `.../how-to-use-aeo-in-pagefly`, `.../market-localization-create-localized-page-variants`,
+  `.../json-template-with-pagefly`, `.../custom-code-editor`, `.../pagespeed-optimization`
+- Cart Drawer: `cart-drawer/cart-drawer`, `cart-drawer/components`,
+  `cart-drawer/components/reward-ladder`, `cart-drawer/components/bundle-offers`
+- Integrações: `integrations/third-party-elements/what-apps-does-pagefly-integrate-with` (e as
+  20 páginas por categoria), `integrations/ai-assistant-connector/connect-pagefly-to-claude-chatgpt-or-another-ai-assistant`
+- Limites e erros: `faq-and-troubleshooting/troubleshooting/error-messages/page-size-limit`,
+  `.../limit-elements-on-a-page`, `.../limit-image-size`, `faq-and-troubleshooting/faqs/elements-faqs`
+
+**Shopify App Store** — `apps.shopify.com/pagefly`: descrição, recursos, planos, nota e
+distribuição de avaliações, e a aba de reviews com filtro `ratings[]=1`, `=2` e `=3` (85 textos
+lidos na íntegra).
+
+**Site do PageFly** — `pagefly.io`: `/pages/pricing`, `/pages/ai-page-builder`, `/pages/heatmap`,
+e o post de release `/blogs/shopify/pagefly-4-20-0` (o único ainda no ar).
+
+**Trustpilot** — `trustpilot.com/review/pagefly.io`: 4,6/5 com 553 avaliações.
+
+**Documentação da Shopify** — `shopify.dev`, versão de API `2026-07`. URLs no Apêndice A.
+
+### 6.2 Tentadas e indisponíveis
+
+| Fonte | Resultado |
+|---|---|
+| Notas de release 3.x e 4.x (exceto 4.20.0) | Removidas do ar pelo PageFly (404 ou redirect ao índice do blog) |
+| `web.archive.org` | Bloqueado neste ambiente — impede reconfirmar as datas removidas |
+| G2 | 403 (proteção anti-bot) |
+| Capterra | 403/404 (proteção anti-bot) |
+
+### 6.3 Herdadas da passada 1 (busca web, não releitura)
+
+Comparativos de agências e de concorrentes (ATTN Agency, Avada, ecomm.design, dodropshipping,
+Supdropshipping, Minea, EComposer, GemPages, Liquiflow, ShopDigest) e tópicos da Shopify Community.
+Usadas apenas para observações qualitativas que não contradizem as fontes primárias — por exemplo,
+a avaliação de que as animações são limitadas frente a concorrentes.
+
+---
+
+## Apêndice A — APIs da Shopify que o D&VFly vai usar
+
+> **Propósito:** destravar a Fase 2. Tudo aqui foi lido em `shopify.dev` nesta revisão, na versão
+> de API **`2026-07`** (o alias `latest`). Onde a documentação é ambígua, está dito que é ambígua
+> — não há suposição preenchendo lacuna.
+
+### A.1 Páginas da loja online — Admin GraphQL
+
+Trilha de publicação para páginas avulsas (Regular/landing). Só há **três mutations**, e não
+existem operações separadas de publicar e despublicar: publicação é um campo.
+
+| Operação | Mutation | Scopes |
+|---|---|---|
+| Criar | `pageCreate(page: PageCreateInput!)` | qualquer um entre `write_content` e `write_online_store_pages` |
+| Atualizar | `pageUpdate(id: ID!, page: PageUpdateInput!)` | idem |
+| Excluir | `pageDelete(id: ID!)` | idem |
+| Ler | query `page` / `pages` | `read_content` (ou `read_online_store_pages`) |
+
+**`PageCreateInput`**
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| `title` | `String!` | único obrigatório |
+| `body` | `String` | o conteúdo da página, **com marcação HTML** |
+| `handle` | `String` | gerado a partir do título se omitido; é por ele que o Liquid referencia a página |
+| `isPublished` | `Boolean` | `true` por padrão quando não há data de publicação |
+| `publishDate` | `DateTime` | ISO 8601 — **agendamento de publicação nativo** |
+| `templateSuffix` | `String` | sufixo do template do tema; vazio ou nulo = template padrão |
+| `metafields` | `[MetafieldInput!]` | metafields na criação |
+
+**`PageUpdateInput`** tem os mesmos campos e mais um:
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| `redirectNewHandle` | `Boolean` (padrão `false`) | se `true`, cria automaticamente o redirect do handle antigo para o novo |
+
+**Publicar e despublicar** é `pageUpdate` com `isPublished: true/false`. **Agendar** é
+`publishDate` com data futura.
+
+**O que isso significa para o D&VFly:**
+
+- O campo `body` recebe HTML. É exatamente o encaixe da nossa arquitetura: o compilador gera
+  HTML+CSS e escreve em `body`. A página passa a existir **dentro do Shopify**, não só no nosso
+  banco — que é o item 9 da seção 5, resolvido de graça.
+- `publishDate` entrega o agendamento de publicação sem nenhum código de scheduler do nosso lado.
+  Por isso o item subiu para P1 em 4.5.
+- `redirectNewHandle` evita quebrar links ao renomear. É P1 em 4.6 e custa um booleano.
+- `templateSuffix` na própria Page permite que uma página avulsa use um template de tema
+  alternativo — útil se quisermos uma página sem header/footer, por exemplo.
+
+⚠️ **Ambiguidade real:** as três mutations dizem aceitar `write_content` **ou**
+`write_online_store_pages`, mas a tabela oficial de access scopes lista apenas
+`read_content`, `write_content` e `read_online_store_pages` — **`write_online_store_pages` não
+aparece na tabela**. Não dá para saber, pela documentação, se é escopo novo ainda não
+documentado ou erro de referência. **Recomendação: declarar `write_content`**, que está
+documentado nos dois lugares.
+
+### A.2 Templates alternativos de tema — produto, coleção e home
+
+Este é o caminho para os tipos de página que não são "uma Page": produto, coleção, home e blog.
+
+**Como funciona no tema.** Um template alternativo é um arquivo no diretório `templates/` com o
+nome no formato `nome.sufixo.tipo` — por exemplo `product.dvfly-oferta.json`. O recurso
+(produto, coleção) aponta para ele pelo **sufixo**. A home é caso especial: `index.json` é único,
+então "página inicial customizada" significa **substituir ou compor o `index.json`**, não criar
+uma alternativa — o que explica por que, no concorrente, publicar a home substitui a do tema e
+despublicar a devolve.
+
+**Dois passos, duas APIs diferentes:**
+
+**Passo 1 — criar o arquivo de template no tema.**
+
+| Operação | Mutation | Scopes |
+|---|---|---|
+| Criar/atualizar arquivos do tema (até 50 por chamada, assíncrono, devolve um `job`) | `themeFilesUpsert(themeId: ID!, files: [OnlineStoreThemeFilesUpsertFileInput!]!)` | `write_themes` **+ isenção** — ver A.4 |
+| Excluir arquivos | `themeFilesDelete` | idem |
+| Copiar arquivos | `themeFilesCopy` | idem |
+| Listar temas e arquivos | query `themes` / objeto `OnlineStoreTheme` | `read_themes` (sem isenção) |
+
+Cada arquivo é `{ filename, body: { type, value } }`.
+
+**Passo 2 — apontar o recurso para o template.** Aqui não há isenção nem restrição especial:
+
+| Recurso | Mutation | Campo | Scope |
+|---|---|---|---|
+| Produto | `productUpdate` | `templateSuffix` em `ProductUpdateInput` | `write_products` |
+| Coleção | `collectionUpdate` | `templateSuffix` em `CollectionInput` | `write_products` |
+| Página | `pageUpdate` | `templateSuffix` em `PageUpdateInput` | `write_content` |
+
+**Limites confirmados:**
+
+- **Máximo de 1.000 templates JSON por tema**, somando todos os tipos. É o mesmo limite que o
+  concorrente documenta e contorna caindo para template Liquid a partir do 1.001º.
+- `gift_card`, `robots.txt`, `agents.md`, `llms.txt` e `llms-full.txt` **não podem** ser JSON.
+- **Não é possível substituir o template padrão** por um alternativo — o padrão só muda editando
+  o código do próprio template.
+- Os templates de conta de cliente (`customers/*`) estão **descontinuados**; contas de cliente
+  agora funcionam independentes do tema.
+
+**Templates contextuais (bônus relevante).** A Shopify suporta nativamente
+`index.context.<mercado>.json`, com um campo `context` (`{"market": "handle"}` ou `{"b2b": true}`)
+e um `parent` apontando para o template base — o arquivo carrega **só as sobreposições**. É
+quase certamente o mecanismo por trás da "market localization" do concorrente, e é o caminho
+nativo caso o D&VFly queira variantes por mercado algum dia (é P2 em 4.9).
+
+### A.3 Theme App Extensions — app embeds vs. app blocks
+
+Uma theme app extension contém **blocks** (arquivos Liquid que são o ponto de entrada),
+**assets** (CSS/JS servidos pelo CDN da Shopify) e **snippets** reutilizáveis. É versionada e
+implantada pelo Shopify CLI, e **não edita código do tema** — daí o menor risco de quebrar a loja.
+
+| | **App block** | **App embed block** |
+|---|---|---|
+| Como se declara | `target: "section"` no schema | `target: "head"`, `"body"` ou `"compliance_head"` |
+| Onde renderiza | Inline, dentro de uma seção do tema, na posição que o merchant escolher | Injetado antes do `</head>` ou do `</body>` |
+| Estado inicial | Não aparece sozinho: o merchant precisa **adicionar** no editor de tema | Vem **desativado**: o merchant precisa **ativar** em Configurações do tema → App embeds |
+| Exige | Tema com **templates JSON** e seções que suportem blocos do tipo `@app` | Nada — funciona em temas vintage e OS 2.0 |
+| Dados dinâmicos | **Sim** — pode apontar para fontes dinâmicas (produto do contexto etc.) | **Não** — só tem acesso ao escopo Liquid global da página |
+| Usar para | Conteúdo inline: avaliações, selos, blocos posicionáveis, conteúdo de largura total | Elementos flutuantes/sobrepostos, meta tags de SEO, analytics, pixels |
+
+**Limitações de ambos (validadas no deploy — se estourar, a extensão não sobe):**
+
+| Item | Limite | Tipo |
+|---|---|---|
+| Todos os arquivos da extensão | 10 MB | rígido |
+| Número de blocks | 30 | rígido |
+| Arquivos de locale | 100 | rígido |
+| Tamanho de cada locale | 15 KB | rígido |
+| Liquid somado de todos os arquivos | 100 KB | rígido |
+| CSS comprimido referenciado pelo schema | 100 KB | sugerido |
+| JS comprimido referenciado pelo schema | 10 KB | sugerido |
+
+**Restrições funcionais:**
+
+- **Não renderizam em páginas de checkout** (nem no status do pedido).
+- **Sem acesso** a `content_for_header`, `content_for_index` e `content_for_layout`.
+- Do objeto `section` pai, um app block só enxerga o `id` — que serve para usar a
+  **Section Rendering API**.
+- **JSON sem comentários nem vírgula sobrando** (ao contrário dos arquivos de tema).
+
+**Deep linking — o caminho sem escrever no tema.** O app pode mandar o merchant para uma URL que
+abre o editor de tema já com o bloco posicionado, para ele só aprovar e salvar:
+
+```
+https://<loja>.myshopify.com/admin/themes/current/editor
+  ?template={template}
+  &addAppBlockId={api_key}/{handle}
+  &target=newAppsSection
+```
+
+Há variantes de `target` para grupos de seção (`sectionGroup:header|footer|aside`) e para uma
+seção específica (`sectionId:<id>`). Um bloco por vez. Como **todos os templates JSON de temas da
+Theme Store são obrigados a suportar app blocks na seção "Apps"**, esse caminho funciona de forma
+previsível. Para app embed há URL equivalente de ativação.
+
+> **Para o D&VFly isto é uma alternativa séria à trilha de escrever templates.** Empacotar os
+> blocos como app blocks + deep link significa: nenhuma escrita em arquivo de tema, nenhuma
+> isenção necessária, conteúdo editável no editor de tema (respondendo a 3.11), e uma pegada que
+> o merchant remove sozinho. O preço é o teto de **30 blocks** e o fato de o conteúdo passar a
+> morar nas settings do tema. Vale avaliar na Fase 2 como caminho principal ou híbrido.
+
+### A.4 Access scopes para o `shopify.app.toml`
+
+**Mínimo para o MVP (páginas avulsas):**
+
+```toml
+scopes = "write_content,read_themes"
+```
+
+**Para a trilha de templates de produto/coleção/home:**
+
+```toml
+scopes = "write_content,read_themes,write_themes,write_products"
+```
+
+**Conforme o escopo crescer:**
+
+| Necessidade | Scope | Recurso |
+|---|---|---|
+| Upload de imagens para a biblioteca da loja | `write_files` | `fileCreate` (aceita também `write_themes` ou `write_images`) |
+| Metafields na página | o mesmo do recurso dono | `metafieldsSet` exige o mesmo nível do recurso |
+| Traduções | `read_translations`, `write_translations` | `TranslatableResource` |
+| Redirects de URL | `write_online_store_navigation` | `UrlRedirect` |
+| Analytics por pixel | `read_customer_events`, `write_pixels` | Web Pixels API |
+| Descontos em gaveta de carrinho (se um dia) | `read/write_cart_transforms`, `read/write_discounts` | Shopify Functions |
+
+#### ⚠️ O ponto que precisa ser resolvido antes de fechar a arquitetura
+
+A documentação da Shopify diz **duas coisas que não se encaixam**, e a diferença decide se a
+trilha de templates (A.2) é viável:
+
+1. **Nas mutations de arquivo de tema** (`themeFilesUpsert`, `themeFilesDelete`, `themeFilesCopy`,
+   `themeCreate`, `themePublish`), a exigência é declarada sem ressalva:
+   *"o usuário precisa de `write_themes` **e uma isenção concedida pela Shopify** para modificar
+   arquivos de tema"*, com link para um formulário de pedido de exceção.
+
+2. **Na página que explica a restrição**, o texto limita o alcance: a restrição vale para apps
+   **"distribuídos na Shopify App Store"**. E a página de apps customizados criados pelo admin
+   lista `read_themes` / `write_themes` como scopes **atribuíveis normalmente pelo lojista**,
+   bastando que a conta tenha a permissão de gerenciar templates e assets do tema — sem menção a
+   isenção.
+
+O D&VFly é um **app privado da própria loja**, não distribuído. Pela leitura 2, `write_themes`
+deveria ser atribuível direto no admin. Pela leitura 1, seria necessária isenção. **A
+documentação não resolve isso de forma explícita e este documento não vai adivinhar.**
+
+Detalhe encorajador, e nada mais que isso: a lista de casos elegíveis a isenção começa
+literalmente com **"Page builders: o app adiciona ou substitui todos os arquivos de layout ou
+template com o objetivo de oferecer uma experiência alternativa de customização do tema"** — é a
+descrição exata do D&VFly. A ressalva é que a isenção **não** é concedida a apps que mexem em
+poucas páginas.
+
+**Como resolver na Fase 2, em ordem:**
+
+1. **Testar empiricamente.** Criar o app no admin da loja, atribuir `write_themes` e tentar um
+   `themeFilesUpsert` num tema de desenvolvimento. É uma tarde de trabalho e responde a pergunta
+   melhor que qualquer leitura de documentação.
+2. **Ter o plano B pronto:** app blocks + deep linking (A.3), que não precisa de isenção nenhuma.
+3. **Planejar em fatias.** O MVP (páginas avulsas via `pageCreate`) **não depende disso**. Só a
+   trilha de produto/coleção/home depende — e ela já é P1, não P0, justamente por esse risco.
+
+### A.5 REST Admin API — status atual
+
+- A REST Admin API é **legada desde 1º de outubro de 2024**. Desde **1º de abril de 2025**, todo
+  novo app público precisa ser construído exclusivamente com a **GraphQL Admin API**.
+- O recurso REST **Page** continua documentado, e cada endpoint traz o link para a mutation
+  GraphQL equivalente. Usava o scope `content` e o campo `body_html` — hoje `body` no GraphQL.
+- O recurso REST **Asset** (arquivos de tema) tem restrição própria e **anterior**: desde a versão
+  `2023-04`, requisições `PUT` e `DELETE` exigem `write_themes`, e apps da App Store precisam de
+  isenção. **Leitura continua liberada sem isenção.** O prazo para migrar ou obter isenção era
+  31 de março de 2024.
+
+**Conclusão para o `shopify.app.toml`:** construir tudo em GraphQL. Não há motivo para tocar em
+REST, e a única coisa que a REST ainda oferece sem equivalente direto — escrita de asset de tema —
+tem a mesma restrição da versão GraphQL.
+
+### A.6 URLs consultadas
+
+Todas na versão `latest` (= `2026-07`). O sufixo `.md` serve a documentação em Markdown.
+
+**Páginas da loja online**
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/pageCreate`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/pageUpdate`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/pageDelete`
+- `shopify.dev/docs/api/admin-graphql/latest/input-objects/PageCreateInput`
+- `shopify.dev/docs/api/admin-graphql/latest/input-objects/PageUpdateInput`
+- `shopify.dev/docs/api/admin-graphql/latest/objects/Page`
+
+**Temas e templates**
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/themeFilesUpsert`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/themeFilesDelete`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/themeFilesCopy`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/themeCreate`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/themePublish`
+- `shopify.dev/docs/api/admin-graphql/latest/input-objects/OnlineStoreThemeFilesUpsertFileInput`
+- `shopify.dev/docs/api/admin-graphql/latest/input-objects/OnlineStoreThemeFileBodyInput`
+- `shopify.dev/docs/api/admin-graphql/latest/objects/OnlineStoreTheme`
+- `shopify.dev/docs/storefronts/themes/architecture/templates`
+- `shopify.dev/docs/storefronts/themes/architecture/templates/alternate-templates`
+
+**Atribuição de template ao recurso**
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/productUpdate`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/collectionUpdate`
+- `shopify.dev/docs/api/admin-graphql/latest/input-objects/ProductUpdateInput`
+- `shopify.dev/docs/api/admin-graphql/latest/input-objects/CollectionInput`
+
+**Theme App Extensions**
+- `shopify.dev/docs/apps/build/online-store/theme-app-extensions`
+- `shopify.dev/docs/apps/build/online-store/theme-app-extensions/configuration`
+
+**Scopes, apps customizados e legado**
+- `shopify.dev/docs/api/usage/access-scopes`
+- `shopify.dev/docs/apps/build/authentication-authorization/legacy/admin-custom-apps`
+- `shopify.dev/docs/apps/build/online-store/asset-legacy`
+- `shopify.dev/docs/api/admin-rest/latest/resources/page`
+- `shopify.dev/docs/api/admin-rest/latest/resources/asset`
+
+**Outros**
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/fileCreate`
+- `shopify.dev/docs/api/admin-graphql/latest/mutations/metafieldsSet`
