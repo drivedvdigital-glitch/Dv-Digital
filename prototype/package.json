@@ -1,0 +1,15 @@
+{
+  "name": "dvfly-prototype",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Phase 2 spike: proves the block-document -> HTML+CSS compiler thesis before committing to it.",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "build": "node --experimental-strip-types bin/build.ts",
+    "test": "node --experimental-strip-types --test \"test/*.test.ts\"",
+    "shopify:probe": "node --experimental-strip-types bin/shopify-probe.ts"
+  }
+}

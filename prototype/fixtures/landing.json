@@ -1,0 +1,322 @@
+{
+  "version": 1,
+  "tokens": {
+    "brand": "#1b3a2f",
+    "accent": "#c8632b",
+    "ink": "#17201c",
+    "muted": "#5d6b64",
+    "surface": "#f6f4ef"
+  },
+  "root": [
+    {
+      "id": "s-hero",
+      "type": "section",
+      "style": {
+        "base": {
+          "direction": "column",
+          "align": "center",
+          "gap": 20,
+          "padding": { "top": 48, "right": 20, "bottom": 48, "left": 20 },
+          "background": "#1b3a2f",
+          "color": "#f6f4ef"
+        },
+        "md": { "padding": { "top": 88, "right": 32, "bottom": 88, "left": 32 }, "gap": 28 }
+      },
+      "children": [
+        {
+          "id": "hero-title",
+          "type": "heading",
+          "props": { "level": 1, "text": "Café de origem, torrado na semana em que você pede" },
+          "style": {
+            "base": { "fontSize": 32, "lineHeight": 1.15, "fontWeight": 700, "textAlign": "center", "maxWidth": 620 },
+            "md": { "fontSize": 52 }
+          }
+        },
+        {
+          "id": "hero-sub",
+          "type": "text",
+          "props": { "text": "Grãos de produtores que a gente visita pessoalmente. Sem estoque parado, sem blend genérico." },
+          "style": {
+            "base": { "fontSize": 17, "lineHeight": 1.6, "textAlign": "center", "maxWidth": 520, "color": "#d7e0da" },
+            "md": { "fontSize": 20 }
+          }
+        },
+        {
+          "id": "hero-cta",
+          "type": "button",
+          "props": { "label": "Escolher meu café", "href": "/collections/cafes" },
+          "style": {
+            "base": {
+              "background": "#c8632b",
+              "color": "#ffffff",
+              "padding": { "top": 15, "right": 30, "bottom": 15, "left": 30 },
+              "radius": 999,
+              "fontSize": 17,
+              "fontWeight": 600,
+              "width": "hug"
+            }
+          }
+        },
+        {
+          "id": "hero-img",
+          "type": "image",
+          "props": {
+            "src": "/cdn/shop/files/hero-cafe.jpg",
+            "srcset": "/cdn/shop/files/hero-cafe_720x.jpg 720w, /cdn/shop/files/hero-cafe_1440x.jpg 1440w",
+            "sizes": "(min-width:768px) 960px, 100vw",
+            "alt": "Grãos de café recém-torrados sobre bancada de madeira",
+            "width": 1440,
+            "height": 810,
+            "eager": true
+          },
+          "style": { "base": { "radius": 12, "maxWidth": 960, "width": "fill" } }
+        }
+      ]
+    },
+
+    {
+      "id": "s-benefits",
+      "type": "section",
+      "style": {
+        "base": {
+          "direction": "column",
+          "gap": 24,
+          "padding": { "top": 48, "right": 20, "bottom": 48, "left": 20 }
+        },
+        "md": { "padding": { "top": 72, "right": 32, "bottom": 72, "left": 32 } }
+      },
+      "children": [
+        {
+          "id": "benefits-title",
+          "type": "heading",
+          "props": { "level": 2, "text": "Por que o nosso café chega diferente" },
+          "style": {
+            "base": { "fontSize": 26, "fontWeight": 700, "textAlign": "center", "color": "#17201c" },
+            "md": { "fontSize": 34 }
+          }
+        },
+        {
+          "id": "benefits-list",
+          "type": "repeater",
+          "props": {
+            "rows": [
+              { "icon": "/cdn/shop/files/i-torra.svg", "title": "Torra sob demanda", "body": "Torramos depois que o pedido entra. O grão sai do tambor para a caixa em até 48 horas." },
+              { "icon": "/cdn/shop/files/i-origem.svg", "title": "Origem rastreável", "body": "Cada embalagem traz o nome do produtor, a altitude e o lote. Dá para conferir." },
+              { "icon": "/cdn/shop/files/i-preco.svg", "title": "Preço justo na fonte", "body": "Pagamos acima do mercado direto ao produtor, sem atravessador." },
+              { "icon": "/cdn/shop/files/i-moagem.svg", "title": "Moagem na sua medida", "body": "Escolha entre grão inteiro e seis moagens, da prensa francesa ao espresso." },
+              { "icon": "/cdn/shop/files/i-frete.svg", "title": "Frete grátis acima de R$ 120", "body": "Para todo o Brasil, sem letra miúda e sem cupom." },
+              { "icon": "/cdn/shop/files/i-troca.svg", "title": "Não gostou, a gente troca", "body": "Trinta dias para trocar por outro perfil de torra, por nossa conta." }
+            ]
+          },
+          "style": {
+            "base": { "direction": "column", "gap": 16 },
+            "md": { "direction": "row", "wrap": true, "gap": 20, "justify": "center" }
+          },
+          "children": [
+            {
+              "id": "benefit-card",
+              "type": "stack",
+              "style": {
+                "base": {
+                  "direction": "column",
+                  "gap": 8,
+                  "padding": { "top": 20, "right": 20, "bottom": 20, "left": 20 },
+                  "background": "#f6f4ef",
+                  "radius": 10,
+                  "width": "fill"
+                },
+                "md": { "maxWidth": 320 }
+              },
+              "children": [
+                {
+                  "id": "benefit-icon",
+                  "type": "image",
+                  "props": { "src": "{{icon}}", "alt": "", "width": 40, "height": 40 },
+                  "style": { "base": { "width": 40 } }
+                },
+                {
+                  "id": "benefit-title",
+                  "type": "heading",
+                  "props": { "level": 3, "text": "{{title}}" },
+                  "style": { "base": { "fontSize": 18, "fontWeight": 600, "color": "#17201c" } }
+                },
+                {
+                  "id": "benefit-body",
+                  "type": "text",
+                  "props": { "text": "{{body}}" },
+                  "style": { "base": { "fontSize": 15, "lineHeight": 1.55, "color": "#5d6b64" } }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "s-social",
+      "type": "section",
+      "style": {
+        "base": {
+          "direction": "column",
+          "gap": 24,
+          "padding": { "top": 48, "right": 20, "bottom": 48, "left": 20 },
+          "background": "#f6f4ef"
+        },
+        "md": { "padding": { "top": 72, "right": 32, "bottom": 72, "left": 32 } }
+      },
+      "children": [
+        {
+          "id": "social-title",
+          "type": "heading",
+          "props": { "level": 2, "text": "O que dizem quem já assina" },
+          "style": {
+            "base": { "fontSize": 26, "fontWeight": 700, "textAlign": "center", "color": "#17201c" },
+            "md": { "fontSize": 34 }
+          }
+        },
+        {
+          "id": "testimonials",
+          "type": "repeater",
+          "props": {
+            "rows": [
+              { "quote": "Primeira vez que sinto diferença real entre um lote e outro. Vale cada centavo.", "name": "Marina A.", "city": "Curitiba, PR" },
+              { "quote": "Assino há oito meses. Nunca chegou atrasado e nunca veio o mesmo café duas vezes seguidas.", "name": "Rafael T.", "city": "Belo Horizonte, MG" },
+              { "quote": "Pedi moagem para prensa e veio exatamente certo. Pequeno detalhe que muda tudo.", "name": "Juliana P.", "city": "Recife, PE" },
+              { "quote": "O cartão com o nome do produtor é um charme. Virou assunto em casa.", "name": "Eduardo M.", "city": "Porto Alegre, RS" },
+              { "quote": "Troquei o perfil de torra depois de duas semanas e não cobraram nada.", "name": "Camila R.", "city": "Salvador, BA" },
+              { "quote": "Comprei de presente e a pessoa assinou no mês seguinte. Diz tudo.", "name": "Thiago L.", "city": "São Paulo, SP" },
+              { "quote": "Fresquinho de verdade. Dá para sentir no aroma quando abre o pacote.", "name": "Beatriz S.", "city": "Florianópolis, SC" },
+              { "quote": "Atendimento respondeu no mesmo dia e resolveu sem enrolação.", "name": "Gustavo F.", "city": "Goiânia, GO" },
+              { "quote": "Preço honesto pelo que entrega. Já cancelei outras duas assinaturas.", "name": "Letícia C.", "city": "Fortaleza, CE" },
+              { "quote": "Uso no espresso e na coada, mesmo lote. Aguenta os dois métodos.", "name": "André N.", "city": "Campinas, SP" },
+              { "quote": "A embalagem preserva bem. Terceira semana e o café ainda estava vivo.", "name": "Patrícia D.", "city": "Brasília, DF" },
+              { "quote": "Comecei desconfiado do preço e hoje não volto para supermercado.", "name": "Rodrigo V.", "city": "Niterói, RJ" }
+            ]
+          },
+          "style": {
+            "base": { "direction": "column", "gap": 14 },
+            "md": { "direction": "row", "wrap": true, "gap": 18, "justify": "center" }
+          },
+          "children": [
+            {
+              "id": "testimonial-card",
+              "type": "stack",
+              "style": {
+                "base": {
+                  "direction": "column",
+                  "gap": 10,
+                  "padding": { "top": 20, "right": 20, "bottom": 20, "left": 20 },
+                  "background": "#ffffff",
+                  "radius": 10,
+                  "borderWidth": 1,
+                  "borderColor": "#e3e0d8",
+                  "width": "fill"
+                },
+                "md": { "maxWidth": 340 }
+              },
+              "children": [
+                {
+                  "id": "testimonial-quote",
+                  "type": "text",
+                  "props": { "text": "{{quote}}" },
+                  "style": { "base": { "fontSize": 15, "lineHeight": 1.6, "color": "#17201c" } }
+                },
+                {
+                  "id": "testimonial-author",
+                  "type": "text",
+                  "props": { "text": "{{name}} — {{city}}" },
+                  "style": { "base": { "fontSize": 13, "fontWeight": 600, "color": "#5d6b64" } }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": "s-offer",
+      "type": "section",
+      "style": {
+        "base": {
+          "direction": "column",
+          "align": "center",
+          "gap": 16,
+          "padding": { "top": 44, "right": 20, "bottom": 44, "left": 20 },
+          "background": "#17201c",
+          "color": "#f6f4ef"
+        }
+      },
+      "children": [
+        {
+          "id": "offer-title",
+          "type": "heading",
+          "props": { "level": 2, "text": "Primeira assinatura com 25% off" },
+          "style": { "base": { "fontSize": 26, "fontWeight": 700, "textAlign": "center" }, "md": { "fontSize": 34 } }
+        },
+        {
+          "id": "offer-timer",
+          "type": "countdown",
+          "props": { "deadline": "2026-12-31T23:59:59-03:00", "fallback": "Oferta por tempo limitado" },
+          "style": { "base": { "fontSize": 22, "fontWeight": 700, "color": "#c8632b", "textAlign": "center" } }
+        },
+        {
+          "id": "offer-cta",
+          "type": "button",
+          "props": { "label": "Assinar com desconto", "href": "/products/assinatura" },
+          "style": {
+            "base": {
+              "background": "#c8632b",
+              "color": "#ffffff",
+              "padding": { "top": 15, "right": 30, "bottom": 15, "left": 30 },
+              "radius": 999,
+              "fontSize": 17,
+              "fontWeight": 600,
+              "width": "hug"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "id": "s-faq",
+      "type": "section",
+      "style": {
+        "base": {
+          "direction": "column",
+          "gap": 20,
+          "padding": { "top": 48, "right": 20, "bottom": 64, "left": 20 },
+          "maxWidth": 760,
+          "margin": { "top": 0, "right": "auto", "bottom": 0, "left": "auto" }
+        }
+      },
+      "children": [
+        {
+          "id": "faq-title",
+          "type": "heading",
+          "props": { "level": 2, "text": "Perguntas frequentes" },
+          "style": { "base": { "fontSize": 26, "fontWeight": 700, "color": "#17201c" }, "md": { "fontSize": 34 } }
+        },
+        {
+          "id": "faq-list",
+          "type": "accordion",
+          "props": {
+            "items": [
+              { "title": "Com que frequência chega?", "body": "Você escolhe entre 15, 30 ou 45 dias. Dá para pausar ou pular uma entrega a qualquer momento pelo painel." },
+              { "title": "Posso escolher o café?", "body": "Pode. Ou deixe no modo surpresa e a gente manda um lote diferente a cada ciclo, dentro do perfil que você marcou." },
+              { "title": "Qual o prazo de entrega?", "body": "De 2 a 5 dias úteis nas capitais e até 9 dias úteis no interior, contados da torra." },
+              { "title": "Como cancelo?", "body": "Pelo painel da conta, em dois cliques, sem falar com ninguém e sem multa." },
+              { "title": "Vocês moem na hora?", "body": "Moemos no momento do envio, na granulometria que você escolher. Para máxima frescura, recomendamos grão inteiro." },
+              { "title": "Tem café descafeinado?", "body": "Temos um lote descafeinado por processo natural com água, sem solvente químico, disponível o ano todo." },
+              { "title": "A embalagem é reciclável?", "body": "A caixa é de papelão reciclado e reciclável. O saco tem válvula e é compostável industrialmente." },
+              { "title": "Emitem nota fiscal?", "body": "Sim, em todo pedido. A nota vai por e-mail junto com o código de rastreio." }
+            ]
+          },
+          "style": { "base": { "direction": "column", "gap": 8 } }
+        }
+      ]
+    }
+  ]
+}
