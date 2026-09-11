@@ -196,6 +196,10 @@ QR code · Table · Countdown · Google Map · Progress · Mailchimp form
 | **Formulário** (7) | Customer form + field + button · Contact form + field + button · **Search form** |
 | **Blog** (6) | Blog post list · Blog post details · Blog post image · Blog post title · Blog post content · Blog post meta |
 
+Correção de granularidade: **mídia 3D não é um elemento próprio** — é um dos três tipos de mídia
+(imagem, modelo 3D, vídeo) que o elemento **Product Media** exibe, com a ressalva documentada de
+que a ação de hover não funciona em vídeos, modelos 3D nem em telas de toque.
+
 Elementos que a passada 1 não tinha mapeado e que merecem atenção: **Dynamic checkout button**
 (botão de pagamento expresso — Shop Pay, PayPal, Apple Pay), **Stock indicator** (escassez de
 estoque), **Sticky bar** (barra fixa de compra que acompanha a rolagem) e **Search form**.
@@ -958,7 +962,7 @@ prioridade, com a justificativa na própria linha.
 | Tabela genérica | **P2** |
 | QR code | **P2** |
 | Áudio / SoundCloud | **P2** |
-| Mídia 3D de produto | **P2** |
+| Mídia 3D de produto (tipo de mídia dentro do bloco de produto, não bloco próprio) | **P2** |
 | 🆕 Comparador de imagens (antes/depois) | **P2** |
 | 🆕 Formulário de busca | **P2** |
 | 🆕 Blocos de blog (lista, título, conteúdo, meta) | **P2** |
