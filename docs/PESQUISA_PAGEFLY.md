@@ -506,64 +506,110 @@ Regras do modelo:
 
 ## 2. Linha do tempo das atualizações relevantes
 
-⚠️ Datas parciais; algumas versões não têm data pública confirmada. A leitura importante é a
-**direção da evolução**, não o calendário exato.
+### 2.0 Nota de fonte — leia antes da tabela
 
-### Fase "fundação" (até 2022)
+Esta seção tem um problema de fonte que a leitura direta **não resolveu, mas esclareceu**:
+
+**O PageFly tirou do ar o histórico de releases.** As notas de versão eram publicadas como posts
+no blog, no padrão `pagefly.io/blogs/shopify/pagefly-X-Y-0`. Testando uma por uma: as da série 3.x
+retornam **404**; as da série 4.x até a 4.19.0 **redirecionam para o índice do blog** (o post não
+existe mais); **só a 4.20.0 continua no ar**, e é a única cuja data pôde ser lida na fonte
+primária. O sitemap do blog lista apenas essa. O Internet Archive está bloqueado neste ambiente,
+então não houve como recuperar as datas antigas.
+
+**E o PageFly parou de publicar release notes.** Não existe post para nenhuma versão acima da
+4.20.0 (testadas 4.21 a 4.30 e 5.0/5.1, todas 404), nem página de changelog, nem tag de release
+notes. Desde 2025 o que existe é: blocos **"Version Update"** espalhados dentro dos artigos da
+central de ajuda, e páginas de produto descrevendo recursos sem versão associada.
+
+Consequência prática: **as datas abaixo da 4.20.0 continuam marcadas com ⚠️** — são as da passada
+1, não reconfirmadas. Já **o conteúdo** de cada versão pôde ser confirmado e ampliado, porque os
+artigos da documentação dizem o que cada versão mudou. De 2025 em diante a tabela deixa de ser
+"versão → data" e passa a ser "versão → o que mudou", que é o que de fato interessa.
+
+### 2.1 Fase "fundação" (até 2022) — ⚠️ datas não reconfirmadas
 
 | Versão | O que trouxe |
 |---|---|
 | 1.2.0 | Suporte a novos tipos de página |
 | 2.3.0 | Controle ampliado sobre página de produto; revisão de UI |
-| 3.0 | Reescrita da plataforma ("built for the tomorrow of eCommerce") |
-| 3.8.0 / 3.9.0 | **Integração com Online Store 2.0**, imagens 3D, grande lote de novos elementos |
-| 3.15.0 | Sistema de espaçamento reformulado; mais temas suportados; integrações |
+| 2.9.0 | Novos planos de preço; page analytics (a página de preços atual ainda aponta para esse post como referência do modelo antigo) |
+| 3.0 | Reescrita da plataforma |
+| 3.8.0 / 3.9.0 | **Integração com Online Store 2.0**, mídia 3D de produto, grande lote de novos elementos |
+| 3.15.0 | Sistema de espaçamento reformulado; mais temas suportados |
 | 3.16.0 | Novo elemento; integrações; melhorias de UX/UI |
 
-### 2022–2023: seções globais, preço e integrações
+### 2.2 2022–2023: seções globais, preço e integrações — ⚠️ datas não reconfirmadas
 
 | Versão | Data | O que trouxe |
 |---|---|---|
-| 3.18.0 / 3.19.0 | — | **Global Sections** (publicar seção e inserir no Theme Editor), mídia 3D de produto, novo modelo de preços |
-| 3.20.0 | — | Novas configurações de estilo; integrações; UX/UI |
-| 3.24.0 | — | Melhorias no **Page Outline**; novos planos; integrações |
-| 3.25.0 | — | Melhorias no processo de **publicação** e em imagens; unificação dos campos de formulário; página despublicada permanece na lista do Shopify |
-| 3.27.0 | 2023 | Melhorias de mídia de produto; integrações; atualizações de **analytics** |
-| 3.29.0 | 23/02/2023 | Integrações AiTrillion, Recurpay, Track123 |
-| 3.30.0 | 09/03/2023 | Atualização in-app; integrações Minta e Enorm |
+| 3.18.0 / 3.19.0 | ⚠️ | **Global Sections** (publicar seção e inserir no Theme Editor), mídia 3D de produto, novo modelo de preços |
+| 3.20.0 | ⚠️ | Novas configurações de estilo; integrações |
+| 3.24.0 | ⚠️ | Melhorias no **Page Outline**; novos planos |
+| 3.25.0 | ⚠️ | Melhorias na **publicação** e em imagens; unificação dos campos de formulário; página despublicada permanece na lista do Shopify |
+| 3.27.0 | ⚠️ 2023 | Mídia de produto; atualizações de **analytics** |
+| 3.29.0 | ⚠️ 23/02/2023 | Integrações AiTrillion, Recurpay, Track123 |
+| 3.30.0 | ⚠️ 09/03/2023 | Integrações Minta e Enorm |
 
-### 2024: maturidade do editor e da arquitetura
+### 2.3 2024: maturidade do editor e da arquitetura
+
+Aqui a leitura da documentação **acrescentou versões que a passada 1 não tinha** (4.11, 4.12, 4.15,
+4.16) e detalhou as que tinha.
 
 | Versão | Data | O que trouxe |
 |---|---|---|
-| 4.0 | 2024 | Nova geração do editor; alinhamento completo com Online Store 2.0 |
-| 4.2.0 | — | Vários recursos via integrações de terceiros |
-| 4.6.0 | — | Admin migrado para **Shopify Polaris v12**; melhorias de UX |
-| 4.10.0 | — | 6 novas integrações |
-| 4.13.0 | 09/07/2024 | Unificação de "Add elements" + "Add Shopify elements" em um único painel **Elements**; **global styles agora responsivos**; nova UI do histórico de versões |
-| 4.14.0 | 08/2024 | Popover e melhorias de elementos; **script auxiliar migrado para Theme App Extension**, ativável dentro do app |
-| 4.18.0 | 10/2024 | Color picker melhorado; sincronização de estilos entre itens de Content List; global styles |
+| 4.0 | ⚠️ 2024 | Nova geração do editor; alinhamento com Online Store 2.0 |
+| 4.2.0 | ⚠️ | Recursos via integrações de terceiros |
+| 4.6.0 | ⚠️ | Admin migrado para **Shopify Polaris v12** |
+| 4.10.0 | ⚠️ | 6 novas integrações |
+| 4.11.0 | — | Ajustes de elementos (citada em várias páginas de elemento) |
+| **4.12.0** | **28/05/2024** | O elemento **App blocks** passa a funcionar tanto em seções salvas quanto em páginas (antes, só num dos dois) — data confirmada na documentação |
+| 4.13.0 | ⚠️ 09/07/2024 | Unificação de "Add elements" + "Add Shopify elements" num painel **Elements**; **global styles responsivos**; nova UI do histórico de versões; **lazy loading migra para a aba General de cada imagem** |
+| 4.14.0 | ⚠️ 08/2024 | Popover; **script auxiliar migrado para Theme App Extension** |
+| **4.15.0** | — | **Media Manager** reformulado, com acesso à biblioteca gratuita de imagens do Shopify; setting **"Content Loading"** (lazy/standard) em Vimeo e nos elementos do Facebook; **código do elemento Tabs otimizado para reduzir layout shift** |
+| **4.16.0** | — | Aba de estilo reorganizada em 8 grupos; chegam os grupos **Size** e **Layout** (largura/altura em modo preencher/ajustar/fixo, direção, gaps, alinhamento) — é a preparação do terreno para o Gen 2 |
+| 4.18.0 | ⚠️ 10/2024 | **Gradient Color Picker** (até 10 color stops, linear e radial), exclusivo dos planos PAYG; sincronização de estilos entre itens de Content List; estilos globais ganham containers e campos de formulário |
 
-### 2025–2026: virada para CRO e IA
+### 2.4 2025–2026: Gen 2, CRO e IA
 
 | Versão / marco | Data | O que trouxe |
 |---|---|---|
-| 4.19.0 | 06/01/2025 | Reescrita de parte do código do editor; copy-paste preservando estilo; **integração com as fontes do tema Shopify**; performance |
-| 4.20.0 | 20/01/2025 | Reformulação da UI do editor desktop e mobile |
-| Ciclo IA/CRO | 2025–2026 | **AI Section Generator**, **AI Smart Pages** (com personalização por localização/tipo de cliente/origem de tráfego), **Page Checkup** (auditoria com nota e correções priorizadas), **A/B Experiments** (bayesiano), **heatmaps** de clique e rolagem, **funnel analytics**, dashboard de analytics, section performance |
+| 4.19.0 | ⚠️ 06/01/2025 | Reescrita de parte do editor; copy-paste preservando estilo; integração com as fontes do tema Shopify |
+| **4.20.0** | **20/01/2025** ✅ | Reformulação da UI do editor desktop e mobile. **Última versão com nota de release pública** — data confirmada na fonte |
+| **4.23.0** | — | **Editor Gen 2**: flex sections e flex blocks, sem estrutura de linha/coluna; o merchant escolhe entre Gen 2 e Legacy ao criar a página. Vários elementos mudam de comportamento (o Button perde "enable full width" e ganha parâmetros de Size; o X/Twitter perde as configurações de Display). **Exclusivo do modelo de preço por slot (PAYG)**. É a mudança arquitetural mais profunda do período |
+| Ciclo CRO | 2025–2026 | **CRO Center** como área própria: dashboard de analytics em 6 níveis, **Section Insights** com engagement score, **Sales Funnel**, **Heatmaps** por seção com overlay no editor, **A/B Experiments** bayesianos com agendamento e pausa automática, **AI Analytics Co-pilot** com detecção de anomalia, conexão GA4 |
+| Ciclo IA | 2025–2026 | **FlyMate** (assistente no editor, beta), **MagicFly** (imagem → design editável), **AI Smart Pages** (beta, gratuito), **AI Section Generator**, **Page Checkup** com Health Score 0–100 e correções de um clique, **AI Translator** |
+| Ciclo "agentic" | 2026 | **AEO Optimizer** (JSON-LD de Product + Q&A com FAQ schema, score 0–100 de legibilidade por IA), **conector MCP** listado no diretório do Claude, presença no Sidekick do Shopify |
+| **Cart Drawer** | 2026, beta | Construtor de gaveta de carrinho com Reward Ladder e Bundle Offers rodando como **Shopify Functions** |
+| **Market localization** | 2026 | Variantes de página por Shopify Market, com publicação independente por mercado (plano Optimize+) |
+| **Novo modelo de preço** | 2026 | Migração do modelo puramente por slot para 5 planos diferenciados por **módulos de CRO e créditos de IA** |
 
-**Leitura estratégica da timeline:**
+### 2.5 Leitura estratégica da timeline
 
-1. **2021–2022** — corrida por elementos e integrações (largura de catálogo).
-2. **2023** — arrumação de arquitetura: seções globais, publicação, OS 2.0.
-3. **2024** — qualidade de editor e dívida técnica: responsivo nos global styles, Theme App
-   Extension, Polaris, performance.
-4. **2025–2026** — o builder vira commodity; o valor migra para **CRO** (A/B, heatmap, funil) e
-   **IA generativa**.
+1. **2021–2022 — corrida por catálogo.** Largura de elementos e integrações.
+2. **2023 — arrumação de arquitetura.** Seções globais, publicação, OS 2.0.
+3. **2024 — dívida técnica e qualidade de editor.** Responsivo nos estilos globais, Theme App
+   Extension, Polaris, lazy loading por imagem, otimização de layout shift. Repare que as
+   melhorias de performance de 2024 são **pontuais** (um elemento, um tipo de mídia por vez) —
+   não houve reescrita do motor de renderização.
+4. **2024–2025 — troca do motor de layout.** As versões 4.16 e 4.23 juntas trocam grid de colunas
+   por flexbox. Foi caro: parte das reclamações de 2025–2026 é exatamente sobre a migração.
+5. **2025–2026 — o builder vira commodity.** O valor migra para **CRO** (A/B, heatmap, funil,
+   section insights) e **IA generativa**, e depois para **agentic** (AEO, MCP). O próprio
+   posicionamento público mudou: o site não se apresenta mais como "page builder", e sim como
+   "AI page builder e plataforma de CRO".
+6. **2026 — expansão lateral.** Cart Drawer e localização por mercado mostram que o produto está
+   saindo do escopo "páginas" para "superfícies de conversão da loja".
 
-Para o D&VFly isso significa: não gaste a Fase 3 perseguindo catálogo de elementos. O diferencial
-defensável está em **performance do output** e em **medir e melhorar conversão**.
+**O que isso significa para o D&VFly:**
 
+- **Não persiga catálogo de elementos.** Está resolvido pelo mercado e não diferencia ninguém.
+- **Nasça flex.** O concorrente líder gastou duas versões maiores e a paciência da base para sair
+  do modelo linha/coluna. Começar do lado certo é o único momento em que isso é grátis.
+- **O diferencial defensável é o output.** Performance real do HTML gerado, não recursos de CRO
+  — que dependem de volume de tráfego que uma loja própria pode não ter.
+- **Analytics e A/B são P1 com modelo de dados P0.** Se `Page` já nascer com o conceito de
+  variante, o A/B test depois é UI, não migração.
 ---
 
 ## 3. Principais reclamações dos usuários → oportunidades para o D&VFly
