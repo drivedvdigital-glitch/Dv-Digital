@@ -876,6 +876,10 @@ tempo.
 - **P1 — importante:** entrega valor competitivo real; entra logo depois do MVP (Fase 4).
 - **P2 — depois:** desejável, nicho, ou dependente de escala/IA. Backlog.
 
+**Mudanças desta revisão.** A leitura direta revelou recursos que não estavam mapeados e mudou a
+prioridade de alguns que estavam. As linhas marcadas com **🆕** são novas; as com **↕** mudaram de
+prioridade, com a justificativa na própria linha.
+
 ### 4.1 Fundação e gestão de páginas
 
 | Recurso | Prioridade |
@@ -888,7 +892,10 @@ tempo.
 | Tipo de página: Blog post | **P2** |
 | Tipo de página: Password | **P2** |
 | Page Assignment (atribuir template a N produtos/coleções) | **P1** |
+| 🆕 Page Assignment em modo "todos os produtos / todas as coleções" | **P1** |
 | Modo Auto vs. Custom nos elementos de produto | **P1** |
+| 🆕 Compor com o tema: mostrar/esconder header, footer e seções do tema por página | **P1** |
+| 🆕 Lixeira com restauração (excluir página nunca é destrutivo de imediato) | **P1** |
 | Busca e filtro na lista de páginas | **P2** |
 
 ### 4.2 Editor
@@ -896,15 +903,23 @@ tempo.
 | Recurso | Prioridade |
 |---|---|
 | Editor em tela cheia com canvas + painel de blocos + painel de estilos | **P0** |
+| 🆕 **Modelo de layout flex desde o início** (sem linha/coluna) — ver 2.5 | **P0** |
 | Drag & drop, reordenar, duplicar, excluir elemento | **P0** |
-| Hierarquia Seção → Linha → Coluna → Elemento | **P0** |
+| Hierarquia Seção → Bloco → Elemento | **P0** |
 | Preview desktop / tablet / mobile | **P0** |
 | Undo / redo | **P0** |
 | Autosave / recuperação de rascunho | **P0** |
+| 🆕 **Preview renderizado pelo mesmo compilador do publish**, dentro do CSS do tema — resposta direta a 3.1 | **P0** |
 | Painel de estrutura (árvore da página) | **P1** |
 | Copiar/colar elementos entre páginas | **P1** |
+| 🆕 Copiar/colar **estilos** entre elementos do mesmo tipo | **P1** |
+| 🆕 Breadcrumb de seleção (caminho do elemento na árvore) | **P1** |
+| 🆕 Click Action por elemento (link, rolar até seção, abrir popup, e-mail, telefone) | **P1** |
+| 🆕 Gerenciador de mídia próprio (upload, reúso, biblioteca) | **P1** |
+| ↕ Edição inline de texto direto no canvas | **P0** *(era P1 — é o gesto mais frequente do editor; deixar para depois torna o MVP desagradável de usar)* |
+| 🆕 Busca de parâmetro dentro do inspector | **P2** |
+| 🆕 Aviso de edição simultânea (mesma página aberta em duas abas) | **P2** |
 | Atalhos de teclado | **P2** |
-| Edição inline de texto direto no canvas | **P1** |
 | Interface em **pt-BR** | **P0** |
 
 ### 4.3 Biblioteca de blocos
@@ -925,13 +940,18 @@ tempo.
 | Vídeo (YouTube / Vimeo / HTML5) | **P0** |
 | Ícones de confiança / selos | **P0** |
 | Seção de produto (imagem, preço, variantes, Add to Cart via Ajax) | **P0** |
-| Repetidor genérico (estilo "content list") | **P1** |
 | Bloco HTML/Liquid customizado | **P0** |
+| ↕ **Repetidor genérico com estilo sincronizado** (o conceito do "content list") | **P0** *(era P1 — é o primitivo que substitui depoimentos, comparativos, benefícios e logos; construí-lo primeiro **reduz** o trabalho do MVP em vez de aumentá-lo)* |
+| 🆕 **Elemento universal** — conversão de tipo (texto estático ↔ dado dinâmico) como propriedade do esquema | **P1** |
 | Tabs / abas | **P1** |
 | Slideshow / carrossel | **P1** |
 | Lista de produtos (coleção) | **P1** |
 | Lista de coleções | **P1** |
 | Popup / modal | **P1** |
+| 🆕 Botão de checkout dinâmico (Shop Pay / PayPal / Apple Pay) | **P1** |
+| 🆕 Indicador de estoque baixo | **P1** |
+| 🆕 Barra fixa de compra (sticky bar de produto) | **P1** |
+| 🆕 Bloco de app do Shopify (app block do OS 2.0) | **P1** |
 | Barra de progresso / meta | **P2** |
 | Google Map | **P2** |
 | Instagram / feeds sociais | **P2** |
@@ -939,6 +959,9 @@ tempo.
 | QR code | **P2** |
 | Áudio / SoundCloud | **P2** |
 | Mídia 3D de produto | **P2** |
+| 🆕 Comparador de imagens (antes/depois) | **P2** |
+| 🆕 Formulário de busca | **P2** |
+| 🆕 Blocos de blog (lista, título, conteúdo, meta) | **P2** |
 
 ### 4.4 Estilo e responsividade
 
@@ -951,12 +974,17 @@ tempo.
 | Bordas e raio | **P0** |
 | Alinhamento e largura (full-width vs. contida) | **P0** |
 | Esconder elemento por breakpoint | **P0** |
+| 🆕 **Tamanho em três modos** (preencher container / ajustar ao conteúdo / fixo) com min e max | **P0** |
+| 🆕 **Controles de flex no container** (direção, gap H e V, alinhamento, distribuição, ordem invertida) | **P0** |
+| ↕ **Herança de breakpoint explícita e visível** (mostrar se o valor é herdado ou próprio, com "limpar sobreposição") | **P0** *(era P1, como "herança em cascata" genérica — a seção 3.8 mostra que é aqui que o concorrente mais machuca o usuário)* |
+| 🆕 **Isolamento de CSS por escopo próprio**, sem herança acidental do tema | **P0** |
 | Sombra | **P1** |
 | Estilos globais / tokens de marca (cores, fontes, botões) | **P1** |
-| Herança em cascata entre breakpoints | **P1** |
 | CSS customizado por página | **P1** |
+| 🆕 CSS customizado por elemento | **P1** |
 | Sticky (seção/elemento) | **P1** |
 | Animação de entrada e hover | **P1** |
+| 🆕 Fontes: do tema Shopify, do Google Fonts e upload próprio | **P1** |
 | Gradientes | **P2** |
 | Parallax | **P2** |
 | Posicionamento absoluto / z-index | **P2** |
@@ -972,25 +1000,34 @@ tempo.
 | **CSS enxuto e escopado por página** | **P0** |
 | **Lazy-load de imagens + srcset + dimensões explícitas** | **P0** |
 | **Zero JS por padrão; JS só sob demanda do bloco** | **P0** |
+| 🆕 **O publish congela o output** — atualizar o builder não altera página publicada | **P0** |
+| 🆕 **HTML semântico correto por padrão** (link é `<a href>`, botão é `<button>`, hierarquia de headings) | **P0** |
+| 🆕 **Inventário auditável do que o app escreve no tema**, com remoção completa | **P0** |
+| 🆕 **Nada no storefront enquanto não houver página publicada** | **P0** |
+| 🆕 **Aviso de orçamento de tamanho** no editor, antes do teto de 256 KB do template | **P1** |
 | Publicação como template de tema (produto/coleção) | **P1** |
 | Seções salvas / reutilizáveis | **P1** |
 | Seção global com sincronização automática | **P1** |
 | Gerar **seção Liquid nativa** editável no Theme Editor | **P1** |
 | Export estático de HTML+CSS (anti-lock-in) | **P1** |
+| 🆕 Export/import do documento de blocos em JSON aberto e documentado | **P1** |
 | Orçamento de performance verificado no build (LCP/CLS/INP) | **P1** |
-| Agendamento de publicação | **P2** |
+| ↕ Agendamento de publicação | **P1** *(era P2 — o campo `publishDate` já existe na API da Shopify, ver A.1; o custo é quase zero e o concorrente não tem)* |
+| 🆕 Publicar página direto no menu de navegação do Shopify | **P2** |
 | Diff visual entre versões | **P2** |
 
 ### 4.6 SEO
 
 | Recurso | Prioridade |
 |---|---|
-| Título SEO, meta description, handle de URL | **P0** |
+| Título SEO, meta description e handle de URL | **P0** |
 | Imagem Open Graph / Twitter card | **P0** |
 | Validação de comprimento de título e descrição | **P1** |
 | Alt text obrigatório/sugerido em imagens | **P1** |
 | Heading hierarchy check (um H1, hierarquia correta) | **P1** |
 | JSON-LD (Product, FAQPage, BreadcrumbList) | **P1** |
+| 🆕 Detecção de JSON-LD já presente no tema, para não duplicar schema | **P1** |
+| 🆕 Redirect automático ao trocar o handle da página (`redirectNewHandle`, ver A.1) | **P1** |
 | Canonical customizável | **P2** |
 | `noindex` por página | **P2** |
 
@@ -1008,9 +1045,12 @@ tempo.
 
 | Recurso | Prioridade |
 |---|---|
+| 🆕 **Modelo de dados preparado para variantes de página desde o início** (o A/B test depois vira UI, não migração) | **P0** |
 | Contagem de visualizações por página | **P1** |
 | Conversão e receita por página | **P1** |
 | A/B test (Control vs. Variant com divisão de tráfego) | **P1** |
+| 🆕 Auditoria estática da página (um H1, alt text, hierarquia de headings, CTA presente, placeholders não preenchidos) — sem IA, só análise da árvore | **P1** |
+| 🆕 IDs de rastreamento por elemento (medir clique em elemento nomeado) | **P2** |
 | Heatmap de clique e rolagem | **P2** |
 | Funnel analytics | **P2** |
 | Desempenho por seção | **P2** |
@@ -1019,22 +1059,53 @@ tempo.
 
 | Recurso | Prioridade |
 |---|---|
-| Bloco HTML/Liquid (cobre 90% das integrações sem código dedicado) | **P0** |
+| Bloco HTML/Liquid (cobre a maior parte das integrações sem código dedicado) | **P0** |
 | Bloco de reviews (Judge.me / Loox — o que a loja usar) | **P1** |
 | Formulário → Klaviyo / e-mail da loja | **P1** |
 | Geração de seção por IA a partir de prompt | **P2** |
-| Auditoria de página por IA (SEO/copy/conversão) | **P2** |
+| Auditoria de página por IA (o complemento visual da auditoria estática de 4.8) | **P2** |
 | Geração de copy por IA | **P2** |
 | Multi-idioma | **P2** |
+| 🆕 Expor o builder por MCP (criar/editar/publicar página por conversa) | **P2** |
+| 🆕 Variantes de página por Shopify Market | **P2** |
+| 🆕 Gaveta de carrinho customizável | **P2** |
 
 ### 4.10 Resumo da priorização
 
 | Prioridade | Nº de itens | Onde entra |
 |---|---|---|
-| **P0** | 43 | Fase 3 — MVP |
-| **P1** | 37 | Fase 4 |
-| **P2** | 26 | Backlog |
+| **P0** | 56 | Fase 3 — MVP |
+| **P1** | 54 | Fase 4 |
+| **P2** | 35 | Backlog |
+| **Total** | **145** | |
 
+Os números acima foram **contados nas tabelas 4.1 a 4.9**, não estimados.
+
+**Como o escopo mudou em relação à passada 1** (era 43 P0 / 37 P1 / 26 P2, total 106):
+
+| | P0 | P1 | P2 | Total |
+|---|---|---|---|---|
+| Passada 1 | 43 | 37 | 26 | 106 |
+| Itens novos (🆕) | +10 | +19 | +10 | **+39** |
+| Repriorizados (↕) | +3 | −2 | −1 | 0 |
+| **Esta revisão** | **56** | **54** | **35** | **145** |
+
+- **39 itens novos.** A maioria veio de recursos que a leitura direta revelou e que a passada 1
+  não tinha mapeado: layout flex, elemento universal, checkout dinâmico, indicador de estoque,
+  sticky bar, app block do OS 2.0, comparador de imagens, composição com seções do tema, gaveta
+  de carrinho, variantes por mercado, conector MCP, entre outros.
+- **Quatro dos novos P0 vieram da seção 3**, e são os mais importantes de todos: o publish congela
+  o output, HTML semântico correto por padrão, inventário auditável do que escrevemos no tema, e
+  nada no storefront enquanto não houver página publicada. Nenhum deles é "recurso" no sentido de
+  tela — são **invariantes de arquitetura**, e é exatamente por isso que precisam estar no MVP:
+  depois não se acrescenta, se reescreve.
+- **Quatro itens mudaram de prioridade**, todos subindo: edição inline de texto (P1→P0),
+  repetidor genérico (P1→P0), herança de breakpoint explícita (P1→P0) e agendamento de publicação
+  (P2→P1).
+
+> O P0 cresceu de 43 para 47, mas **o MVP não ficou maior na mesma proporção**: dois dos quatro
+> novos P0 (repetidor genérico e flex desde o início) *reduzem* trabalho, porque substituem blocos
+> rígidos e evitam uma migração futura. Os outros dois são regras, não código adicional.
 ---
 
 ## 5. Conclusões que orientam a Fase 2 (Arquitetura)
