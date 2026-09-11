@@ -7,7 +7,7 @@ Page builder visual para Shopify, app privado. Interface em pt-BR, código e com
 | Fase | Descrição | Status |
 |---|---|---|
 | 1 | Pesquisa de mercado (referência: PageFly) | ✅ Concluída — verificada em fontes primárias |
-| 2 | Arquitetura | ⏳ Aguardando aprovação do plano |
+| 2 | Arquitetura | ✅ Documento escrito; 1 risco aberto (R1) |
 | 3 | MVP | ⬜ Não iniciada |
 | 4 | Recursos P1 | ⬜ Não iniciada |
 
@@ -142,30 +142,15 @@ Documentado a partir de `shopify.dev`, versão `2026-07`:
 | Detalhes internos de renderização do concorrente | Não são documentados publicamente; só instalando o app e inspecionando o output |
 | **Se `write_themes` exige isenção da Shopify para app privado** | **A documentação da Shopify se contradiz** — ver abaixo |
 
-### ⚠️ Risco a resolver antes de fechar a Fase 2
+### ⚠️ Risco levantado aqui, ainda aberto
 
-A documentação da Shopify diz duas coisas incompatíveis sobre escrita em arquivos de tema:
+A Fase 1 encontrou uma contradição na documentação da Shopify sobre escrita em arquivos de tema:
+as mutations de arquivo de tema exigem `write_themes` **e uma isenção**, enquanto a página que
+explica a restrição a limita a apps **distribuídos na App Store** e a página de apps customizados
+lista `write_themes` como atribuível normalmente pelo lojista. O D&VFly é privado. A pesquisa
+registrou a ambiguidade em vez de preencher com suposição.
 
-1. As mutations `themeFilesUpsert` / `themeFilesDelete` / `themeFilesCopy` / `themeCreate` /
-   `themePublish` afirmam, sem ressalva, que é preciso `write_themes` **e uma isenção concedida
-   pela Shopify**.
-2. A página que explica a restrição limita seu alcance a apps **distribuídos na App Store**, e a
-   página de apps customizados criados pelo admin lista `read_themes`/`write_themes` como scopes
-   **atribuíveis normalmente pelo lojista**, sem menção a isenção.
-
-O D&VFly é app privado, não distribuído. A documentação não resolve o caso, e o documento de
-pesquisa **não preencheu a lacuna com suposição**.
-
-**Encaminhamento (em ordem):**
-
-1. **Testar empiricamente** — criar o app no admin, atribuir `write_themes` e tentar um
-   `themeFilesUpsert` em tema de desenvolvimento. Uma tarde de trabalho responde melhor que
-   qualquer leitura.
-2. **Plano B pronto** — app blocks + deep linking (Apêndice A.3), que não exige isenção nenhuma,
-   e ainda responde à reclamação de "conteúdo não editável no editor de tema".
-3. **O MVP não depende disso.** Páginas avulsas via `pageCreate` seguem independentemente. Só a
-   trilha de produto/coleção/home depende — e ela já está classificada como P1, não P0,
-   justamente por causa deste risco.
+Segue aberto e virou o **R1** da Fase 2 — ver adiante, com o passo a passo para resolver.
 
 **Propriedade intelectual:** nenhum código, CSS, HTML, ícone, imagem, texto de interface ou
 template do concorrente foi copiado para o repositório. As páginas de documentação baixadas para
@@ -174,31 +159,133 @@ concorrente aparece apenas neste material interno de pesquisa competitiva, nunca
 
 ---
 
-## Fase 2 — Arquitetura ⏳
+## Fase 2 — Arquitetura ✅
 
-**Pendente:** `docs/ARQUITETURA.md` — a escrever após aprovação do plano da fase.
+**Entregue:** `docs/ARQUITETURA.md` e o spike em `prototype/`.
 
-Escopo previsto: stack (Shopify CLI + Remix + Prisma), escolha do motor do editor visual,
-estratégia de publicação (Admin GraphQL para páginas avulsas; template alternativo do tema **ou**
-app blocks + deep linking para produto/coleção/home — a decidir com o teste do item 1 acima),
-estratégia de performance do output, modelo de dados (Page, Version, Element, Template) e scopes
-do `shopify.app.toml`.
+### Protótipo do compilador — a tese está verificada
 
-**As decisões que a Fase 1 já entrega prontas para a Fase 2:**
+Antes de escrever a arquitetura, o núcleo dela foi construído e **medido**. A tese do projeto é
+uma afirmação sobre bytes, e afirmação sobre bytes se verifica.
 
-1. O editor produz um **documento de dados** (árvore JSON de blocos), não HTML.
-2. **Um compilador só**, `árvore → HTML + CSS`, usado tanto no preview quanto no publish.
-3. **O publish congela o output** — atualizar o builder nunca altera página publicada.
-4. **Nascer flex**, sem linha/coluna.
-5. **Pegada mínima e auditável no tema**, com remoção completa.
-6. **O storefront nunca depende do nosso backend.**
-7. **`Page` nasce com o conceito de variante**, para que A/B seja UI depois, não migração.
+`prototype/` compila um documento de blocos (JSON) para HTML + CSS estáticos. Roda com Node 22.6+
+e **zero dependências instaladas**:
+
+```sh
+cd prototype
+node --experimental-strip-types bin/build.ts
+node --experimental-strip-types --test "test/*.test.ts"
+```
+
+Resultado na landing de exemplo — hero, 6 cards de benefício, 12 depoimentos, oferta com contador
+e FAQ de 8 itens, 78 nós:
+
+| Medida | Resultado |
+|---|---|
+| HTML | 7,1 KB |
+| CSS | 2,6 KB |
+| JS | 0,3 KB — só o contador pediu runtime |
+| **Total** | **10,1 KB** |
+| Teto de template da Shopify | 256 KB — **usando 3,9%** |
+| Reúso de CSS | 32 regras para 107 pedidos de estilo (**3,3×**) |
+| Tempo de compilação | ~5 ms |
+
+Os três números que decidiram coisas:
+
+- **3,9% do teto.** O concorrente documenta que páginas com muitos elementos aninhados estouram os
+  256 KB e orienta a *remover elementos*. Compilando para HTML estático, sobra folga de 25×.
+- **3,3× de reúso.** Doze depoimentos de estilo idêntico emitem **uma** regra, não doze. É a
+  confirmação de que o repetidor genérico encolhe o output em vez de aumentá-lo — justifica ele
+  ser P0.
+- **5 ms.** Recompilar a cada edição cabe dentro de um frame. Foi isso que liberou o canvas a
+  mostrar o output real em vez de um espelho — a decisão D5.
+
+**18 testes** travam os invariantes (compilador puro, zero JS por padrão, accordion em
+`<details>`, link é `<a href>`, `javascript:` descartado, texto escapado, imagem com dimensões e
+lazy, classes prefixadas, breakpoints mobile-first, bloco desconhecido falha alto).
+
+### Duas suposições de stack que estavam desatualizadas
+
+O `PROGRESSO.md` anterior previa **Remix + Polaris React**. As duas caíram na verificação:
+
+| Suposição | Realidade verificada |
+|---|---|
+| Remix | O template oficial é o **`shopify-app-template-react-router`**; `@shopify/shopify-app-remix` foi sucedido por **`@shopify/shopify-app-react-router`** (^1.1.0). React Router 7.18.2, Vite 7, Prisma 6.16 |
+| Polaris React | **Deprecado.** O pacote `@shopify/polaris` carrega aviso de depreciação no npm desde a última release (13.9.5, mar/2025), apontando para os **Polaris web components** |
+
+Bom ter descoberto agora: construir a UI do admin em Polaris React seria começar em cima de algo
+que a Shopify parou de manter.
+
+### A decisão mais cara: o motor do editor
+
+**Editor próprio sobre `@dnd-kit/core`, com canvas em iframe renderizando o output real do
+compilador.** Os candidatos foram testados contra o invariante I1 ("um compilador só"):
+
+| Opção | Por que não |
+|---|---|
+| **GrapesJS** | Edita HTML/CSS como modelo primário — não sobra etapa de compilação |
+| **Puck** e **craft.js** | Conceitualmente certos (documento em JSON), mas **renderizam React** — o canvas e o publish viram dois motores de renderização, que é a causa provável da reclamação nº 1 do concorrente |
+| **dnd-kit** | ✅ Não é editor: é primitivo de arrasto. Resolve a parte cara e não diferenciante e não opina sobre renderização. 92,6 M downloads/mês |
+
+Custo assumido conscientemente: **a UI do editor é nossa** — painéis, inspector, árvore e o
+protocolo do iframe. Pagamos em UI para não pagar em divergência editor/produção, que é o defeito
+que este produto existe para não ter.
+
+### Demais decisões registradas
+
+Modelo de dados com `Version.compilerVersion` (o publish congela o output), `ThemeMark` (inventário
+auditável do que escrevemos no tema) e `Variant` já no MVP (para o A/B test depois ser UI, não
+migração). Duas trilhas de publicação, com app blocks + deep linking como plano B da trilha B.
+Orçamentos de performance como número verificado no build. Nove decisões na tabela final do
+documento.
+
+### ⚠️ R1 — o único risco que ainda bloqueia algo
+
+A ambiguidade do `write_themes` **continua aberta** — não dá para resolver daqui, precisa da sua
+loja.
+
+**O que fazer (uma tarde):**
+
+1. Shopify admin → **Configurações → Apps e canais de venda → Desenvolver apps** → criar app
+2. Scopes: `write_content`, `read_themes`, `write_themes`, `write_products`
+3. Instalar na loja e copiar o token de acesso do Admin API (`shpat_...`)
+4. Duplicar o tema (o script se recusa a escrever no tema publicado)
+5. Rodar:
+
+```sh
+cd prototype
+SHOP=sua-loja.myshopify.com ADMIN_TOKEN=shpat_... \
+  node --experimental-strip-types bin/shopify-probe.ts
+```
+
+O script testa `pageCreate`/`pageDelete` (trilha do MVP) e `themeFilesUpsert`/`themeFilesDelete`
+(trilha de produto/coleção), e diz qual está liberada. Ele **nunca escreve no tema publicado**,
+cria só rascunho e apaga tudo que cria.
+
+**Se der negado:** nenhum impacto no MVP — a trilha A não usa `write_themes`. A trilha B passa a
+ser app blocks + deep linking, que já está desenhada no Apêndice A.3 da pesquisa e na seção 6 da
+arquitetura.
 
 ---
 
 ## Fase 3 — MVP ⬜
 
-Não iniciada. Depende da aprovação da Fase 2. Escopo: os **56 itens P0** da seção 4 da pesquisa.
+Não iniciada. Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da
+arquitetura — escolhida para que cada etapa produza algo verificável:
+
+1. App rodando (template React Router, autenticação, Prisma, listagem em Polaris web components)
+2. Rodar a sonda de permissões e fechar o R1
+3. Trazer o compilador do `prototype/` para dentro do app, com os testes junto
+4. **Publicação da trilha A** — `pageCreate`/`pageUpdate` com o fragmento compilado
+5. Canvas em iframe (o módulo mais arriscado, feito cedo)
+6. Painéis: árvore, biblioteca de blocos, inspector com herança de breakpoint visível
+7. Blocos P0, começando pelo repetidor genérico
+8. Versionamento, autosave e restauração
+9. Auditoria estática no editor (já existe em `prototype/src/audit.ts`)
+10. Export estático e rotina de desinstalação
+
+O **ponto 4 é o marco que importa**: é quando existe página real no ar e o projeto deixa de ser
+protótipo.
 
 ## Fase 4 — Recursos P1 ⬜
 
