@@ -4,14 +4,23 @@ A tela do D&VFly: lista de páginas, editor e publicação multi-loja.
 
 ## Rodar
 
+Os dois comandos rodam **na raiz do repositório**, não dentro de `app/`:
+
 ```sh
-cd app
-npm install
-npx prisma generate && npx prisma db push
+npm run setup
 npm run dev
 ```
 
 Sobe em `http://localhost:5173`.
+
+**Por que na raiz.** O app importa o compilador pelo código-fonte, por caminho relativo. Quando
+`packages/compiler/src/html-optimize.ts` pede `node-html-parser`, o Node resolve a partir da pasta
+*do compilador* e sobe — nunca olha dentro de `app/node_modules`. Por isso o repositório é um npm
+workspace: um `npm install` na raiz instala as dependências dos três pacotes e as iça para
+`node_modules/` da raiz, que é onde o compilador consegue enxergá-las.
+
+Rodar `npm install` dentro de `app/` instala **só** aquele workspace, e o app sobe mas quebra na
+primeira compilação, com `Cannot find module 'node-html-parser'`.
 
 ## As telas
 

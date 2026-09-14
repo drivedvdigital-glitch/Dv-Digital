@@ -6,7 +6,8 @@
     "dev": "react-router dev",
     "build": "react-router build",
     "start": "react-router-serve ./build/server/index.js",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "db:setup": "node scripts/ensure-env.mjs && prisma generate && prisma db push"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",

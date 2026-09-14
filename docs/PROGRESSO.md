@@ -8,7 +8,7 @@ Page builder visual para Shopify, app privado. Interface em pt-BR, código e com
 |---|---|---|
 | 1 | Pesquisa de mercado (referência: PageFly) | ✅ Concluída — verificada em fontes primárias |
 | 2 | Arquitetura | ✅ Concluída — R1 fechado |
-| 3 | MVP | 🔨 Em andamento — compilador pronto |
+| 3 | MVP | 🔨 Em andamento — app publicando em loja real |
 | 4 | Recursos P1 | ⬜ Não iniciada |
 
 ---
@@ -484,24 +484,66 @@ as checagens **por nó**.
 
 Testes: de 18 para **41**.
 
+### ✅ Feito — o app, publicando em loja real
+
+Em `app/`: abas **Páginas** e **Lojas**, editor com preview, publicação multi-loja. Verificado
+dirigindo as rotas de verdade, não só por teste unitário — página criada pelo app e publicada em
+`tf1vp1-fd.myshopify.com/pages/dvfly-pelo-app`, com **zero estilos inline** no fragmento gerado.
+
+O marco do ponto 4 está cumprido: existe página real no ar, saída do editor.
+
+### 🔴 Um bug de empacotamento que só apareceu em máquina limpa
+
+O app subia aqui e quebrava no primeiro clone alheio, com
+`Cannot find module 'node-html-parser'`. A causa é sutil e vale registrar:
+
+O app importa o compilador **pelo código-fonte**, por caminho relativo. Quando
+`packages/compiler/src/html-optimize.ts` pede `node-html-parser`, o Node resolve a partir da pasta
+*do compilador* e sobe na árvore — `packages/compiler/node_modules`, `packages/node_modules`, raiz.
+**Nunca** olha dentro de `app/node_modules`. Aqui funcionava só porque `packages/compiler` tinha um
+`node_modules` próprio, de um `npm install` antigo que ninguém mais repetiria.
+
+Declarar a dependência em `app/package.json` **não resolve** — testei, e o erro continua idêntico,
+porque o problema é de onde a resolução começa, não de onde a biblioteca está declarada.
+
+A correção é o repositório virar um **npm workspace** (`package.json` na raiz): um `npm install` na
+raiz instala os três pacotes e iça as dependências para `node_modules/` da raiz, que está no
+caminho de subida do compilador. Os `package-lock.json` por pacote saíram; agora há um só, na raiz.
+
+Junto: `app/.env` é ignorado pelo git, então um clone novo não tinha `DATABASE_URL` e todo comando
+do Prisma falhava antes do app existir. O `npm run setup` agora cria o `.env` a partir de
+`app/.env.example` (`app/scripts/ensure-env.mjs`, em Node porque o projeto roda em Windows e Linux).
+
+**Verificado do zero**: apaguei `node_modules`, os lockfiles e o `.env`, rodei `npm run setup` e
+`npm run dev`, e exercitei as rotas — `/app` e `/app/stores` em 200, e o `POST /api/preview/:id`
+colapsando dois estilos inline iguais numa classe só. 41/41 testes passando.
+
+A lição que fica: **teste de máquina limpa é diferente de teste unitário.** Nenhum dos 41 testes
+pegaria isso, porque todos rodam de dentro do pacote que tem a dependência.
+
 ### ⬜ O que falta
 
-Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da arquitetura — com os
-passos 1, 2 e 4 agora dependendo só de você criar o app na Shopify:
+Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da arquitetura:
 
-1. App rodando (template React Router, autenticação, Prisma, listagem em Polaris web components) — **bloqueado: precisa do app criado na sua Shopify**
+1. ~~App rodando~~ — ✅ **feito**, em `app/`
 2. ~~Sonda de permissões / R1~~ — ✅ **feito**, 7/7 (ver acima)
 3. ~~Compilador~~ — ✅ **feito**, em `packages/compiler/`
-4. **Publicação da trilha A** — `pageCreate`/`pageUpdate` com o fragmento compilado — **bloqueado pelo 1**
-5. Canvas em iframe (o módulo mais arriscado, feito cedo)
+4. ~~**Publicação da trilha A**~~ — ✅ **feito**, página real no ar
+5. Canvas em iframe (o módulo mais arriscado, feito cedo) — **o próximo**
 6. Painéis: árvore, biblioteca de blocos, inspector com herança de breakpoint visível
 7. Blocos P0, começando pelo repetidor genérico
 8. Versionamento, autosave e restauração
 9. Auditoria estática no editor (já existe em `prototype/src/audit.ts`)
 10. Export estático e rotina de desinstalação
 
-O **ponto 4 é o marco que importa**: é quando existe página real no ar e o projeto deixa de ser
-protótipo.
+### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
+
+Três coisas, registradas também em `app/README.md`:
+
+1. **Não há verificação de requisição.** O App Bridge carrega, mas ainda não se valida que a
+   chamada veio mesmo da Shopify (token de sessão / HMAC).
+2. **Credenciais em texto claro no SQLite.** Precisam ser cifradas antes de sair da loja de teste.
+3. **O editor ainda é um `textarea`.** O canvas visual é o ponto 5.
 
 ## Fase 4 — Recursos P1 ⬜
 
