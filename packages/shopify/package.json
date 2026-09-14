@@ -1,0 +1,11 @@
+{
+  "name": "@dvfly/shopify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Admin API client, page publishing and multi-store deploy for D&VFly.",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "smoke": "node --experimental-strip-types bin/smoke.ts"
+  }
+}

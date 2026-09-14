@@ -81,6 +81,64 @@ convivem: Polaris fora, componentes próprios dentro.
 
 ---
 
+## 2.5 Multi-loja — e o que isso muda na decisão de stack
+
+> **Registrado em 14/09/2026.** Até aqui todo o projeto dizia "app privado da **sua loja**",
+> singular. É falso: são **várias lojas**, e o fluxo declarado é *validar numa loja de teste →
+> mandar para as outras*. Isso reabre a decisão D1.
+
+### A loja de desenvolvimento
+
+`tf1vp1-fd.myshopify.com` ("Magyarország") existe só para o D&VFly ser desenvolvido e testado.
+É onde a sonda do R1 rodou. As lojas de produção — a do vídeo, com badge "Colombia", e as outras —
+só recebem o app depois que tudo estiver validado aqui.
+
+### O que a operação real já dizia, e eu não juntei
+
+Os indícios estavam na gravação: páginas nomeadas `250-CO-S-…` e `08-MX-S-…` (Colômbia, México),
+admin em pt-BR, loja em espanhol, previews em "Brasil" e "Espanhol". É **uma operação, várias
+lojas, os mesmos produtos por mercado.**
+
+### A consequência: app embutido vs. app autônomo
+
+| | **Embutido** (decisão D1 original) | **Autônomo** |
+|---|---|---|
+| Onde roda | Dentro do admin da Shopify, por loja | Fora, uma instância só |
+| Autenticação | OAuth + session storage por loja | **Client credentials grant** por loja |
+| Gerenciar N lojas | Instalar e alternar entre elas | **Uma tela, todas as lojas** |
+| "Publicar esta página em 5 lojas" | Contra o modelo — o app instalado na loja A escrevendo na loja B | **É o fluxo natural** |
+| Máquina necessária | Template completo, OAuth, sessões | Muito menos |
+
+**Decisão: app autônomo.** O R1 tornou isso possível ao confirmar o client credentials grant —
+com ele, uma instância guarda credenciais de N lojas e publica em todas, sem OAuth e sem
+armazenamento de sessão. É exatamente o fluxo "valida aqui, manda pras outras".
+
+Embutir no admin da Shopify continua possível depois, se um dia fizer falta. Não é pré-requisito
+de nada.
+
+### O que muda no modelo de dados
+
+`Page.shop` já existia. Passa a existir também:
+
+```
+Store      id, domain, label, clientId, clientSecret(cifrado), isProduction, createdAt
+Deployment id, pageId, versionId, storeId, shopifyGid, publishedAt, bytes
+```
+
+Uma **página** deixa de pertencer a uma loja e passa a ser **implantada em N lojas**. É a diferença
+entre "exportar e importar" (o remendo do concorrente, seção 3.4 da pesquisa) e **publicar em
+várias lojas como operação de primeira classe**.
+
+### Novo item de prioridade
+
+| Item | Prioridade | Porquê |
+|---|---|---|
+| **Publicar a mesma página em N lojas selecionadas** | **P0** | É o fluxo declarado da operação. Não estava nos 145 itens porque a premissa era loja única |
+| Registro de lojas, com credencial por loja | **P0** | Pré-requisito do acima |
+| Marcar loja como teste vs. produção | **P1** | Evita publicar em produção por engano |
+
+---
+
 ## 3. Motor do editor visual
 
 Esta é a decisão mais cara do projeto — a que mais dói mudar depois. Vale gastar espaço nela.
@@ -446,7 +504,8 @@ O ponto 4 é o marco que importa: é quando o projeto deixa de ser protótipo.
 
 | # | Decisão | Alternativa descartada | Motivo |
 |---|---|---|---|
-| D1 | React Router 7 + `@shopify/shopify-app-react-router` | Remix | É o template oficial atual; o pacote Remix foi sucedido |
+| D1 | ~~App embutido com `@shopify/shopify-app-react-router`~~ → **app autônomo** (ver 2.5) | Embutido no admin | São várias lojas; o client credentials grant (R1) permite uma instância publicar em todas |
+| D1b | React Router 7 + Vite + Prisma + TypeScript | Remix | O Remix v2 virou React Router v7; a stack base continua valendo |
 | D2 | Polaris web components | Polaris React | Polaris React está deprecado desde mar/2025 |
 | D3 | Editor próprio sobre dnd-kit | Puck, craft.js | Ambos renderizam React, o que cria um segundo motor de renderização e viola I1 |
 | D4 | — | GrapesJS | Edita HTML/CSS como modelo primário; incompatível com compilar a partir de dados |
