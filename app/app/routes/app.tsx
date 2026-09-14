@@ -1,17 +1,41 @@
-import { Link, Outlet, useLoaderData, useLocation } from 'react-router';
-import type { LoaderFunctionArgs } from 'react-router';
+import { data, Link, Outlet, useLoaderData, useLocation } from 'react-router';
+import type { HeadersFunction, LoaderFunctionArgs } from 'react-router';
 
 import { db } from '../lib/db.server.ts';
 
+/** A myshopify domain and nothing else — this value ends up inside a CSP. */
+const SHOP_DOMAIN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;
+
+/**
+ * Lets the Shopify admin put this app in an iframe, and nobody else.
+ *
+ * Embedded apps are framed by `admin.shopify.com` and by the store's own
+ * domain. A page with no CSP at all is framable by *any* site, which is how
+ * clickjacking works, so the allowance is written out explicitly and scoped to
+ * the shop that asked. Without a `shop` in the URL there is no legitimate
+ * framer, and the header says so.
+ */
+function frameAncestors(shop: string | null): string {
+  const origins = ['https://admin.shopify.com'];
+  if (shop && SHOP_DOMAIN.test(shop)) origins.push(`https://${shop}`);
+  return `frame-ancestors ${origins.join(' ')};`;
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
+  const shop = url.searchParams.get('shop');
   const storeCount = await db.store.count();
-  return {
-    shop: url.searchParams.get('shop'),
-    storeCount,
-    clientId: process.env.SHOPIFY_CLIENT_ID ?? '',
-  };
+  return data(
+    {
+      shop,
+      storeCount,
+      clientId: process.env.SHOPIFY_CLIENT_ID ?? '',
+    },
+    { headers: { 'Content-Security-Policy': frameAncestors(shop) } },
+  );
 }
+
+export const headers: HeadersFunction = ({ loaderHeaders }) => loaderHeaders;
 
 /**
  * The frame: brand, tabs, and whatever screen is active.
