@@ -19,20 +19,64 @@
  */
 
 const SHOP = process.env.SHOP;
-const TOKEN = process.env.ADMIN_TOKEN;
 const API_VERSION = process.env.SHOPIFY_API_VERSION ?? '2026-07';
 
-if (!SHOP || !TOKEN) {
+/**
+ * Two ways in, because Shopify offers two.
+ *
+ * ADMIN_TOKEN is the pre-generated token an admin-created custom app shows once
+ * on install. CLIENT_ID + CLIENT_SECRET use the client credentials grant, which
+ * exists precisely for apps acting only on stores in your own organization —
+ * that is us. With that grant there is no token to find in the admin; you ask
+ * for a short-lived one when you need it.
+ *
+ * https://shopify.dev/docs/apps/build/authentication-authorization/client-credentials-grant
+ */
+const DIRECT_TOKEN = process.env.ADMIN_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+
+if (!SHOP || (!DIRECT_TOKEN && !(CLIENT_ID && CLIENT_SECRET))) {
   console.error(
     'Faltam variáveis de ambiente.\n\n' +
-      '  SHOP=sua-loja.myshopify.com\n' +
-      '  ADMIN_TOKEN=shpat_...   (token do app criado em Configurações → Apps → Desenvolver apps)\n\n' +
-      'Scopes necessários no app: write_content, read_themes, write_themes, write_products\n',
+      '  SHOP=sua-loja.myshopify.com\n\n' +
+      'E uma das duas formas de autenticar:\n\n' +
+      '  ADMIN_TOKEN=shpat_...                    (token direto)\n' +
+      '  CLIENT_ID=... CLIENT_SECRET=shpss_...    (client credentials grant)\n\n' +
+      'Scopes necessários: write_content, read_themes, write_themes, write_products\n',
   );
   process.exit(1);
 }
 
 const ENDPOINT = `https://${SHOP}/admin/api/${API_VERSION}/graphql.json`;
+
+/** Resolved once at startup, then reused for every request. */
+let TOKEN = DIRECT_TOKEN ?? '';
+
+async function fetchTokenViaClientCredentials(): Promise<string> {
+  const response = await fetch(`https://${SHOP}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: CLIENT_ID!,
+      client_secret: CLIENT_SECRET!,
+    }),
+  });
+
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `A troca por token falhou: HTTP ${response.status}\n${body.slice(0, 400)}\n\n` +
+        'Causas prováveis: o app não foi criado no Dev Dashboard, não está instalado\n' +
+        'nesta loja, ou os escopos não foram definidos na versão do app.',
+    );
+  }
+
+  const parsed = JSON.parse(body) as { access_token?: string; expires_in?: number };
+  if (!parsed.access_token) throw new Error(`Resposta sem access_token: ${body.slice(0, 200)}`);
+  return parsed.access_token;
+}
 const MARKER = `dvfly-probe-${Date.now()}`;
 
 interface GraphQLResponse<T> {
@@ -45,7 +89,7 @@ async function gql<T>(query: string, variables: Record<string, unknown> = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': TOKEN!,
+      'X-Shopify-Access-Token': TOKEN,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -220,6 +264,17 @@ async function probeThemeFiles() {
 // ---------------------------------------------------------------------------
 
 console.log(`\nD&VFly — sondagem de permissões em ${SHOP}\n`);
+
+if (!DIRECT_TOKEN) {
+  try {
+    TOKEN = await fetchTokenViaClientCredentials();
+    record('Client credentials grant', true, 'token obtido programaticamente');
+  } catch (error) {
+    record('Client credentials grant', false, (error as Error).message);
+    console.log('\nSem token, não dá para seguir.\n');
+    process.exit(1);
+  }
+}
 
 const connected = await probeConnection();
 if (connected) {
