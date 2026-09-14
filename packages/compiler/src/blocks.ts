@@ -21,6 +21,12 @@ export interface RenderContext {
   renderChildren: (children: Node[] | undefined) => string;
   /** Classes already resolved for this node by the stylesheet. */
   classAttr: (node: Node, extra?: string) => string | undefined;
+  /**
+   * Class plus, in editor builds only, the node's id as a data attribute — the
+   * hook the canvas uses to map a click back to a node. Published output never
+   * carries it (I3: minimal footprint).
+   */
+  baseAttrs: (node: Node) => Record<string, string | undefined>;
   /** Declares that this block needs a runtime module. */
   requireRuntime: (name: RuntimeModule) => void;
   /** Runs author-written markup through the optimization pass. */
@@ -36,23 +42,23 @@ const prop = <T>(node: Node, name: string, fallback: T): T =>
 
 /** `section` is the outermost structural block: a full-width band. */
 const section: Renderer = (node, ctx) =>
-  tag('section', { class: ctx.classAttr(node) }, ctx.renderChildren(node.children));
+  tag('section', ctx.baseAttrs(node), ctx.renderChildren(node.children));
 
 /** `stack` is the only layout primitive. Flex, both directions, nothing else. */
 const stack: Renderer = (node, ctx) =>
-  tag('div', { class: ctx.classAttr(node) }, ctx.renderChildren(node.children));
+  tag('div', ctx.baseAttrs(node), ctx.renderChildren(node.children));
 
 const heading: Renderer = (node, ctx) => {
   const level = Math.min(Math.max(prop(node, 'level', 2), 1), 6);
   return tag(
     `h${level}`,
-    { class: ctx.classAttr(node) },
+    ctx.baseAttrs(node),
     escapeText(prop(node, 'text', '')),
   );
 };
 
 const text: Renderer = (node, ctx) =>
-  tag('p', { class: ctx.classAttr(node) }, escapeText(prop(node, 'text', '')));
+  tag('p', ctx.baseAttrs(node), escapeText(prop(node, 'text', '')));
 
 const image: Renderer = (node, ctx) => {
   const src = prop<string>(node, 'src', '');
@@ -61,7 +67,7 @@ const image: Renderer = (node, ctx) => {
   const srcset = prop<string | undefined>(node, 'srcset', undefined);
 
   return tag('img', {
-    class: ctx.classAttr(node),
+    ...ctx.baseAttrs(node),
     src,
     srcset,
     sizes: srcset ? prop(node, 'sizes', '100vw') : undefined,
@@ -85,7 +91,7 @@ const button: Renderer = (node, ctx) => {
     return tag(
       'a',
       {
-        class: ctx.classAttr(node),
+        ...ctx.baseAttrs(node),
         href,
         rel: prop(node, 'external', false) ? 'noopener noreferrer' : undefined,
         target: prop(node, 'external', false) ? '_blank' : undefined,
@@ -93,10 +99,10 @@ const button: Renderer = (node, ctx) => {
       label,
     );
   }
-  return tag('button', { class: ctx.classAttr(node), type: 'button' }, label);
+  return tag('button', { ...ctx.baseAttrs(node), type: 'button' }, label);
 };
 
-const divider: Renderer = (node, ctx) => tag('hr', { class: ctx.classAttr(node) });
+const divider: Renderer = (node, ctx) => tag('hr', ctx.baseAttrs(node));
 
 /**
  * Accordion. `<details>` gives open/close, keyboard support and find-in-page
@@ -114,7 +120,7 @@ const accordion: Renderer = (node, ctx) => {
       ),
     )
     .join('');
-  return tag('div', { class: ctx.classAttr(node) }, body);
+  return tag('div', ctx.baseAttrs(node), body);
 };
 
 /**
@@ -137,7 +143,7 @@ const repeater: Renderer = (node, ctx) => {
     })
     .join('');
 
-  return tag('div', { class: ctx.classAttr(node) }, body);
+  return tag('div', ctx.baseAttrs(node), body);
 };
 
 /**
@@ -170,7 +176,7 @@ const countdown: Renderer = (node, ctx) => {
   return tag(
     'div',
     {
-      class: ctx.classAttr(node),
+      ...ctx.baseAttrs(node),
       'data-dvf-countdown': deadline,
       // Server-rendered fallback so the block is not blank before hydration.
       role: 'timer',
@@ -195,7 +201,7 @@ const countdown: Renderer = (node, ctx) => {
 const html: Renderer = (node, ctx) => {
   const source = prop<string>(node, 'html', '');
   const body = prop(node, 'raw', false) ? source : ctx.optimizeHtml(source);
-  return tag('div', { class: ctx.classAttr(node) }, body);
+  return tag('div', ctx.baseAttrs(node), body);
 };
 
 export const BLOCKS: Record<string, Renderer> = {

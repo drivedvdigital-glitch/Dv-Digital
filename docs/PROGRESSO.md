@@ -590,6 +590,33 @@ Verificação: 9/9 passos clicados num navegador real (criar, renomear, digitar 
 atualizado, largura 390 medida no iframe, salvar, persistência após reload, aviso sem loja,
 excluir com confirmação). Loja desconhecida não registra lixo; `shop` inválido não entra no CSP.
 
+### 🔨 Canvas — primeira fatia real (seleção, estrutura, edição)
+
+O ponto 5 saiu do papel. O editor agora é um construtor de verdade, não um textarea:
+
+- **Árvore de estrutura** à esquerda, derivada do documento real (os 11 blocos do compilador,
+  aninhamento completo). Página herdada de antes aparece como era: um bloco HTML.
+- **Clique simétrico**: clicar na árvore contorna o elemento no canvas; clicar no elemento dentro
+  do canvas seleciona na árvore e abre o inspetor. Breadcrumb Seção / Pilha / Título acima do
+  canvas, clicável.
+- **Inspetor por tipo**: título (texto + nível), texto, imagem (src/alt/dimensões), botão
+  (rótulo/href), HTML (código). Sanfona/repetidor/contagem editam props como JSON até ganharem
+  controles próprios — dito na tela, não escondido.
+- **Operações**: adicionar (paleta de 7 blocos, entra dentro do contêiner selecionado ou depois da
+  folha), duplicar (com ids novos), excluir, subir/descer.
+- **Como o clique chega lá**: o compilador ganhou `nodeIds` — em build de editor cada bloco sai
+  com `data-dvf-id`; uma ponte de ~30 linhas dentro do iframe reporta cliques por `postMessage` e
+  aplica o contorno. **Página publicada não carrega nada disso** (teste de regressão garante).
+
+Verificado clicando: 11/11 passos num navegador real, incluindo clicar no H2 *dentro* do canvas e
+ver a árvore marcar, duplicar → 2 títulos no preview, salvar → recarregar → estrutura persistida.
+Testes do compilador: 42/42.
+
+**O que o canvas ainda não faz** (próximas fatias): arrastar para reordenar; painel **Estilo**
+(espaçamento, cor, tipografia por breakpoint — o vocabulário fechado já existe no compilador);
+barra flutuante sobre o elemento selecionado; desfazer/refazer (as operações já são puras
+justamente para isso virar lista de documentos).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

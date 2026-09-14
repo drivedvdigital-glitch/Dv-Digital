@@ -45,6 +45,12 @@ export interface CompileResult {
 export interface CompileOptions {
   /** Skip validation when the document is known-good (e.g. inside a loop). */
   skipValidation?: boolean;
+  /**
+   * Editor builds only: stamp each block's root element with `data-dvf-id` so
+   * the canvas can map a click back to its node. Never used for publishing —
+   * the published page carries no editor residue (I3).
+   */
+  nodeIds?: boolean;
 }
 
 export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
@@ -76,6 +82,10 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       if (extra) names.push(extra);
       return names.length > 0 ? names.join(' ') : undefined;
     },
+    baseAttrs: (node) => ({
+      class: ctx.classAttr(node),
+      ...(options.nodeIds ? { 'data-dvf-id': node.id } : {}),
+    }),
     requireRuntime: (name) => {
       runtimes.add(name);
     },

@@ -213,3 +213,26 @@ test('a decorative image with an explicit empty alt is not flagged', () => {
 test('the shipped fixture is a clean page', () => {
   assert.equal(score(audit(landing())), 100);
 });
+
+test('nodeIds stamps every block for the editor and never leaks into published output', () => {
+  const doc = {
+    version: 1,
+    root: [
+      {
+        id: 's1',
+        type: 'section' as const,
+        children: [
+          { id: 'h1', type: 'heading' as const, props: { level: 1, text: 'Oi' } },
+          { id: 'b1', type: 'button' as const, props: { label: 'Ir', href: '/x' } },
+        ],
+      },
+    ],
+  };
+  const published = compile(doc);
+  assert.ok(!published.html.includes('data-dvf-id'), 'published output must carry no editor residue');
+
+  const editor = compile(doc, { nodeIds: true });
+  for (const id of ['s1', 'h1', 'b1']) {
+    assert.ok(editor.html.includes(`data-dvf-id="${id}"`), `missing id stamp for ${id}`);
+  }
+});
