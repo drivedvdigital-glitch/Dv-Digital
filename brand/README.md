@@ -20,6 +20,8 @@ para qualquer tamanho sem borrar e muda de cor alterando **uma constante**.
 | `mark.svg` | Uso geral, fundo claro ou transparente | 1,6 KB |
 | `mark-on-dark.svg` | Mesma marca com fundo preto embutido | 1,6 KB |
 | `favicon.svg` | Ícone pequeno — **variante simplificada**, ver abaixo | 663 B |
+| `app-icon.svg` / `.png` | **Ícone do app na Shopify** — 1200×1200, fundo escuro | 1,7 KB / PNG |
+| `app-icon-light.png` | Mesma marca sobre branco (alternativa) | PNG |
 
 ## A variante pequena existe por um motivo medido
 
@@ -33,6 +35,15 @@ diamante de diamantes, crescendo para baixo — e ladrilhos grandes o bastante p
 sempre cai em antialiasing. A variante 3×3 é o melhor compromisso, e aos 32px (que é o que
 navegador em tela retina usa) fica nítida. Se um dia for preciso um 16px cravado, o caminho é um
 losango único e sólido.
+
+## O ícone do app tem fundo escuro de propósito
+
+A Shopify exige **1200×1200**, PNG ou JPEG, e avisa que o ícone é exibido **sobre branco e cinza
+claro**. Verde puro em fundo transparente desbota justamente aí.
+
+Por isso o `app-icon` traz um quadrado arredondado escuro atrás da marca. Comparado lado a lado
+sobre o cinza do admin, o escuro lê como ícone de app e o claro some. O `app-icon-light.png` fica
+como alternativa caso um dia a peça peça fundo claro.
 
 ## Cor
 

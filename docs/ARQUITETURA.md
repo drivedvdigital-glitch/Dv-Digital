@@ -109,12 +109,17 @@ lojas, os mesmos produtos por mercado.**
 | "Publicar esta página em 5 lojas" | Contra o modelo — o app instalado na loja A escrevendo na loja B | **É o fluxo natural** |
 | Máquina necessária | Template completo, OAuth, sessões | Muito menos |
 
-**Decisão: app autônomo.** O R1 tornou isso possível ao confirmar o client credentials grant —
-com ele, uma instância guarda credenciais de N lojas e publica em todas, sem OAuth e sem
-armazenamento de sessão. É exatamente o fluxo "valida aqui, manda pras outras".
+**Decisão: UI embutida no admin, backend multi-loja.** A tabela acima montou um falso dilema, e
+foi corrigida no mesmo dia: **as duas colunas não são exclusivas.**
 
-Embutir no admin da Shopify continua possível depois, se um dia fizer falta. Não é pré-requisito
-de nada.
+A UI roda embutida no admin da loja que você abrir — é o que dá as abas, a navegação e a sensação
+de "app da Shopify", e é o que o concorrente faz. O **backend é nosso** e guarda credenciais de N
+lojas via client credentials grant, então "publicar esta página em 5 lojas" continua sendo o fluxo
+natural, disparado de dentro de qualquer uma delas.
+
+O que o R1 destravou não foi "não precisa ser embutido" — foi "o backend não precisa de OAuth por
+loja para falar com as outras". Embutido resolve a interface; client credentials resolve o
+alcance.
 
 ### O que muda no modelo de dados
 
@@ -504,7 +509,7 @@ O ponto 4 é o marco que importa: é quando o projeto deixa de ser protótipo.
 
 | # | Decisão | Alternativa descartada | Motivo |
 |---|---|---|---|
-| D1 | ~~App embutido com `@shopify/shopify-app-react-router`~~ → **app autônomo** (ver 2.5) | Embutido no admin | São várias lojas; o client credentials grant (R1) permite uma instância publicar em todas |
+| D1 | **UI embutida no admin + backend multi-loja** (ver 2.5) | App puramente autônomo | Embutido dá as abas e a navegação do admin; o client credentials grant dá o alcance multi-loja. Não são excludentes — a primeira versão de 2.5 tratava como se fossem |
 | D1b | React Router 7 + Vite + Prisma + TypeScript | Remix | O Remix v2 virou React Router v7; a stack base continua valendo |
 | D2 | Polaris web components | Polaris React | Polaris React está deprecado desde mar/2025 |
 | D3 | Editor próprio sobre dnd-kit | Puck, craft.js | Ambos renderizam React, o que cria um segundo motor de renderização e viola I1 |

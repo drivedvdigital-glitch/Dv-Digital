@@ -110,12 +110,31 @@ function fmt(value: number): string {
   return String(Math.round(value * 100) / 100);
 }
 
+/**
+ * Rounded-square plate behind the mark. Shopify shows app icons on white and
+ * light grey, where a bare green mark washes out, so the icon variant carries
+ * its own dark ground.
+ */
+export function appIconSvg(size = 1200, ground = '#0B1410'): string {
+  const radius = Math.round(size * 0.22);
+  const inner = markSvg({ size, padding: 0.19 })
+    .replace(/^<svg[^>]*>/, '')
+    .replace(/<\/svg>$/, '');
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="D&amp;VFly">` +
+    `<rect width="${size}" height="${size}" rx="${radius}" fill="${ground}"/>` +
+    inner +
+    '</svg>'
+  );
+}
+
 const outputs: Array<[string, string]> = [
   ['mark.svg', markSvg({ size: 512 })],
   ['mark-on-dark.svg', markSvg({ size: 512, background: '#000000' })],
   // The small-size variant. Fewer, larger tiles and tighter padding, because a
   // favicon has 16 pixels to work with and the full mark needs more.
   ['favicon.svg', markSvg({ size: 64, padding: 0.05, grid: GRID_SMALL })],
+  ['app-icon.svg', appIconSvg()],
 ];
 
 for (const [name, svg] of outputs) {
