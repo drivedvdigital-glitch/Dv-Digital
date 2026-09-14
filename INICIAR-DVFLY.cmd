@@ -1,8 +1,10 @@
 @echo off
 rem ============================================================
 rem  D&VFly — sobe tudo com um duplo clique.
-rem  Atualiza o codigo, prepara dependencias e banco, liga o
-rem  servidor e o tunel, e mostra (e copia) o endereco publico.
+rem  Prepara o projeto e abre o DVFly numa janela propria.
+rem  Nessa janela NAO existe a pergunta "finalizar arquivo em
+rem  lotes (S/N)" — Ctrl+C la dentro e inofensivo: o supervisor
+rem  religa o que cair. Para desligar, FECHE a janela do DVFly.
 rem ============================================================
 setlocal
 cd /d "%~dp0"
@@ -22,7 +24,6 @@ if errorlevel 1 (
 )
 
 echo.
-node scripts\start.mjs
-
-echo.
-pause
+echo  == DVFly: abrindo em janela propria...
+start "DVFly (feche esta janela para desligar)" cmd /k node scripts\start.mjs
+exit /b 0
