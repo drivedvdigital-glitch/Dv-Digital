@@ -61,34 +61,62 @@ async function ensureCredentials() {
 
 // ---- 2. dev server --------------------------------------------------------
 
-function startServer() {
-  return new Promise((resolve) => {
-    const child = spawn(isWindows ? 'npm.cmd' : 'npm', ['run', 'dev'], {
-      cwd: root,
-      shell: isWindows,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let port = null;
-    const sniff = (chunk) => {
-      const text = chunk.toString();
-      const match = /localhost:(\d+)/.exec(text);
-      if (match && !port) {
-        port = match[1];
-        log(`servidor de pé em http://localhost:${port} ✓`);
-        resolve({ child, port });
-      }
-      if (/error/i.test(text)) process.stdout.write(text);
-    };
-    child.stdout.on('data', sniff);
-    child.stderr.on('data', sniff);
-    child.on('exit', (code) => {
-      if (!port) {
-        console.error(`\n  O servidor morreu antes de subir (código ${code}).`);
-        console.error('  Roda "npm run dev" sozinho para ver o erro completo.');
-        process.exit(1);
-      }
-    });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Starts the server with its output going straight to this window — no pipe
+ * sniffing, which proved unreliable on Windows — and then knocks on the ports
+ * Vite uses until one answers. What answers is what gets tunnelled.
+ */
+const PORTS = [5173, 5174, 5175, 5176, 5177];
+
+async function anyPortAlive() {
+  for (const port of PORTS) {
+    try {
+      const response = await fetch(`http://localhost:${port}/app`, { redirect: 'manual' });
+      if (response.status > 0) return port;
+    } catch {
+      /* fechada */
+    }
+  }
+  return null;
+}
+
+async function startServer() {
+  // A leftover window would answer first and the tunnel would point at stale
+  // code. Refusing beats silently serving yesterday's app.
+  const busy = await anyPortAlive();
+  if (busy) {
+    banner([
+      'Já existe um DVFly rodando nesta máquina!',
+      '',
+      `Alguma janela antiga está segurando a porta ${busy}.`,
+      'Fecha as outras janelas do DVFly (e de "npm run dev")',
+      'e dá duplo clique no INICIAR-DVFLY.cmd de novo.',
+    ]);
+    process.exit(1);
+  }
+
+  const child = spawn('npm run dev', { cwd: root, shell: true, stdio: 'inherit' });
+  let dead = false;
+  child.on('exit', () => {
+    dead = true;
   });
+
+  for (let attempt = 0; attempt < 120; attempt++) {
+    if (dead) {
+      console.error('\n  O servidor morreu antes de subir — o erro está logo acima.');
+      process.exit(1);
+    }
+    const port = await anyPortAlive();
+    if (port) {
+      log(`servidor de pé em http://localhost:${port} ✓`);
+      return { child, port };
+    }
+    await sleep(1000);
+  }
+  console.error('\n  O servidor não respondeu em 2 minutos. Manda um print desta janela.');
+  process.exit(1);
 }
 
 // ---- 3. tunnel ------------------------------------------------------------
