@@ -13,7 +13,7 @@
   "scripts": {
     "setup": "npm install && node scripts/preflight.mjs && npm run db:setup --workspace @dvfly/app",
     "fix:duplicados": "node scripts/preflight.mjs --fix",
-    "predev": "node scripts/preflight.mjs",
+    "predev": "node scripts/preflight.mjs && node app/scripts/ensure-env.mjs",
     "dev": "npm run dev --workspace @dvfly/app",
     "test": "npm run test --workspace @dvfly/compiler"
   }

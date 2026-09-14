@@ -70,17 +70,36 @@ export default function App() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  const message = isRouteErrorResponse(error)
-    ? `${error.status} ${error.statusText}`
-    : error instanceof Error
-      ? error.message
-      : 'Erro desconhecido';
+
+  // The whole error, not a polite summary: when this screen shows up inside
+  // the admin on someone else's machine, its text is the only diagnostic that
+  // exists. A vague "Bad Request" here once cost a whole debugging round.
+  let message = 'Erro desconhecido';
+  let detail = '';
+  if (isRouteErrorResponse(error)) {
+    message = `HTTP ${error.status} ${error.statusText}`;
+    detail = typeof error.data === 'string' ? error.data : JSON.stringify(error.data, null, 2);
+  } else if (error instanceof Error) {
+    message = error.message;
+    detail = error.stack ?? '';
+  } else if (error !== undefined) {
+    detail = String(error);
+  }
 
   return (
     <s-page heading="Algo deu errado">
-      <s-banner tone="critical" heading="Erro">
-        <s-paragraph>{message}</s-paragraph>
+      <s-banner tone="critical" heading={message}>
+        <s-paragraph>
+          Manda um print desta tela inteira — o texto abaixo diz exatamente o que falhou.
+        </s-paragraph>
       </s-banner>
+      {detail ? (
+        <s-section heading="Detalhe técnico">
+          <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: 0 }}>
+            {detail}
+          </pre>
+        </s-section>
+      ) : null}
     </s-page>
   );
 }
