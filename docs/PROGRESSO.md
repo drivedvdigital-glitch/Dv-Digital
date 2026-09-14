@@ -7,7 +7,7 @@ Page builder visual para Shopify, app privado. Interface em pt-BR, código e com
 | Fase | Descrição | Status |
 |---|---|---|
 | 1 | Pesquisa de mercado (referência: PageFly) | ✅ Concluída — verificada em fontes primárias |
-| 2 | Arquitetura | ✅ Documento escrito; 1 risco aberto (R1) |
+| 2 | Arquitetura | ✅ Concluída — R1 fechado |
 | 3 | MVP | 🔨 Em andamento — compilador pronto |
 | 4 | Recursos P1 | ⬜ Não iniciada |
 
@@ -392,32 +392,55 @@ Legacy em vez do Gen 2.
 
 ---
 
-### ⚠️ R1 — o único risco que ainda bloqueia algo
+### ✅ R1 — RESOLVIDO em 14/09/2026
 
-A ambiguidade do `write_themes` **continua aberta** — não dá para resolver daqui, precisa da sua
-loja.
+A ambiguidade do `write_themes` **está fechada, e a favor da trilha principal.**
 
-**O que fazer (uma tarde):**
+**Método:** `packages/compiler/bin/shopify-probe.ts` rodado contra a loja real. **7/7 passaram.**
 
-1. Shopify admin → **Configurações → Apps e canais de venda → Desenvolver apps** → criar app
-2. Scopes: `write_content`, `read_themes`, `write_themes`, `write_products`
-3. Instalar na loja e copiar o token de acesso do Admin API (`shpat_...`)
-4. Duplicar o tema (o script se recusa a escrever no tema publicado)
-5. Rodar:
-
-```sh
-cd prototype
-SHOP=sua-loja.myshopify.com ADMIN_TOKEN=shpat_... \
-  node --experimental-strip-types bin/shopify-probe.ts
+```
+✓ Client credentials grant ... token obtido programaticamente
+✓ Conexão e token ............ loja "Magyarország", API 2026-07
+✓ pageCreate ................. criou página (rascunho)
+✓ pageDelete ................. limpeza ok
+✓ read_themes ................ 4 temas
+✓ themeFilesUpsert ........... escreveu seção + template JSON no tema "Dawn" (UNPUBLISHED)
+✓ themeFilesDelete ........... limpeza ok
 ```
 
-O script testa `pageCreate`/`pageDelete` (trilha do MVP) e `themeFilesUpsert`/`themeFilesDelete`
-(trilha de produto/coleção), e diz qual está liberada. Ele **nunca escreve no tema publicado**,
-cria só rascunho e apaga tudo que cria.
+**O que isso decide:**
 
-**Se der negado:** nenhum impacto no MVP — a trilha A não usa `write_themes`. A trilha B passa a
-ser app blocks + deep linking, que já está desenhada no Apêndice A.3 da pesquisa e na seção 6 da
-arquitetura.
+| Pergunta | Resposta |
+|---|---|
+| `write_themes` exige isenção da Shopify para app privado? | **Não.** Escreveu `sections/*.liquid` + `templates/page.*.json` sem isenção nenhuma |
+| A trilha B (produto/coleção via template) é viável? | **Sim — caminho principal confirmado** |
+| O plano B (app blocks + deep linking) é necessário? | **Não para desbloquear.** Continua desejável por outro motivo: deixa o conteúdo editável no editor de temas (reclamação 3.11) |
+| A trilha A (páginas avulsas) funciona? | **Sim** — `pageCreate`/`pageDelete` passaram |
+
+**Uma correção de premissa no caminho.** A sonda original só aceitava um token `shpat_`
+pré-gerado. A Shopify também oferece o **client credentials grant**, documentado para apps que
+agem só em lojas da própria organização — exatamente o nosso caso:
+
+```
+POST /admin/oauth/access_token
+  grant_type=client_credentials, client_id, client_secret
+→ { access_token, expires_in }
+```
+
+Com esse grant **não existe token visível no admin**; pede-se um de curta duração quando
+necessário. A sonda passou a aceitar as duas formas.
+
+**Um falso negativo que valeu a lição.** A primeira execução deu `FILE_VALIDATION_ERROR:
+sections: can't be blank`. Não era permissão — era o payload de teste, um template JSON vazio, que
+a própria validação da Shopify rejeita. Trocado por uma **seção + template que a referencia** (o
+mesmo par que o produto vai escrever de verdade), passou. Fica a regra: sondagem de permissão
+precisa mandar carga **válida**, senão a validação de conteúdo mascara a resposta.
+
+⚠️ **Confirmar a loja.** A sonda rodou em `tf1vp1-fd.myshopify.com`, cujo nome é **"Magyarország"**
+e que tem o tema **Dawn** despublicado. O vídeo da operação real mostrava uma loja com badge
+"Colombia". Se forem lojas diferentes, o resultado do R1 continua valendo (é o mesmo tipo de app e
+de permissão), mas o app precisa ser instalado também na loja de produção antes da Fase 3 publicar
+qualquer coisa lá.
 
 ---
 
@@ -467,7 +490,7 @@ Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da a
 passos 1, 2 e 4 agora dependendo só de você criar o app na Shopify:
 
 1. App rodando (template React Router, autenticação, Prisma, listagem em Polaris web components) — **bloqueado: precisa do app criado na sua Shopify**
-2. Rodar a sonda de permissões e fechar o R1 — **bloqueado: idem**
+2. ~~Sonda de permissões / R1~~ — ✅ **feito**, 7/7 (ver acima)
 3. ~~Compilador~~ — ✅ **feito**, em `packages/compiler/`
 4. **Publicação da trilha A** — `pageCreate`/`pageUpdate` com o fragmento compilado — **bloqueado pelo 1**
 5. Canvas em iframe (o módulo mais arriscado, feito cedo)

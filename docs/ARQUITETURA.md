@@ -374,9 +374,22 @@ Um builder é, por definição, uma máquina de injetar markup na loja. Três de
 
 ## 10. Riscos
 
-### ⚠️ R1 — `write_themes` pode exigir isenção da Shopify
+### ✅ R1 — RESOLVIDO: `write_themes` **não** exige isenção neste caso
 
-**O único risco que bloqueia uma decisão.** A documentação da Shopify se contradiz: as mutations
+**Fechado em 14/09/2026 por teste empírico**, como este documento propunha. A sonda
+(`packages/compiler/bin/shopify-probe.ts`) rodou contra uma loja real e passou 7/7, escrevendo
+`sections/*.liquid` + `templates/page.*.json` num tema despublicado, sem isenção nenhuma.
+
+**Consequências:** a trilha B (A.2) é o caminho principal e está liberada; o plano B (app blocks +
+deep linking) deixa de ser necessário para desbloquear, mas continua desejável porque mantém o
+conteúdo editável no editor de temas. A autenticação usa o **client credentials grant**, não um
+token pré-gerado.
+
+O texto original do risco fica abaixo, como registro do que estava em aberto e por quê.
+
+#### Registro histórico — a ambiguidade que existia
+
+**Era o único risco que bloqueava uma decisão.** A documentação da Shopify se contradiz: as mutations
 de arquivo de tema exigem "`write_themes` e uma isenção", enquanto a página que explica a
 restrição a limita a apps **distribuídos na App Store**, e a página de apps customizados lista
 `write_themes` como atribuível normalmente pelo lojista. O D&VFly é privado. Detalhe: a lista de

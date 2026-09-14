@@ -202,8 +202,35 @@ async function probeThemeFiles() {
     return;
   }
 
-  const filename = `templates/page.${MARKER}.json`;
-  const body = JSON.stringify({ sections: {}, order: [] });
+  // Write a section and a JSON template that references it — the same pair the
+  // product will write for real. An empty template is rejected by Shopify's own
+  // schema validation, which says nothing about whether we are allowed to write.
+  const sectionFile = `sections/${MARKER}.liquid`;
+  const templateFile = `templates/page.${MARKER}.json`;
+
+  const sectionBody = [
+    '<div data-dvfly-probe>{{ section.settings.note }}</div>',
+    '{% schema %}',
+    JSON.stringify(
+      {
+        name: 'DVFly probe',
+        settings: [{ type: 'text', id: 'note', label: 'Note', default: 'probe' }],
+      },
+      null,
+      2,
+    ),
+    '{% endschema %}',
+  ].join('\n');
+
+  const templateBody = JSON.stringify({
+    sections: { main: { type: MARKER, settings: { note: 'probe' } } },
+    order: ['main'],
+  });
+
+  const files = [
+    { filename: sectionFile, body: { type: 'TEXT', value: sectionBody } },
+    { filename: templateFile, body: { type: 'TEXT', value: templateBody } },
+  ];
 
   const upsert = await gql<{
     themeFilesUpsert: { upsertedThemeFiles: unknown[] | null; userErrors: unknown[] };
@@ -214,7 +241,7 @@ async function probeThemeFiles() {
          userErrors { code filename message }
        }
      }`,
-    { themeId: target.id, files: [{ filename, body: { type: 'TEXT', value: body } }] },
+    { themeId: target.id, files },
   );
 
   if (upsert.errors) {
@@ -240,7 +267,7 @@ async function probeThemeFiles() {
   record(
     'themeFilesUpsert',
     true,
-    `escreveu ${filename} no tema "${target.name}" (${target.role})\n` +
+    `escreveu seção + template JSON no tema "${target.name}" (${target.role})\n` +
       '      => A trilha de templates está LIBERADA para este app.',
   );
 
@@ -251,13 +278,15 @@ async function probeThemeFiles() {
          userErrors { code filename message }
        }
      }`,
-    { themeId: target.id, files: [filename] },
+    { themeId: target.id, files: [templateFile, sectionFile] },
   );
   const cleaned = Boolean(cleanup.data?.themeFilesDelete?.deletedThemeFiles);
   record(
     'themeFilesDelete (limpeza)',
     cleaned,
-    cleaned ? 'arquivo de teste removido' : `FALHOU — apague ${filename} à mão`,
+    cleaned
+      ? 'seção e template de teste removidos'
+      : `FALHOU — apague à mão: ${templateFile} e ${sectionFile}`,
   );
 }
 
