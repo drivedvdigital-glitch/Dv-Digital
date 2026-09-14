@@ -186,13 +186,16 @@ test('the static audit catches what an "AI page checkup" charges for', () => {
   const findings = audit(bad);
   const codes = findings.map((f) => f.code);
 
-  assert.ok(codes.includes('heading/no-h1'));
   assert.ok(codes.includes('heading/skipped-level'));
   assert.ok(codes.includes('image/missing-alt'));
   assert.ok(codes.includes('image/missing-dimensions'));
   assert.ok(codes.includes('content/placeholder'));
-  assert.ok(codes.includes('cta/none'));
-  assert.ok(score(findings) < 60);
+  assert.ok(score(findings) < 80);
+
+  // The page-level checks now belong to the compiler, which sees author HTML too.
+  const pageCodes = compile(bad).findings.map((f) => f.code);
+  assert.ok(pageCodes.includes('page/no-h1'));
+  assert.ok(pageCodes.includes('page/no-cta'));
 });
 
 test('a decorative image with an explicit empty alt is not flagged', () => {

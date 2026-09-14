@@ -11,10 +11,12 @@
  * runtime that keeps changing underneath it.
  */
 
+import type { Finding } from './audit.ts';
 import { BLOCKS, RUNTIME, type RenderContext, type RuntimeModule } from './blocks.ts';
 import { CLASS_PREFIX, StyleSheet } from './css.ts';
 import { tag } from './html.ts';
-import { validate, type Doc, type Node } from './schema.ts';
+import { optimizeHtml } from './html-optimize.ts';
+import { validate, walk, type Doc, type Node } from './schema.ts';
 
 export interface CompileResult {
   html: string;
@@ -28,7 +30,16 @@ export interface CompileResult {
     styleRegistrations: number;
     runtimeModules: RuntimeModule[];
     bytes: { html: number; css: number; js: number; total: number };
+    /** Work done by the HTML optimization pass, when any block used it. */
+    htmlOptimization: {
+      inlineStylesHoisted: number;
+      styleBlocksScoped: number;
+      imagesTouched: number;
+      scriptsFound: number;
+    };
   };
+  /** Problems found in author-written HTML while compiling. */
+  findings: Finding[];
 }
 
 export interface CompileOptions {
@@ -46,6 +57,16 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
 
   const sheet = new StyleSheet();
   const runtimes = new Set<RuntimeModule>();
+  const findings: Finding[] = [];
+  const htmlOptimization = {
+    inlineStylesHoisted: 0,
+    styleBlocksScoped: 0,
+    imagesTouched: 0,
+    scriptsFound: 0,
+  };
+  /** Contributions from author HTML, for the page-level checks below. */
+  const htmlHeadings: number[] = [];
+  let htmlInteractive = 0;
   let nodes = 0;
 
   const ctx: RenderContext = {
@@ -57,6 +78,17 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     },
     requireRuntime: (name) => {
       runtimes.add(name);
+    },
+    optimizeHtml: (source) => {
+      const result = optimizeHtml(source, { sheet, scope: `${CLASS_PREFIX}-page` });
+      findings.push(...result.findings);
+      htmlOptimization.inlineStylesHoisted += result.stats.inlineStylesHoisted;
+      htmlOptimization.styleBlocksScoped += result.stats.styleBlocksScoped;
+      htmlOptimization.imagesTouched += result.stats.imagesTouched;
+      htmlOptimization.scriptsFound += result.stats.scriptsFound;
+      htmlHeadings.push(...result.stats.headingLevels);
+      htmlInteractive += result.stats.interactiveElements;
+      return result.html;
     },
   };
 
@@ -72,6 +104,46 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   }
 
   const body = doc.root.map(render).join('');
+
+  // Page-level checks run once, over everything. They live here rather than in
+  // `audit` because this is the only place that sees both the block tree and
+  // the inside of author-written HTML.
+  const allNodes = [...walk(doc.root)];
+  const blockHeadings = allNodes
+    .filter((node) => node.type === 'heading')
+    .map((node) => Number(node.props?.level ?? 2));
+  const allHeadings = [...blockHeadings, ...htmlHeadings];
+  const h1Count = allHeadings.filter((level) => level === 1).length;
+
+  if (allHeadings.length === 0) {
+    findings.push({
+      severity: 'warning',
+      code: 'page/no-heading',
+      message: 'A página não tem nenhum título.',
+    });
+  } else if (h1Count === 0) {
+    findings.push({
+      severity: 'error',
+      code: 'page/no-h1',
+      message: 'A página tem títulos, mas nenhum H1. Todo documento precisa de um título principal.',
+    });
+  } else if (h1Count > 1) {
+    findings.push({
+      severity: 'error',
+      code: 'page/multiple-h1',
+      message: `A página tem ${h1Count} H1. Rebaixe os secundários para H2.`,
+    });
+  }
+
+  const interactive =
+    allNodes.filter((node) => node.type === 'button').length + htmlInteractive;
+  if (interactive === 0) {
+    findings.push({
+      severity: 'warning',
+      code: 'page/no-cta',
+      message: 'A página não tem nenhuma chamada para ação.',
+    });
+  }
   const html = tag('div', { class: `${CLASS_PREFIX}-page` }, body);
   const css = sheet.toCss(doc.tokens);
 
@@ -97,7 +169,9 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       styleRegistrations: sheetStats.registrations,
       runtimeModules: modules,
       bytes,
+      htmlOptimization,
     },
+    findings,
   };
 }
 

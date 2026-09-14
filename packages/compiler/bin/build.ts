@@ -37,7 +37,16 @@ function pct(part: number, whole: number): string {
 }
 
 const fixture = process.argv[2] ?? join(ROOT, 'fixtures', 'landing.json');
-const doc = JSON.parse(readFileSync(fixture, 'utf8')) as Doc;
+
+// A .json fixture is a block document; a .html fixture is author-written markup,
+// which is how pages are actually authored today (see docs/USO_REAL.md). Both
+// go through the same compiler.
+const doc: Doc = fixture.endsWith('.html')
+  ? {
+      version: 1,
+      root: [{ id: 'author-html', type: 'html', props: { html: readFileSync(fixture, 'utf8') } }],
+    }
+  : (JSON.parse(readFileSync(fixture, 'utf8')) as Doc);
 
 const started = performance.now();
 const result = compile(doc);
@@ -75,7 +84,17 @@ console.log(
   `  Módulos de runtime ....... ${runtimeModules.length ? runtimeModules.join(', ') : 'nenhum'}`,
 );
 
-const findings = audit(doc);
+const opt = result.stats.htmlOptimization;
+if (opt.inlineStylesHoisted || opt.styleBlocksScoped || opt.imagesTouched || opt.scriptsFound) {
+  console.log('');
+  console.log('  Otimização do HTML do autor');
+  console.log(`    Estilos inline extraídos . ${opt.inlineStylesHoisted}`);
+  console.log(`    Blocos <style> escopados . ${opt.styleBlocksScoped}`);
+  console.log(`    Imagens ajustadas ........ ${opt.imagesTouched}`);
+  console.log(`    Scripts encontrados ...... ${opt.scriptsFound}`);
+}
+
+const findings = [...audit(doc), ...result.findings];
 console.log(`\n  Auditoria estática ....... nota ${score(findings)}/100, ${findings.length} achado(s)`);
 for (const finding of findings) {
   const mark = finding.severity === 'error' ? '✗' : '!';

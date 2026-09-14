@@ -133,6 +133,25 @@ export class StyleSheet {
   private uses = new Map<string, number>();
 
   /**
+   * Interns one declaration set at one breakpoint and returns its class name.
+   * Identical sets collapse onto the same class, which is where the output
+   * savings come from.
+   */
+  private intern(bp: Breakpoint, decls: string[]): string {
+    const key = `${bp}|${decls.join(';')}`;
+    let name = this.classes.get(key);
+    if (!name) {
+      name = `${CLASS_PREFIX}-${bp === 'base' ? '' : bp + '-'}${hash(key)}`;
+      this.classes.set(key, name);
+      const bucket = this.rules.get(bp) ?? [];
+      bucket.push({ selector: `.${name}`, declarations: decls });
+      this.rules.set(bp, bucket);
+    }
+    this.uses.set(name, (this.uses.get(name) ?? 0) + 1);
+    return name;
+  }
+
+  /**
    * Registers a node's responsive style and returns the classes it needs.
    * A node with no visual style gets no class at all — no empty rules, no
    * placeholder markup.
@@ -146,20 +165,19 @@ export class StyleSheet {
       if (!props) continue;
       const decls = declarations(props);
       if (decls.length === 0) continue;
-
-      const key = `${bp}|${decls.join(';')}`;
-      let name = this.classes.get(key);
-      if (!name) {
-        name = `${CLASS_PREFIX}-${bp === 'base' ? '' : bp + '-'}${hash(key)}`;
-        this.classes.set(key, name);
-        const bucket = this.rules.get(bp) ?? [];
-        bucket.push({ selector: `.${name}`, declarations: decls });
-        this.rules.set(bp, bucket);
-      }
-      this.uses.set(name, (this.uses.get(name) ?? 0) + 1);
-      names.push(name);
+      names.push(this.intern(bp, decls));
     }
     return names;
+  }
+
+  /**
+   * Takes already-written CSS declarations — the ones lifted out of an author's
+   * inline `style` attribute — and folds them into the same deduplicated pool
+   * the block styles use. Hand-written HTML therefore benefits from the same
+   * collapsing: twenty identically-styled elements emit one rule.
+   */
+  adopt(decls: string[]): string {
+    return this.intern('base', decls);
   }
 
   /**

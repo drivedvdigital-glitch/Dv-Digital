@@ -1,0 +1,19 @@
+{
+  "name": "@dvfly/compiler",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compiles a D&VFly block document — and author-written HTML — into scoped, deduplicated HTML + CSS.",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "build": "node --experimental-strip-types bin/build.ts",
+    "test": "node --experimental-strip-types --test \"test/*.test.ts\"",
+    "shopify:probe": "node --experimental-strip-types bin/shopify-probe.ts",
+    "build:html": "node --experimental-strip-types bin/build.ts fixtures/advertorial.html"
+  },
+  "dependencies": {
+    "node-html-parser": "^9.0.4"
+  }
+}

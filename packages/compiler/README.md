@@ -1,23 +1,28 @@
-# Protótipo — compilador do D&VFly
+# `@dvfly/compiler`
 
-Spike da Fase 2. Existe para **provar ou derrubar** a tese central do projeto antes de a gente
-investir na Fase 3:
+O núcleo do D&VFly: a função pura que transforma um documento de blocos **e o HTML escrito à mão**
+em HTML + CSS estáticos, escopados e deduplicados.
+
+Nasceu como spike da Fase 2, para **provar ou derrubar** a tese central do projeto:
 
 > Se o editor produzir um documento de dados e um compilador puro transformar esse documento em
 > HTML + CSS estáticos, a página resultante carrega como página de tema — e não como página de
 > builder.
 
-Não é o produto. É o menor código possível que responde à pergunta.
+A tese se sustentou (números abaixo), e na Fase 3 o pacote passou a carregar também o **passe de
+otimização de HTML** — a peça que veio da descoberta em `docs/USO_REAL.md`.
 
 ## Rodar
 
-Precisa de Node 22.6+ e **nenhuma dependência instalada** — o Node 22 remove os tipos do
-TypeScript sozinho.
+Node 22.6+ (remove os tipos do TypeScript sozinho) e uma dependência: um parser de HTML.
 
 ```sh
-cd prototype
-node --experimental-strip-types bin/build.ts     # compila e mede
-node --experimental-strip-types --test "test/*.test.ts"   # invariantes
+cd packages/compiler
+npm install
+
+npm run build          # compila a landing de blocos e mede
+npm run build:html     # compila HTML escrito à mão e mostra o que foi otimizado
+npm test               # 41 testes de invariante
 ```
 
 ## O que o protótipo demonstra
@@ -44,19 +49,51 @@ Os dois números que importam:
 - **3,3× de reúso de CSS.** Doze depoimentos com estilo idêntico emitem **uma** regra, não doze.
   É a prova de que um repetidor genérico é mais barato que blocos rígidos, e não mais caro.
 
+## O passe de otimização de HTML
+
+A gravação da operação real (`docs/USO_REAL.md`) mostrou que a página inteira vive dentro de **um
+bloco de HTML escrito à mão**. Isso criava uma tensão: se o HTML entra cru e sai cru, o compilador
+não otimiza nada e a vantagem de performance evapora.
+
+A saída foi o compilador virar **otimizador**. O HTML do autor continua sendo a fonte; no publish
+ele passa por um passe que:
+
+| O que faz | Por quê |
+|---|---|
+| Extrai todo `style="..."` para o stylesheet **deduplicado** | Vinte elementos com o mesmo estilo custam **uma** regra |
+| **Escopa** os blocos `<style>` — inclusive `body` e `:root`, que viram a raiz da nossa subárvore | O CSS do autor não vaza para o tema, nem o tema alcança a gente |
+| Põe `loading="lazy"` e `decoding="async"` nas imagens (menos a primeira, ou a marcada com `data-dvf-eager`) | Nunca sobrescreve o que o autor definiu |
+| **Reporta** imagem sem dimensão, imagem sem alt, `onclick` no lugar de link, scripts | Reporta, não reescreve — mudar o markup do autor calado é pior que não mexer |
+
+Resultado no fixture `advertorial.html` (uma página de advertorial realista, 22 estilos inline):
+
+| | |
+|---|---|
+| Estilos inline extraídos | 22 → **10 regras** (2,2× de reúso) |
+| Blocos `<style>` escopados | 1 |
+| Imagens ajustadas | 4 |
+| Total compilado | **3,7 KB** — 1,4% do teto da Shopify |
+
+Rodar `raw: true` no nó desliga o passe e publica o markup intocado.
+
 ## Como está organizado
 
 ```
-src/schema.ts    O documento de blocos. É o contrato entre editor e compilador.
-src/css.ts       Vocabulário fechado de estilo -> CSS escopado e deduplicado por hash.
-src/html.ts      Emissão e escape de HTML.
-src/blocks.ts    Um compilador por bloco. 11 blocos.
-src/compile.ts   A função pura Doc -> { html, css, js }.
-src/audit.ts     Auditoria estática da árvore (o "page checkup" sem IA).
-bin/build.ts     Compila um fixture e imprime o relatório acima.
-bin/shopify-probe.ts  Sonda de permissões contra uma loja real (ver abaixo).
-test/            18 testes que travam os invariantes da arquitetura.
+src/schema.ts        O documento de blocos. É o contrato entre editor e compilador.
+src/css.ts           Vocabulário fechado de estilo -> CSS escopado e deduplicado por hash.
+src/html.ts          Emissão e escape de HTML.
+src/blocks.ts        Um compilador por bloco. 11 blocos.
+src/html-optimize.ts O passe de otimização do HTML do autor.
+src/compile.ts       A função pura Doc -> { html, css, js } + checagens de página.
+src/audit.ts         Auditoria por nó (o "page checkup" sem IA).
+bin/build.ts         Compila um fixture (.json ou .html) e imprime o relatório.
+bin/shopify-probe.ts Sonda de permissões contra uma loja real (ver abaixo).
+test/                41 testes que travam os invariantes da arquitetura.
 ```
+
+**Divisão de responsabilidade entre `audit` e `compile`:** `audit` faz checagem **por nó** (alt de
+imagem, texto de exemplo, link inseguro). As checagens **de página** (um H1, existe CTA) vivem no
+`compile`, porque ele é o único que enxerga a árvore de blocos **e** o interior do HTML do autor.
 
 ## Invariantes travados por teste
 
@@ -70,6 +107,8 @@ quebrou:
 - Texto do autor é escapado.
 - Imagem sempre com `width`, `height` e `loading="lazy"` — salvo quando marcada como `eager`.
 - Toda classe é prefixada, então o tema não colide com a gente nem a gente com ele.
+- O CSS do autor é escopado: um `body{...}` dentro de um bloco não repinta a loja inteira.
+- Estilo inline do autor e estilo de bloco caem **no mesmo pote de deduplicação**.
 - Breakpoints saem como `min-width`, mobile-first, com o base sempre antes das sobreposições.
 - Bloco desconhecido **falha alto** em vez de publicar um buraco na página.
 
@@ -103,5 +142,6 @@ Para ninguém confundir spike com produto:
 - Não fala com a Shopify no `build.ts` — só o `shopify-probe.ts` faz rede.
 - Não tem persistência, versionamento, autenticação nem multi-página.
 - Tem 11 blocos, não os 56 itens P0 da pesquisa.
+- O passe de HTML não converte markup em árvore de blocos — isso é o item P1 de importação.
 - O `repeater` liga dados por substituição de `{{campo}}`, que é ingênuo de propósito — o produto
   vai precisar de um modelo de binding de verdade.

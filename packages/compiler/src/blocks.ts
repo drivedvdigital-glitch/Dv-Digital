@@ -23,6 +23,8 @@ export interface RenderContext {
   classAttr: (node: Node, extra?: string) => string | undefined;
   /** Declares that this block needs a runtime module. */
   requireRuntime: (name: RuntimeModule) => void;
+  /** Runs author-written markup through the optimization pass. */
+  optimizeHtml: (source: string) => string;
 }
 
 export type RuntimeModule = 'countdown';
@@ -178,12 +180,23 @@ const countdown: Renderer = (node, ctx) => {
 };
 
 /**
- * Raw HTML escape hatch. Deliberately unescaped — that is what it is for. It is
- * the merchant's own markup on the merchant's own store, and every builder
- * needs one door that leads straight out.
+ * Author-written HTML.
+ *
+ * Deliberately unescaped — that is what it is for. It is the merchant's own
+ * markup on their own store, and every builder needs one door that leads
+ * straight out.
+ *
+ * This is not a rarely-used escape hatch in practice: the screen recording in
+ * docs/USO_REAL.md shows an entire landing page living in one of these. So the
+ * markup goes through the optimization pass on the way out, which hoists inline
+ * styles into the shared stylesheet, scopes any `<style>` block, and fixes up
+ * images. Set `raw: true` on the node to publish the markup untouched.
  */
-const html: Renderer = (node, ctx) =>
-  tag('div', { class: ctx.classAttr(node) }, prop<string>(node, 'html', ''));
+const html: Renderer = (node, ctx) => {
+  const source = prop<string>(node, 'html', '');
+  const body = prop(node, 'raw', false) ? source : ctx.optimizeHtml(source);
+  return tag('div', { class: ctx.classAttr(node) }, body);
+};
 
 export const BLOCKS: Record<string, Renderer> = {
   section,

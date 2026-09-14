@@ -38,36 +38,16 @@ export function audit(doc: Doc): Finding[] {
   return findings;
 }
 
+/**
+ * Page-level checks live in the compiler, not here, because only the compiler
+ * sees inside author-written HTML blocks. `audit` covers what is visible in the
+ * block tree alone; anything that asks "does *the page* have ..." needs both.
+ */
+
 function auditHeadings(nodes: Node[], findings: Finding[]): void {
   const headings = nodes
     .filter((node) => node.type === 'heading')
     .map((node) => ({ node, level: Number(node.props?.level ?? 2) }));
-
-  const h1s = headings.filter((h) => h.level === 1);
-
-  if (h1s.length === 0) {
-    findings.push({
-      severity: 'error',
-      code: 'heading/no-h1',
-      message: 'A página não tem H1. Todo documento precisa de exatamente um título principal.',
-    });
-  } else if (h1s.length > 1) {
-    for (const extra of h1s.slice(1)) {
-      findings.push({
-        severity: 'error',
-        code: 'heading/multiple-h1',
-        message: 'Mais de um H1 na página. Rebaixe os títulos secundários para H2.',
-        nodeId: extra.node.id,
-      });
-    }
-  } else if (headings[0]?.level !== 1) {
-    findings.push({
-      severity: 'warning',
-      code: 'heading/h1-not-first',
-      message: 'O H1 não é o primeiro título da página.',
-      nodeId: h1s[0].node.id,
-    });
-  }
 
   // Skipped levels break outline navigation for screen readers.
   let previous = 0;
@@ -115,14 +95,6 @@ function auditImages(nodes: Node[], findings: Finding[]): void {
 
 function auditActions(nodes: Node[], findings: Finding[]): void {
   const buttons = nodes.filter((node) => node.type === 'button');
-
-  if (buttons.length === 0) {
-    findings.push({
-      severity: 'warning',
-      code: 'cta/none',
-      message: 'A página não tem nenhuma chamada para ação.',
-    });
-  }
 
   for (const node of buttons) {
     const label = String(node.props?.label ?? '').trim();
