@@ -27,10 +27,15 @@ primeira compilação, com `Cannot find module 'node-html-parser'`.
 | Rota | O quê |
 |---|---|
 | `/` | Entrada. A Shopify abre o app aqui com `?shop=&host=`; redireciona para `/app` preservando os parâmetros |
-| `/app` | **Páginas** — lista, criar, duplicar, excluir. Mostra em quais lojas cada página está |
-| `/app/pages/:id` | **Editor** — HTML à esquerda, preview à direita, publicação multi-loja embaixo |
-| `/app/stores` | **Lojas** — registro com credencial por loja |
+| `/app` | **Páginas** — lista em Polaris, criar, duplicar, excluir (com confirmação em dois cliques) |
+| `/app/pages/:id` | **Editor** — tela cheia: estrutura à esquerda, canvas com larguras de dispositivo no centro, código e publicação à direita |
 | `/api/preview/:id` | Compila markup para o preview |
+
+**Não existe tela de lojas.** Uma loja que abre o app se registra sozinha (`ensureStore`): o
+`?shop=` chega na URL, as credenciais do app valem para qualquer loja que o instalou (é o mesmo
+app, o grant de client credentials é por domínio), e a linha só é gravada depois de provada com um
+`shop { name }` real. Loja nova entra como **produção** por padrão — publicar nela exige a
+confirmação extra do editor.
 
 ## Três decisões que valem explicar
 
@@ -42,8 +47,25 @@ não bater com a página publicada; aqui não há como divergir.
 **Salvar sempre grava uma versão, com a versão do compilador junto.** É o invariante I2 como
 coluna: atualizar o compilador nunca reescreve o que já foi publicado.
 
-**Cadastrar loja testa a credencial antes de salvar.** A falha aparece enquanto a pessoa está
-olhando o formulário, não depois, na hora de publicar.
+**Registrar loja prova a credencial antes de gravar.** Nenhuma linha entra no banco sem um
+`shop { name }` respondido pela própria loja — uma loja nunca registra "meio funcionando".
+
+## Polaris web components — o que foi aprendido no navegador, não na doc
+
+A interface usa os componentes `s-*` que a própria Shopify serve por CDN. Três armadilhas reais,
+todas encontradas rodando e olhando, e que valem para qualquer código novo aqui:
+
+1. **`disabled={false}` desabilita.** React 18 escreve props desconhecidas de custom elements como
+   atributo; `false` vira a *string* `"false"`, e atributo presente é atributo ligado. Todo booleano
+   condicional precisa ser `disabled={x || undefined}`.
+2. **`defaultvalue` não existe.** Os elementos observam `value` e `checked` (minúsculo, direto).
+   `defaultValue`/`defaultChecked` são propriedades JS que atributo nenhum alimenta — usar
+   `value={...}` e deixar o componente gerir a edição.
+3. **Botões não carregam `name`/`value`.** `s-button type="submit"` submete o form, mas o intent
+   não pode morar no botão — vai via `useSubmit` com o campo `intent` carimbado no FormData.
+
+Os tipos em `app/polaris.d.ts` foram extraídos dos `observedAttributes` do bundle real, não
+transcritos de documentação.
 
 ## Verificado contra loja real
 

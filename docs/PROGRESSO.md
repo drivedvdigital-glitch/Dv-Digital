@@ -559,6 +559,37 @@ Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da a
 9. Auditoria estática no editor (já existe em `prototype/src/audit.ts`)
 10. Export estático e rotina de desinstalação
 
+### ✅ Interface nativa do admin + editor em tela cheia
+
+A direção veio do próprio dono, com as capturas do concorrente e a regravação em vídeo (6min07s,
+reanalisado quadro a quadro para **desenho**, não fluxo): a experiência do concorrente, escrita do
+zero, com a identidade D&VFly. Zero código, texto ou marca alheia no produto.
+
+O que mudou:
+
+- **Lista de páginas em Polaris web components** — os componentes `s-*` do CDN da Shopify, os
+  mesmos que o admin usa, então dentro do admin a tela é indistinguível de tela nativa. Excluir
+  pede um segundo clique na própria linha (dialog `confirm()` pode ser engolido dentro do iframe
+  do admin).
+- **Editor em tela cheia**, no arranjo consagrado: barra superior (voltar, marca, título editável,
+  estado, larguras de dispositivo Cheio/1200/768/390, Salvar, **Publicar** verde), estrutura à
+  esquerda, canvas central com a página sombreada, código + publicação à direita.
+- **A aba Lojas morreu.** Decisão do dono: "cada loja instala o app e automaticamente já
+  configura". `ensureStore` registra a loja que abre o app — o `?shop=` chega, as credenciais do
+  app valem para qualquer loja que o instalou, e a linha só grava depois de um `shop { name }`
+  respondido. Loja auto-registrada entra como produção (publicar nela exige a confirmação extra).
+- **Sub-navegação no menu lateral do admin** via `ui-nav-menu` do App Bridge, como o concorrente
+  faz; o client id que o App Bridge precisa sai do banco (qualquer loja registrada) ou do ambiente.
+
+Três armadilhas reais de web components + React 18, encontradas **rodando** (Playwright + bundle
+real da Polaris interceptado, porque o Chromium daqui não confia no proxy TLS — os bytes vêm de um
+download com TLS verificado): `disabled={false}` desabilita; `defaultvalue` não é observado (é
+`value`); botões Polaris não carregam `name`/`value`. Registradas no `app/README.md`.
+
+Verificação: 9/9 passos clicados num navegador real (criar, renomear, digitar código, preview
+atualizado, largura 390 medida no iframe, salvar, persistência após reload, aviso sem loja,
+excluir com confirmação). Loja desconhecida não registra lixo; `shop` inválido não entra no CSP.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

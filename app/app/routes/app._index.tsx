@@ -1,4 +1,5 @@
-import { Form, Link, useLoaderData, useLocation } from 'react-router';
+import { useState } from 'react';
+import { Link, useLoaderData, useLocation, useNavigation, useSubmit } from 'react-router';
 import type { ActionFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 
@@ -55,105 +56,126 @@ export async function action({ request }: ActionFunctionArgs) {
 export default function PagesList() {
   const { pages } = useLoaderData<typeof loader>();
   const search = useLocation().search;
+  const submit = useSubmit();
+  const busy = useNavigation().state !== 'idle';
+
+  // Deleting asks for a second click on the same row instead of a dialog:
+  // `confirm()` can be silently blocked inside the admin's iframe, and a
+  // swallowed dialog would make the button simply do nothing.
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const act = (intent: string, id?: string) => {
+    const fd = new FormData();
+    fd.set('intent', intent);
+    if (id) fd.set('id', id);
+    submit(fd, { method: 'post' });
+    setConfirming(null);
+  };
 
   return (
-    <>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, margin: 0 }}>Páginas</h1>
-        <Form method="post" style={{ marginLeft: 'auto' }}>
-          <button name="intent" value="create" style={primaryButton}>
-            Criar página
-          </button>
-        </Form>
-      </div>
+    <s-page heading="Páginas">
+      <s-button slot="primary-action" variant="primary" disabled={busy || undefined} onClick={() => act('create')}>
+        Criar página
+      </s-button>
 
-      {pages.length === 0 ? (
-        <p style={{ color: '#5d6b64' }}>
-          Nenhuma página ainda. Clique em <strong>Criar página</strong> para começar.
-        </p>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', color: '#5d6b64', fontSize: 12 }}>
-              <th style={th}>Título</th>
-              <th style={th}>Handle</th>
-              <th style={th}>Publicada em</th>
-              <th style={th}>Atualizada</th>
-              <th style={th} />
-            </tr>
-          </thead>
-          <tbody>
-            {pages.map((page) => (
-              <tr key={page.id} style={{ borderTop: '1px solid #eee' }}>
-                <td style={td}>
-                  <Link to={`/app/pages/${page.id}${search}`} style={{ color: '#17201c', fontWeight: 600 }}>
-                    {page.title}
-                  </Link>
-                </td>
-                <td style={{ ...td, color: '#5d6b64' }}>/{page.handle}</td>
-                <td style={td}>
-                  {page.deployments.length === 0 ? (
-                    <span style={{ color: '#8c8c8c' }}>rascunho</span>
-                  ) : (
-                    page.deployments.map((d) => (
-                      <span key={d.id} style={chip}>
-                        {d.store.label}
-                      </span>
-                    ))
-                  )}
-                </td>
-                <td style={{ ...td, color: '#5d6b64' }}>
-                  {new Date(page.updatedAt).toLocaleString('pt-BR')}
-                </td>
-                <td style={{ ...td, textAlign: 'right' }}>
-                  <Form method="post" style={{ display: 'inline' }}>
-                    <input type="hidden" name="id" value={page.id} />
-                    <button name="intent" value="duplicate" style={linkButton}>
-                      Duplicar
-                    </button>
-                  </Form>
-                  <Form method="post" style={{ display: 'inline' }}>
-                    <input type="hidden" name="id" value={page.id} />
-                    <button name="intent" value="delete" style={{ ...linkButton, color: '#b42318' }}>
-                      Excluir
-                    </button>
-                  </Form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </>
+      <s-section padding="none">
+        {pages.length === 0 ? (
+          <s-box padding="large">
+            <s-paragraph tone="subdued">
+              Nenhuma página ainda. Clique em <strong>Criar página</strong> para começar.
+            </s-paragraph>
+          </s-box>
+        ) : (
+          <s-table>
+            <s-table-header-row>
+              <s-table-header>Título</s-table-header>
+              <s-table-header>Handle</s-table-header>
+              <s-table-header>Publicada em</s-table-header>
+              <s-table-header>Atualizada</s-table-header>
+              <s-table-header />
+            </s-table-header-row>
+            <s-table-body>
+              {pages.map((page) => (
+                <s-table-row key={page.id}>
+                  <s-table-cell>
+                    <Link to={`/app/pages/${page.id}${search}`} style={titleLink}>
+                      {page.title}
+                    </Link>
+                  </s-table-cell>
+                  <s-table-cell>
+                    <s-text tone="subdued">/{page.handle}</s-text>
+                  </s-table-cell>
+                  <s-table-cell>
+                    {page.deployments.length === 0 ? (
+                      <s-badge>rascunho</s-badge>
+                    ) : (
+                      page.deployments.map((d) => (
+                        <s-badge key={d.id} tone="success">
+                          {d.store.label}
+                        </s-badge>
+                      ))
+                    )}
+                  </s-table-cell>
+                  <s-table-cell>
+                    <s-text tone="subdued">
+                      {new Date(page.updatedAt).toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </s-text>
+                  </s-table-cell>
+                  <s-table-cell>
+                    {confirming === page.id ? (
+                      <>
+                        <s-button
+                          variant="tertiary"
+                          tone="critical"
+                          disabled={busy || undefined}
+                          onClick={() => act('delete', page.id)}
+                        >
+                          Confirmar exclusão
+                        </s-button>
+                        <s-button variant="tertiary" onClick={() => setConfirming(null)}>
+                          Cancelar
+                        </s-button>
+                      </>
+                    ) : (
+                      <>
+                        <s-button
+                          variant="tertiary"
+                          disabled={busy || undefined}
+                          onClick={() => act('duplicate', page.id)}
+                        >
+                          Duplicar
+                        </s-button>
+                        <s-button
+                          variant="tertiary"
+                          tone="critical"
+                          disabled={busy || undefined}
+                          onClick={() => setConfirming(page.id)}
+                        >
+                          Excluir
+                        </s-button>
+                      </>
+                    )}
+                  </s-table-cell>
+                </s-table-row>
+              ))}
+            </s-table-body>
+          </s-table>
+        )}
+      </s-section>
+    </s-page>
   );
 }
 
-const th: React.CSSProperties = { padding: '8px 10px', fontWeight: 500 };
-const td: React.CSSProperties = { padding: '12px 10px', verticalAlign: 'middle' };
-const primaryButton: React.CSSProperties = {
-  background: '#0BE05C',
-  color: '#06301b',
-  border: 0,
-  borderRadius: 8,
-  padding: '9px 16px',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-const linkButton: React.CSSProperties = {
-  background: 'none',
-  border: 0,
-  color: '#5d6b64',
-  fontSize: 13,
-  cursor: 'pointer',
-  padding: '4px 8px',
-};
-const chip: React.CSSProperties = {
-  display: 'inline-block',
-  background: '#eafaf0',
-  color: '#0a6b38',
-  borderRadius: 999,
-  padding: '2px 9px',
-  fontSize: 12,
-  marginRight: 4,
+// react-router's Link renders a plain <a>; match it to Polaris link styling so
+// it does not read as a foreign element in the middle of the table.
+const titleLink: React.CSSProperties = {
+  color: '#005bd3',
+  textDecoration: 'none',
+  fontWeight: 450,
 };

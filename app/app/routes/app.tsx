@@ -1,7 +1,7 @@
-import { data, Link, Outlet, useLoaderData, useLocation } from 'react-router';
+import { data, Outlet, useLoaderData } from 'react-router';
 import type { HeadersFunction, LoaderFunctionArgs } from 'react-router';
 
-import { db } from '../lib/db.server.ts';
+import { ensureStore } from '../lib/shopify.server.ts';
 
 /** A myshopify domain and nothing else — this value ends up inside a CSP. */
 const SHOP_DOMAIN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;
@@ -24,13 +24,13 @@ function frameAncestors(shop: string | null): string {
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const shop = url.searchParams.get('shop');
-  const storeCount = await db.store.count();
+
+  // A store that opens the app registers itself — install, open, use.
+  // There is no store settings screen to fill in first.
+  if (shop) await ensureStore(shop);
+
   return data(
-    {
-      shop,
-      storeCount,
-      clientId: process.env.SHOPIFY_CLIENT_ID ?? '',
-    },
+    { shop },
     { headers: { 'Content-Security-Policy': frameAncestors(shop) } },
   );
 }
@@ -38,64 +38,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export const headers: HeadersFunction = ({ loaderHeaders }) => loaderHeaders;
 
 /**
- * The frame: brand, tabs, and whatever screen is active.
+ * The frame is deliberately empty chrome: no app title, no logo, no tab bar.
  *
- * Tabs preserve the query string because Shopify's `shop` and `host` params
- * have to survive navigation or the app falls out of its embedded context.
+ * Embedded, the admin already draws the app's name and icon above this iframe,
+ * and navigation lives in the admin's own sidebar via `ui-nav-menu` — the same
+ * place the reference app puts it. App Bridge reads the links and mirrors them
+ * as sub-items; the element itself renders nothing, and root.tsx hides it when
+ * App Bridge is absent so plain links never leak into the page.
  */
 export default function AppFrame() {
-  const { shop, storeCount } = useLoaderData<typeof loader>();
-  const location = useLocation();
-  const search = location.search;
-
-  const tabs = [
-    { to: `/app${search}`, label: 'Páginas', match: (p: string) => p === '/app' },
-    { to: `/app/stores${search}`, label: `Lojas${storeCount ? ` (${storeCount})` : ''}`, match: (p: string) => p.startsWith('/app/stores') },
-  ];
-
+  useLoaderData<typeof loader>();
   return (
-    <div style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif', color: '#17201c' }}>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '14px 20px',
-          borderBottom: '1px solid #e3e3e3',
-        }}
-      >
-        <img src="/mark.svg" alt="" width={26} height={26} />
-        <strong style={{ fontSize: 16, letterSpacing: '-0.01em' }}>D&amp;VFly</strong>
-        {shop ? (
-          <span style={{ marginLeft: 'auto', fontSize: 13, color: '#5d6b64' }}>{shop}</span>
-        ) : null}
-      </header>
-
-      <nav style={{ display: 'flex', gap: 4, padding: '0 12px', borderBottom: '1px solid #e3e3e3' }}>
-        {tabs.map((tab) => {
-          const active = tab.match(location.pathname);
-          return (
-            <Link
-              key={tab.label}
-              to={tab.to}
-              style={{
-                padding: '12px 14px',
-                fontSize: 14,
-                textDecoration: 'none',
-                color: active ? '#17201c' : '#5d6b64',
-                fontWeight: active ? 600 : 400,
-                borderBottom: active ? '2px solid #0BE05C' : '2px solid transparent',
-              }}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <main style={{ padding: 20, maxWidth: 1100 }}>
-        <Outlet />
-      </main>
-    </div>
+    <>
+      <ui-nav-menu>
+        <a href="/app" rel="home">
+          Início
+        </a>
+        <a href="/app">Páginas</a>
+      </ui-nav-menu>
+      <Outlet />
+    </>
   );
 }

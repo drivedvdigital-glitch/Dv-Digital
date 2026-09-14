@@ -6,9 +6,28 @@ import {
   Scripts,
   ScrollRestoration,
   useRouteError,
+  useRouteLoaderData,
 } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
+
+import { db } from './lib/db.server.ts';
+
+/**
+ * App Bridge needs the app's client id to boot. It comes from the environment
+ * or, failing that, from any registered store — every store runs the same app,
+ * so any row's client id is the app's client id. No settings screen.
+ */
+export async function loader(_: LoaderFunctionArgs) {
+  let clientId = process.env.SHOPIFY_CLIENT_ID ?? '';
+  if (!clientId) {
+    const store = await db.store.findFirst({ orderBy: { createdAt: 'asc' } }).catch(() => null);
+    clientId = store?.clientId ?? '';
+  }
+  return { clientId };
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const data = useRouteLoaderData<typeof loader>('root');
   return (
     <html lang="pt-BR">
       <head>
@@ -23,14 +42,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         */}
         <script
           src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
-          data-api-key={
-            typeof document === 'undefined'
-              ? (globalThis as { __DVFLY_CLIENT_ID__?: string }).__DVFLY_CLIENT_ID__
-              : undefined
-          }
+          data-api-key={data?.clientId || undefined}
         />
         {/* Polaris web components: the admin look, without the deprecated React package. */}
         <script src="https://cdn.shopify.com/shopifycloud/polaris.js" type="module" />
+        {/*
+          ui-nav-menu holds the links App Bridge mirrors into the admin sidebar.
+          Outside the admin App Bridge never registers the element, which would
+          leave its raw <a> children rendered inline — so hide it until defined.
+        */}
+        <style>{`ui-nav-menu:not(:defined) { display: none }`}</style>
         <Meta />
         <Links />
       </head>
