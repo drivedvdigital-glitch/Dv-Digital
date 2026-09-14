@@ -152,54 +152,107 @@ function startTunnel(port) {
   });
 }
 
-// ---- run ------------------------------------------------------------------
+// ---- run: supervisor ------------------------------------------------------
+//
+// On Windows, Ctrl+C reaches every process attached to the console — the
+// server and the tunnel die whether we like it or not, and a whole session
+// was lost to exactly that (the person pressed Ctrl+C to copy the URL; the
+// tunnel address kept answering 1033 for the rest of the afternoon). So this
+// process supervises instead of exiting: whatever child dies gets brought
+// back, a fresh tunnel address gets printed and re-copied, and the one true
+// off switch is closing the window.
 
 await ensureCredentials();
 
 console.log('');
 log('subindo o servidor…');
-const server = await startServer();
+let server = await startServer();
+let tunnel = { child: null, url: null };
 
-log('abrindo o túnel…');
-const tunnel = await startTunnel(server.port);
-
-if (tunnel.url) {
-  if (isWindows) {
+function copyToClipboard(text) {
+  if (!isWindows) return false;
+  try {
     // Straight to the clipboard, so "colar no App URL" is literally colar.
-    try {
-      const clip = spawnSync('clip', { input: tunnel.url, shell: true });
-      if (clip.status === 0) log('endereço copiado para a área de transferência ✓');
-    } catch {
-      /* clipboard is a convenience, never a failure */
-    }
+    return spawnSync('clip', { input: text, shell: true }).status === 0;
+  } catch {
+    return false; /* clipboard is a convenience, never a failure */
   }
-  banner([
-    'DVFly no ar!',
-    '',
-    `Local:    http://localhost:${server.port}`,
-    `Público:  ${tunnel.url}`,
-    '',
-    'Se o endereço público MUDOU desde a última vez,',
-    'cola ele no App URL do app na Shopify (já está copiado).',
-    '',
-    'Deixa esta janela aberta. Ctrl+C encerra tudo.',
-  ]);
-} else {
-  banner([
-    'DVFly no ar (só local)!',
-    '',
-    `Local: http://localhost:${server.port}`,
-    '',
-    'O túnel não subiu — sem ele o app não abre dentro da Shopify.',
-    'Instala com:  winget install --id Cloudflare.cloudflared -e',
-    'e roda este arquivo de novo.',
-  ]);
 }
 
-const stop = () => {
-  server.child.kill();
+function announce() {
+  if (tunnel.url) {
+    const copied = copyToClipboard(tunnel.url);
+    banner([
+      'DVFly no ar!',
+      '',
+      `Local:    http://localhost:${server.port}`,
+      `Público:  ${tunnel.url}`,
+      '',
+      'Se o endereço público MUDOU desde a última vez, cola ele',
+      `no App URL do app na Shopify${copied ? ' (já está copiado)' : ''}.`,
+      '',
+      'Pode minimizar esta janela. Para desligar, FECHE a janela.',
+    ]);
+  } else {
+    banner([
+      'DVFly no ar (só local)!',
+      '',
+      `Local: http://localhost:${server.port}`,
+      '',
+      'O túnel não subiu — sem ele o app não abre dentro da Shopify.',
+      'Instala com:  winget install --id Cloudflare.cloudflared -e',
+      'e roda este arquivo de novo.',
+    ]);
+  }
+}
+
+let reviving = false;
+async function reviveTunnel() {
+  if (reviving) return;
+  reviving = true;
+  await sleep(2000);
+  log('religando o túnel…');
+  tunnel = await startTunnel(server.port);
+  reviving = false;
+  if (tunnel.url) {
+    announce();
+    watchTunnel();
+  } else {
+    log('o túnel não voltou; nova tentativa em 15s…');
+    setTimeout(reviveTunnel, 15000);
+  }
+}
+
+function watchTunnel() {
+  tunnel.child?.once('exit', () => {
+    log('o túnel caiu (Ctrl+C ou queda de rede) — religando sozinho…');
+    reviveTunnel();
+  });
+}
+
+function watchServer() {
+  server.child.once('exit', async () => {
+    log('o servidor caiu — religando sozinho…');
+    tunnel.child?.kill();
+    await sleep(2000);
+    server = await startServer();
+    watchServer();
+    reviveTunnel();
+  });
+}
+watchServer();
+
+tunnel = await startTunnel(server.port);
+announce();
+watchTunnel();
+
+// Ctrl+C must not kill the supervisor: the children it just killed are about
+// to be revived. Closing the window is the real off switch.
+process.on('SIGINT', () => {
+  log('Ctrl+C não desliga o DVFly — para desligar, FECHE a janela.');
+});
+process.on('SIGTERM', () => {
+  server.child?.kill();
   tunnel.child?.kill();
   process.exit(0);
-};
-process.on('SIGINT', stop);
-process.on('SIGTERM', stop);
+});
