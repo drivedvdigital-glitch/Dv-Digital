@@ -205,3 +205,61 @@ export function newBlock(type: string): DocNode {
       return { id, type, props: {} };
   }
 }
+
+/**
+ * Merges a style patch into one node at one breakpoint, returning a new tree.
+ *
+ * A key whose patched value is `undefined` is removed — that is how a field
+ * goes back to "inherited" (U4: one design plus overrides, so clearing an
+ * override must be as easy as setting it). A breakpoint left with no keys is
+ * dropped entirely, so documents never accumulate empty `{md:{}}` husks.
+ */
+export function updateStyle(
+  nodes: DocNode[],
+  id: string,
+  breakpoint: string,
+  patch: Record<string, unknown>,
+): DocNode[] {
+  return nodes.map((node) => {
+    if (node.id !== id) {
+      return node.children
+        ? { ...node, children: updateStyle(node.children, id, breakpoint, patch) }
+        : node;
+    }
+
+    const style = { ...(node.style ?? {}) } as Record<string, Record<string, unknown>>;
+    const bucket = { ...(style[breakpoint] ?? {}) };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) delete bucket[key];
+      else bucket[key] = value;
+    }
+    if (Object.keys(bucket).length === 0) delete style[breakpoint];
+    else style[breakpoint] = bucket;
+
+    const next: DocNode = { ...node };
+    if (Object.keys(style).length === 0) delete next.style;
+    else next.style = style;
+    return next;
+  });
+}
+
+/**
+ * The value a field would have at `breakpoint` if it set nothing there —
+ * i.e. what the earlier breakpoints (mobile-first) already decided. Drives
+ * the inherited-value placeholders in the style panel.
+ */
+export function effectiveStyle(
+  style: Record<string, Record<string, unknown>> | undefined,
+  breakpoint: string,
+  key: string,
+): unknown {
+  if (!style) return undefined;
+  const order = ['base', 'md', 'lg'];
+  const upto = order.indexOf(breakpoint);
+  let value: unknown;
+  for (let i = 0; i < upto; i++) {
+    const bucket = style[order[i]];
+    if (bucket && key in bucket) value = bucket[key];
+  }
+  return value;
+}

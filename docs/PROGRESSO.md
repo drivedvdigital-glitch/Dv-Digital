@@ -612,10 +612,27 @@ Verificado clicando: 11/11 passos num navegador real, incluindo clicar no H2 *de
 ver a árvore marcar, duplicar → 2 títulos no preview, salvar → recarregar → estrutura persistida.
 Testes do compilador: 42/42.
 
-**O que o canvas ainda não faz** (próximas fatias): arrastar para reordenar; painel **Estilo**
-(espaçamento, cor, tipografia por breakpoint — o vocabulário fechado já existe no compilador);
-barra flutuante sobre o elemento selecionado; desfazer/refazer (as operações já são puras
-justamente para isso virar lista de documentos).
+**O que o canvas ainda não faz** (próximas fatias): arrastar para reordenar; barra flutuante
+sobre o elemento selecionado; desfazer/refazer (as operações já são puras justamente para isso
+virar lista de documentos).
+
+### ✅ Aba Estilo — responsivo mobile-first como formulário
+
+O inspetor ganhou as abas **Geral | Estilo**. A Estilo expõe exatamente o vocabulário fechado do
+compilador — nada que ela ofereça pode falhar ao compilar:
+
+- **Um design + sobreposições** (U4): seletor Base / ≥768 / ≥1200. Campo vazio herda do
+  breakpoint anterior e mostra o valor herdado como placeholder; digitar cria a sobreposição;
+  limpar o campo remove (a operação apaga a chave, não grava `undefined`).
+- **Escolher o breakpoint muda a largura do canvas** (Base→390, ≥768→768, ≥1200→1200): o que se
+  edita é o que se está olhando.
+- Grupos: Layout (só contêiner: direção, espaço, alinhar), Espaçamento (padding/margin por lado),
+  Texto (tamanho, peso, alinhamento), Aparência (cor com amostra, fundo, cantos, largura máx.),
+  Visibilidade (esconder por tamanho de tela).
+
+Verificado no navegador, 12/12 — incluindo os dois que provam o modelo responsivo: a sobreposição
+de tamanho no ≥768 **não vaza** para o canvas de 390, e limpar o campo faz o valor voltar a
+herdar. Estilos persistem após salvar e recarregar.
 
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 

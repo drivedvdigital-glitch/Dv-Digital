@@ -8,6 +8,7 @@ import {
   BLOCK_LABELS,
   CONTAINER_TYPES,
   duplicateNode,
+  effectiveStyle,
   findNode,
   insertNode,
   moveNode,
@@ -15,6 +16,7 @@ import {
   pathTo,
   removeNode,
   updateProps,
+  updateStyle,
   type DocNode,
   type DocTree,
 } from '../lib/doc-ops.ts';
@@ -164,6 +166,8 @@ export default function PageEditor() {
   const [doc, setDoc] = useState<DocTree>(data.doc);
   const [selected, setSelected] = useState<string | null>(null);
   const [device, setDevice] = useState(0);
+  const [tab, setTab] = useState<'geral' | 'estilo'>('geral');
+  const [breakpoint, setBreakpoint] = useState<'base' | 'md' | 'lg'>('base');
   const [live, setLive] = useState<{ stats: PreviewStats; findings: { message: string }[] }>({
     stats: data.stats,
     findings: data.findings,
@@ -388,10 +392,42 @@ export default function PageEditor() {
                   </button>
                 </div>
               </div>
-              <Inspector
-                node={selectedNode}
-                onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
-              />
+              <div style={tabRow}>
+                <button
+                  type="button"
+                  style={tab === 'geral' ? tabOn : tabOff}
+                  onClick={() => setTab('geral')}
+                >
+                  Geral
+                </button>
+                <button
+                  type="button"
+                  style={tab === 'estilo' ? tabOn : tabOff}
+                  onClick={() => setTab('estilo')}
+                >
+                  Estilo
+                </button>
+              </div>
+              {tab === 'geral' ? (
+                <Inspector
+                  node={selectedNode}
+                  onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
+                />
+              ) : (
+                <StylePanel
+                  node={selectedNode}
+                  breakpoint={breakpoint}
+                  onBreakpoint={(bp) => {
+                    setBreakpoint(bp);
+                    // Show the width the chosen breakpoint actually governs, so
+                    // what is being edited is what is being looked at.
+                    setDevice(bp === 'base' ? 3 : bp === 'md' ? 2 : 1);
+                  }}
+                  onChange={(patch) =>
+                    setRoot(updateStyle(doc.root, selectedNode.id, breakpoint, patch))
+                  }
+                />
+              )}
             </>
           ) : (
             <>
@@ -649,6 +685,231 @@ function Inspector({
   }
 }
 
+/** '' → inherited; plain number → px; anything else is its own unit. */
+function parseLength(raw: string): number | string | undefined {
+  const value = raw.trim();
+  if (value === '') return undefined;
+  return /^-?\d+(\.\d+)?$/.test(value) ? Number(value) : value;
+}
+
+const BP_LABELS: Record<string, string> = {
+  base: 'Base — vale em toda largura',
+  md: '≥ 768px — sobrepõe a base',
+  lg: '≥ 1200px — sobrepõe as duas',
+};
+
+/**
+ * The Estilo tab: the compiler's closed style vocabulary as a form, one
+ * breakpoint at a time, mobile-first (U4: one design plus overrides).
+ *
+ * A field left empty inherits from the breakpoints before it — the inherited
+ * value shows as the placeholder — and typing into it creates the override.
+ * Clearing the field removes the override again. There is deliberately no
+ * field here the compiler cannot emit.
+ */
+function StylePanel({
+  node,
+  breakpoint,
+  onBreakpoint,
+  onChange,
+}: {
+  node: DocNode;
+  breakpoint: 'base' | 'md' | 'lg';
+  onBreakpoint: (bp: 'base' | 'md' | 'lg') => void;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const style = (node.style ?? {}) as Record<string, Record<string, unknown>>;
+  const own = style[breakpoint] ?? {};
+  const inherited = (key: string) => effectiveStyle(style, breakpoint, key);
+
+  const ownOr = (key: string): string => {
+    const value = own[key];
+    return value === undefined ? '' : String(value);
+  };
+  const hint = (key: string): string => {
+    const value = inherited(key);
+    return value === undefined ? '' : String(value);
+  };
+
+  const length = (label: string, key: string) => (
+    <label style={{ ...fieldLabel, flex: 1, marginBottom: 8 }}>
+      {label}
+      <input
+        style={fieldInput}
+        value={ownOr(key)}
+        placeholder={hint(key) || '—'}
+        onChange={(e) => onChange({ [key]: parseLength(e.target.value) })}
+      />
+    </label>
+  );
+
+  const color = (label: string, key: string) => {
+    const value = ownOr(key);
+    const shown = value || hint(key);
+    return (
+      <label style={{ ...fieldLabel, flex: 1, marginBottom: 8 }}>
+        {label}
+        <span style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+          <span
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              border: '1px solid #d0d0d0',
+              background: shown || '#fff',
+              flexShrink: 0,
+            }}
+          />
+          <input
+            style={{ ...fieldInput, marginTop: 0 }}
+            value={value}
+            placeholder={hint(key) || 'ex.: #17201c'}
+            onChange={(e) => onChange({ [key]: e.target.value.trim() || undefined })}
+          />
+        </span>
+      </label>
+    );
+  };
+
+  const box = (label: string, key: 'padding' | 'margin') => {
+    const value = (own[key] ?? {}) as Record<string, unknown>;
+    const base = (inherited(key) ?? {}) as Record<string, unknown>;
+    const side = (name: 'top' | 'right' | 'bottom' | 'left', short: string) => (
+      <label key={name} style={{ ...fieldLabel, flex: 1, marginBottom: 0 }}>
+        {short}
+        <input
+          style={fieldInput}
+          value={value[name] === undefined ? '' : String(value[name])}
+          placeholder={base[name] === undefined ? '—' : String(base[name])}
+          onChange={(e) => {
+            const next = { ...value };
+            const parsed = parseLength(e.target.value);
+            if (parsed === undefined) delete next[name];
+            else next[name] = parsed;
+            onChange({ [key]: Object.keys(next).length > 0 ? next : undefined });
+          }}
+        />
+      </label>
+    );
+    return (
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ ...fieldLabel, marginBottom: 2 }}>{label}</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {side('top', '↑')}
+          {side('right', '→')}
+          {side('bottom', '↓')}
+          {side('left', '←')}
+        </div>
+      </div>
+    );
+  };
+
+  const choice = (
+    label: string,
+    key: string,
+    options: Array<{ value: string; label: string }>,
+  ) => (
+    <label style={{ ...fieldLabel, flex: 1, marginBottom: 8 }}>
+      {label}
+      <select
+        style={fieldInput}
+        value={ownOr(key)}
+        onChange={(e) => onChange({ [key]: e.target.value || undefined })}
+      >
+        <option value="">{hint(key) ? `herdado (${hint(key)})` : 'herdado'}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  const isContainer = CONTAINER_TYPES.has(node.type);
+  const isTexty = ['heading', 'text', 'button', 'html', 'section', 'stack'].includes(node.type);
+
+  return (
+    <div style={{ overflowY: 'auto' }}>
+      <div style={bpRow}>
+        {(['base', 'md', 'lg'] as const).map((bp) => (
+          <button
+            key={bp}
+            type="button"
+            data-breakpoint={bp}
+            style={bp === breakpoint ? bpOn : bpOff}
+            onClick={() => onBreakpoint(bp)}
+          >
+            {bp === 'base' ? 'Base' : bp === 'md' ? '≥768' : '≥1200'}
+          </button>
+        ))}
+      </div>
+      <div style={{ ...metaLine, marginBottom: 10 }}>{BP_LABELS[breakpoint]}</div>
+
+      {isContainer ? (
+        <>
+          <div style={groupLabel}>Layout</div>
+          {choice('Direção', 'direction', [
+            { value: 'column', label: 'Coluna' },
+            { value: 'row', label: 'Linha' },
+          ])}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {length('Espaço entre itens', 'gap')}
+            {choice('Alinhar', 'align', [
+              { value: 'start', label: 'Início' },
+              { value: 'center', label: 'Centro' },
+              { value: 'end', label: 'Fim' },
+              { value: 'stretch', label: 'Esticar' },
+            ])}
+          </div>
+        </>
+      ) : null}
+
+      <div style={groupLabel}>Espaçamento</div>
+      {box('Interno (padding)', 'padding')}
+      {box('Externo (margin)', 'margin')}
+
+      {isTexty ? (
+        <>
+          <div style={groupLabel}>Texto</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {length('Tamanho', 'fontSize')}
+            {choice('Peso', 'fontWeight', [
+              { value: '400', label: 'Normal' },
+              { value: '600', label: 'Meio-negrito' },
+              { value: '700', label: 'Negrito' },
+              { value: '800', label: 'Pesado' },
+            ])}
+          </div>
+          {choice('Alinhamento', 'textAlign', [
+            { value: 'left', label: 'Esquerda' },
+            { value: 'center', label: 'Centro' },
+            { value: 'right', label: 'Direita' },
+          ])}
+        </>
+      ) : null}
+
+      <div style={groupLabel}>Aparência</div>
+      {color('Cor do texto', 'color')}
+      {color('Fundo', 'background')}
+      <div style={{ display: 'flex', gap: 8 }}>
+        {length('Cantos', 'radius')}
+        {length('Largura máx.', 'maxWidth')}
+      </div>
+
+      <div style={groupLabel}>Visibilidade</div>
+      <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="checkbox"
+          checked={own.hidden === true}
+          onChange={(e) => onChange({ hidden: e.target.checked ? true : undefined })}
+        />
+        Esconder neste tamanho de tela
+      </label>
+    </div>
+  );
+}
+
 // ---- styles ---------------------------------------------------------------
 // The editor's chrome is deliberately plain CSS: it is the one screen that is
 // not a form-over-data page, and its layout (fixed viewport grid) is not what
@@ -829,6 +1090,61 @@ const findingLine: React.CSSProperties = {
   borderRadius: 6,
   padding: '6px 8px',
   marginTop: 6,
+};
+
+const tabRow: React.CSSProperties = {
+  display: 'flex',
+  gap: 2,
+  background: '#f1f1f1',
+  borderRadius: 8,
+  padding: 2,
+  marginBottom: 10,
+};
+const tabBase2: React.CSSProperties = {
+  flex: 1,
+  border: 0,
+  borderRadius: 6,
+  padding: '6px 0',
+  fontSize: 12.5,
+  cursor: 'pointer',
+  background: 'transparent',
+  color: '#616161',
+};
+const tabOff = tabBase2;
+const tabOn: React.CSSProperties = {
+  ...tabBase2,
+  background: '#fff',
+  color: '#303030',
+  fontWeight: 600,
+  boxShadow: '0 1px 2px rgba(0,0,0,.15)',
+};
+
+const bpRow: React.CSSProperties = { display: 'flex', gap: 4, marginBottom: 4 };
+const bpBase: React.CSSProperties = {
+  border: '1px solid #e3e3e3',
+  background: '#fff',
+  borderRadius: 999,
+  padding: '3px 10px',
+  fontSize: 12,
+  cursor: 'pointer',
+  color: '#616161',
+};
+const bpOff = bpBase;
+const bpOn: React.CSSProperties = {
+  ...bpBase,
+  background: '#eafaf0',
+  borderColor: '#b6ecd0',
+  color: '#0a6b38',
+  fontWeight: 600,
+};
+
+const groupLabel: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  color: '#8a8a8a',
+  margin: '10px 0 6px',
 };
 
 const fieldLabel: React.CSSProperties = {
