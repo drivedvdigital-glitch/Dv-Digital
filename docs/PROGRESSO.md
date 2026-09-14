@@ -239,6 +239,58 @@ migração). Duas trilhas de publicação, com app blocks + deep linking como pl
 Orçamentos de performance como número verificado no build. Nove decisões na tabela final do
 documento.
 
+### Fluxos de uso — `docs/UX_FLUXOS.md`
+
+A pesquisa mapeou *o que existe* e a arquitetura definiu *como construir*. Faltava *como se usa* —
+a Fase 3 precisava disso para não inventar interface no meio da implementação.
+
+**Método.** A ideia original era assistir aos vídeos-tutorial do concorrente. **Não foi possível:**
+não tenho processamento de vídeo nem áudio, e os três contornos testados falharam (a página do
+YouTube responde 429 aqui; sem ela não há faixa de legenda; a API `timedtext` responde vazia).
+Só o oEmbed funcionou, o que rendeu os títulos.
+
+A informação veio por outro caminho, e o material já estava aqui desde a Fase 1: **643 passos
+documentados em 117 das 241 páginas** da central de ajuda. Os vídeos demonstram exatamente esses
+fluxos. Eu tinha minerado essas páginas procurando funcionalidades e descartado os fluxos — era
+questão de reler com a outra pergunta.
+
+O que se perde sem o vídeo é a camada de *sensação* (quantos cliques parecem muitos, onde o cursor
+hesita). Isso não se recupera de texto e está registrado como limitação.
+
+**O achado mais forte — 101 títulos de vídeo recuperados:**
+
+| | Vídeos |
+|---|---|
+| Marcados "(Legacy Editor)" | **74** |
+| Marcados "Gen 2 Editor" | **7** |
+
+**Três quartos da biblioteca de tutoriais ensina o motor que o concorrente está abandonando.** É um
+argumento novo para a decisão "nascer flex": trocar de motor de layout não custa só migrar páginas
+— custa a biblioteca de ensino inteira.
+
+**O catálogo de vídeos como mapa de falhas.** Um tutorial é uma confissão de que algo não era
+evidente na tela: 42 vídeos de "como adicionar o elemento X", 13 de operação básica de layout
+(inclusive *"How to Align Elements"*, *"How to Add Shopify Divider Spacer"* e *"How to Name A
+Section"*), 4 que são contorno de bug. Daí saiu a regra **U1: se precisa de tutorial, o desenho
+está errado** — que virou critério de aceite, não aspiração.
+
+**Dois fluxos que justificam sozinhos as promoções para P0:**
+
+- **Pôr dois elementos lado a lado** no concorrente: criar um Block, pôr os elementos dentro, aba
+  Styling, habilitar Flex, Direction: Row. Quatro passos de flexbox cru. No D&VFly: arrastar para
+  a borda lateral do outro, e o container é criado sozinho.
+- **Mudar um texto**: clicar no elemento e digitar numa caixa da barra lateral — não há edição
+  inline. É o gesto mais frequente da ferramenta.
+
+O documento traz ainda a anatomia da tela, a tabela de gestos (com equivalente por teclado para
+todo arrasto), os estados de erro, as sete regras de interface e a ordem de execução dentro da
+etapa 6 da Fase 3.
+
+**Não acrescenta itens à priorização** — confirma as três promoções que já tinham sido feitas por
+outro argumento e reordena a execução.
+
+---
+
 ### ⚠️ R1 — o único risco que ainda bloqueia algo
 
 A ambiguidade do `write_themes` **continua aberta** — não dá para resolver daqui, precisa da sua
