@@ -612,9 +612,31 @@ Verificado clicando: 11/11 passos num navegador real, incluindo clicar no H2 *de
 ver a árvore marcar, duplicar → 2 títulos no preview, salvar → recarregar → estrutura persistida.
 Testes do compilador: 42/42.
 
-**O que o canvas ainda não faz** (próximas fatias): arrastar para reordenar; barra flutuante
-sobre o elemento selecionado; desfazer/refazer (as operações já são puras justamente para isso
-virar lista de documentos).
+### ✅ Arrastar, desfazer, barra flutuante
+
+As três últimas peças do canvas básico, num commit só porque compartilham a fundação:
+
+- **Desfazer/refazer** (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y, mais botões ↶↷ na barra): o histórico é
+  literalmente uma lista de documentos — o retorno prometido de toda operação de árvore ser pura.
+  Mutações em até 600ms se fundem numa entrada só (digitar uma frase = um undo, não um por tecla).
+  Dentro de campo de texto o Ctrl+Z continua sendo o do navegador, como o usuário espera.
+- **Arrastar para reordenar**, na árvore E no canvas, com o mesmo `relocateNode` por trás — regras
+  idênticas nos dois gestos: nunca para dentro de si mesmo, `inside` só em contêiner, movimento
+  impossível devolve a árvore intacta. Indicador verde de posição (linha em cima/embaixo; contêiner
+  aceso quando o solte vai para dentro).
+- **Barra flutuante** sobre o elemento selecionado no canvas, como a referência: rótulo do bloco
+  (que também é alça de arrasto), subir, descer, duplicar, excluir.
+
+**Um bug de React que vale registrar:** a primeira versão do histórico fazia o push *dentro* do
+updater do `setState`. O template roda em `StrictMode`, que executa updaters duas vezes justamente
+para caçar impureza — e o histórico corrompia em silêncio (Ctrl+Z morto, botões sempre apagados).
+A correção foi tirar todo efeito colateral do updater (refs fora, `setDoc` com valor pronto).
+Também: o iframe engole teclas quando o canvas tem foco, então a ponte encaminha Ctrl+Z/Y para
+fora via `postMessage`.
+
+Verificado no navegador, 11/11 — incluindo desfazer uma exclusão feita pela barra flutuante,
+arrasto real na árvore (ordem conferida antes/depois) e arrasto real no canvas (H2 solto acima do
+parágrafo, DOM conferido).
 
 ### ✅ Aba Estilo — responsivo mobile-first como formulário
 

@@ -14,6 +14,7 @@ import {
   moveNode,
   newBlock,
   pathTo,
+  relocateNode,
   removeNode,
   updateProps,
   updateStyle,
@@ -175,9 +176,80 @@ export default function PageEditor() {
   const frame = useRef<HTMLIFrameElement>(null);
   const form = useRef<HTMLFormElement>(null);
 
+  // Undo is a list of documents — the payoff of every tree operation being a
+  // pure function. Mutations within 600ms coalesce into one entry, so typing a
+  // sentence is one undo step, not one per keystroke.
+  //
+  // The bookkeeping lives OUTSIDE the setState updater on purpose: React's
+  // StrictMode invokes updaters twice to flush out impurity, and a history
+  // that pushes from inside one gets silently corrupted by exactly that.
+  const history = useRef<{ past: DocTree[]; future: DocTree[]; lastPush: number }>({
+    past: [],
+    future: [],
+    lastPush: 0,
+  });
+  const docRef = useRef(doc);
+
   const setRoot = useCallback((root: DocNode[]) => {
-    setDoc((prev) => ({ ...prev, root }));
+    const prev = docRef.current;
+    if (prev.root === root) return;
+    const h = history.current;
+    const now = Date.now();
+    if (now - h.lastPush > 600) h.past = [...h.past.slice(-49), prev];
+    h.lastPush = now;
+    h.future = [];
+    const next = { ...prev, root };
+    docRef.current = next;
+    setDoc(next);
   }, []);
+
+  const undo = useCallback(() => {
+    const h = history.current;
+    const last = h.past[h.past.length - 1];
+    if (!last) return;
+    h.past = h.past.slice(0, -1);
+    h.future = [...h.future, docRef.current];
+    h.lastPush = 0;
+    docRef.current = last;
+    setDoc(last);
+  }, []);
+
+  const redo = useCallback(() => {
+    const h = history.current;
+    const next = h.future[h.future.length - 1];
+    if (!next) return;
+    h.future = h.future.slice(0, -1);
+    h.past = [...h.past, docRef.current];
+    h.lastPush = 0;
+    docRef.current = next;
+    setDoc(next);
+  }, []);
+
+  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — but never while typing in a field, where
+  // the browser's own text undo is the one the person expects.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+      if (typing) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undo();
+      } else if ((key === 'z' && event.shiftKey) || key === 'y') {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   // Polaris buttons submit forms but cannot carry a name/value pair, so the
   // intent is stamped onto the form data here instead of living on the button.
@@ -210,7 +282,11 @@ export default function PageEditor() {
         target.write(payload.fragment);
         target.close();
         // Re-apply the selection to the fresh document.
-        frame.current?.contentWindow?.postMessage({ type: 'dvf:selected', id: selected }, '*');
+        const type = selected ? findNode(doc.root, selected)?.type : null;
+        frame.current?.contentWindow?.postMessage(
+          { type: 'dvf:selected', id: selected, label: type ? BLOCK_LABELS[type] ?? type : '' },
+          '*',
+        );
       }
     }, 250);
     return () => clearTimeout(timer);
@@ -218,18 +294,41 @@ export default function PageEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, data.page.id]);
 
-  // Canvas → editor: clicks inside the iframe arrive as messages.
+  // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'dvf:select') setSelected(event.data.id ?? null);
+      const message = event.data;
+      if (!message) return;
+      if (message.type === 'dvf:select') setSelected(message.id ?? null);
+      if (message.type === 'dvf:move') {
+        setRoot(relocateNode(doc.root, message.id, message.targetId, message.position));
+      }
+      if (message.type === 'dvf:key') {
+        if (message.key === 'undo') undo();
+        if (message.key === 'redo') redo();
+      }
+      if (message.type === 'dvf:action') {
+        if (message.action === 'duplicate') setRoot(duplicateNode(doc.root, message.id));
+        if (message.action === 'moveUp') setRoot(moveNode(doc.root, message.id, -1));
+        if (message.action === 'moveDown') setRoot(moveNode(doc.root, message.id, 1));
+        if (message.action === 'delete') {
+          setRoot(removeNode(doc.root, message.id));
+          setSelected(null);
+        }
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, []);
+  }, [doc, setRoot, undo, redo]);
 
   // Editor → canvas: highlight whatever is selected, however it got selected.
   useEffect(() => {
-    frame.current?.contentWindow?.postMessage({ type: 'dvf:selected', id: selected }, '*');
+    const type = selected ? findNode(doc.root, selected)?.type : null;
+    frame.current?.contentWindow?.postMessage(
+      { type: 'dvf:selected', id: selected, label: type ? BLOCK_LABELS[type] ?? type : '' },
+      '*',
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
   const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`;
@@ -258,6 +357,29 @@ export default function PageEditor() {
         <s-badge tone={published ? 'success' : 'neutral'}>
           {published ? 'publicada' : 'rascunho'}
         </s-badge>
+
+        <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
+          <button
+            type="button"
+            title="Desfazer (Ctrl+Z)"
+            aria-label="Desfazer"
+            disabled={history.current.past.length === 0}
+            onClick={undo}
+            style={history.current.past.length === 0 ? historyOff : historyOn}
+          >
+            ↶
+          </button>
+          <button
+            type="button"
+            title="Refazer (Ctrl+Shift+Z)"
+            aria-label="Refazer"
+            disabled={history.current.future.length === 0}
+            onClick={redo}
+            style={history.current.future.length === 0 ? historyOff : historyOn}
+          >
+            ↷
+          </button>
+        </div>
 
         <div style={deviceGroup}>
           {DEVICES.map((d, i) => (
@@ -294,7 +416,15 @@ export default function PageEditor() {
           {doc.root.length === 0 ? (
             <div style={metaLine}>Página vazia. Adicione um bloco abaixo.</div>
           ) : (
-            <Tree nodes={doc.root} depth={0} selected={selected} onSelect={setSelected} />
+            <Tree
+              nodes={doc.root}
+              depth={0}
+              selected={selected}
+              onSelect={setSelected}
+              onRelocate={(id, targetId, position) =>
+                setRoot(relocateNode(doc.root, id, targetId, position))
+              }
+            />
           )}
         </section>
 
@@ -481,18 +611,44 @@ export default function PageEditor() {
   );
 }
 
-/** The structure panel: indented, clickable, container-aware. */
+/**
+ * The structure panel: indented, clickable, container-aware — and draggable.
+ *
+ * Drop position comes from where the cursor sits on the row: the top quarter
+ * means before, the bottom quarter after, and the middle of a *container* row
+ * means inside it. The same `relocateNode` the canvas uses applies the move,
+ * so both gestures obey identical rules.
+ */
 function Tree({
   nodes,
   depth,
   selected,
   onSelect,
+  onRelocate,
 }: {
   nodes: DocNode[];
   depth: number;
   selected: string | null;
   onSelect: (id: string) => void;
+  onRelocate: (id: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
 }) {
+  const [hint, setHint] = useState<{ id: string; position: string } | null>(null);
+
+  const positionFor = (event: React.DragEvent, node: DocNode): 'before' | 'after' | 'inside' => {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const y = (event.clientY - rect.top) / rect.height;
+    if (CONTAINER_TYPES.has(node.type) && y > 0.3 && y < 0.7) return 'inside';
+    return y < 0.5 ? 'before' : 'after';
+  };
+
+  const hintStyle = (node: DocNode): React.CSSProperties => {
+    if (hint?.id !== node.id) return {};
+    if (hint.position === 'inside') return { background: '#eafaf0', outline: '2px solid #0BE05C' };
+    return hint.position === 'before'
+      ? { boxShadow: '0 -3px 0 0 #0BE05C' }
+      : { boxShadow: '0 3px 0 0 #0BE05C' };
+  };
+
   return (
     <>
       {nodes.map((node) => (
@@ -501,11 +657,31 @@ function Tree({
             type="button"
             data-tree-id={node.id}
             data-tree-selected={node.id === selected || undefined}
+            draggable
             onClick={() => onSelect(node.id)}
+            onDragStart={(event) => {
+              event.dataTransfer.setData('text/dvf-node', node.id);
+              event.dataTransfer.effectAllowed = 'move';
+            }}
+            onDragOver={(event) => {
+              if (!event.dataTransfer.types.includes('text/dvf-node')) return;
+              event.preventDefault();
+              setHint({ id: node.id, position: positionFor(event, node) });
+            }}
+            onDragLeave={() => setHint((h) => (h?.id === node.id ? null : h))}
+            onDrop={(event) => {
+              const dragged = event.dataTransfer.getData('text/dvf-node');
+              event.preventDefault();
+              setHint(null);
+              if (dragged && dragged !== node.id) {
+                onRelocate(dragged, node.id, positionFor(event, node));
+              }
+            }}
             style={{
               ...treeRow,
               paddingLeft: 8 + depth * 14,
               ...(node.id === selected ? treeRowSelected : {}),
+              ...hintStyle(node),
             }}
           >
             <span style={treeIcon}>{CONTAINER_TYPES.has(node.type) ? '▸' : '·'}</span>
@@ -515,7 +691,13 @@ function Tree({
             ) : null}
           </button>
           {node.children ? (
-            <Tree nodes={node.children} depth={depth + 1} selected={selected} onSelect={onSelect} />
+            <Tree
+              nodes={node.children}
+              depth={depth + 1}
+              selected={selected}
+              onSelect={onSelect}
+              onRelocate={onRelocate}
+            />
           ) : null}
         </div>
       ))}
@@ -982,6 +1164,18 @@ const deviceActive: React.CSSProperties = {
   fontWeight: 600,
   boxShadow: '0 1px 2px rgba(0,0,0,.15)',
 };
+
+const historyBase: React.CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  borderRadius: 6,
+  width: 28,
+  height: 28,
+  fontSize: 15,
+  lineHeight: 1,
+};
+const historyOn: React.CSSProperties = { ...historyBase, color: '#303030', cursor: 'pointer' };
+const historyOff: React.CSSProperties = { ...historyBase, color: '#c9c9c9', cursor: 'default' };
 
 const liveLink: React.CSSProperties = {
   fontSize: 13,

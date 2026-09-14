@@ -263,3 +263,69 @@ export function effectiveStyle(
   }
   return value;
 }
+
+/** True when `maybeChild` lives anywhere inside `ancestorId`'s subtree. */
+export function isDescendant(nodes: DocNode[], ancestorId: string, maybeChild: string): boolean {
+  const ancestor = findNode(nodes, ancestorId);
+  if (!ancestor?.children) return false;
+  return findNode(ancestor.children, maybeChild) !== null;
+}
+
+/** Removes the node from the tree and hands it back. */
+function extractNode(nodes: DocNode[], id: string): { tree: DocNode[]; node: DocNode | null } {
+  let extracted: DocNode | null = null;
+  const strip = (list: DocNode[]): DocNode[] => {
+    const kept: DocNode[] = [];
+    for (const item of list) {
+      if (item.id === id) {
+        extracted = item;
+        continue;
+      }
+      kept.push(item.children ? { ...item, children: strip(item.children) } : item);
+    }
+    return kept;
+  };
+  return { tree: strip(nodes), node: extracted };
+}
+
+/**
+ * Moves a node next to — or into — another node. This is the drop half of
+ * drag-and-drop, shared by the tree panel and the canvas so both gestures are
+ * one operation with one set of rules:
+ *
+ *   - a node cannot be dropped into itself or its own subtree;
+ *   - `inside` only lands on containers, appended at the end;
+ *   - an impossible drop returns the tree unchanged rather than half-moved.
+ */
+export function relocateNode(
+  nodes: DocNode[],
+  id: string,
+  targetId: string,
+  position: 'before' | 'after' | 'inside',
+): DocNode[] {
+  if (id === targetId || isDescendant(nodes, id, targetId)) return nodes;
+
+  const { tree, node } = extractNode(nodes, id);
+  if (!node || !findNode(tree, targetId)) return nodes;
+
+  const place = (list: DocNode[]): DocNode[] => {
+    const index = list.findIndex((item) => item.id === targetId);
+    if (index >= 0) {
+      const target = list[index];
+      if (position === 'inside') {
+        if (!CONTAINER_TYPES.has(target.type)) return list; // leaves reject "inside"
+        const updated = { ...target, children: [...(target.children ?? []), node] };
+        return list.map((item, i) => (i === index ? updated : item));
+      }
+      const at = position === 'before' ? index : index + 1;
+      return [...list.slice(0, at), node, ...list.slice(at)];
+    }
+    return list.map((item) =>
+      item.children ? { ...item, children: place(item.children) } : item,
+    );
+  };
+
+  const next = place(tree);
+  // "inside" on a leaf falls through unchanged; detect and refuse the whole move.
+  return findNode(next, id) ? next : nodes;
+}

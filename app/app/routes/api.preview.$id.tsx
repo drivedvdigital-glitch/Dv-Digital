@@ -3,40 +3,156 @@ import type { ActionFunctionArgs } from 'react-router';
 import { compile, toFragment, type Doc } from '../lib/compiler.server.ts';
 
 /**
- * The canvas side of click-to-select.
+ * The canvas side of the editor: click-to-select, drag-to-reorder, and the
+ * floating toolbar over the selected element.
  *
  * Runs inside the preview iframe only. Clicks are captured before the page's
- * own handlers (so a link inside the canvas selects instead of navigating) and
- * reported to the editor; the editor answers with the id to highlight, which
- * also covers selection made from the tree panel.
+ * own handlers (so a link inside the canvas selects instead of navigating);
+ * drags report where the node was dropped relative to which other node; the
+ * toolbar's buttons report actions. The editor owns all state — the bridge
+ * only reports gestures and paints what the editor tells it to.
  */
 const EDITOR_BRIDGE = `
 <style>
   [data-dvf-id] { cursor: default; }
   [data-dvf-id]:hover { outline: 1px dashed rgba(11,224,92,.8); outline-offset: 1px; }
   [data-dvf-selected] { outline: 2px solid #0BE05C !important; outline-offset: 2px; }
+  [data-dvf-drop="before"] { box-shadow: 0 -3px 0 0 #0BE05C !important; }
+  [data-dvf-drop="after"] { box-shadow: 0 3px 0 0 #0BE05C !important; }
+  #dvf-toolbar {
+    position: absolute; z-index: 2147483647; display: none;
+    background: #1a1a1a; color: #fff; border-radius: 8px;
+    padding: 3px 4px; gap: 2px; align-items: center;
+    font: 12px/1 -apple-system, system-ui, sans-serif;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  #dvf-toolbar span { padding: 0 6px; color: #9ef7c0; font-weight: 600; cursor: grab; }
+  #dvf-toolbar button {
+    background: transparent; border: 0; color: #fff; cursor: pointer;
+    border-radius: 5px; width: 24px; height: 24px; font-size: 13px; line-height: 1;
+  }
+  #dvf-toolbar button:hover { background: #333; }
+  #dvf-toolbar button[data-action="delete"]:hover { background: #7f1d1d; }
 </style>
 <script>
 (function () {
-  function apply(id) {
+  var selectedId = null;
+
+  var toolbar = document.createElement('div');
+  toolbar.id = 'dvf-toolbar';
+  toolbar.innerHTML =
+    '<span id="dvf-label" draggable="true" title="Arraste para mover"></span>' +
+    '<button type="button" data-action="moveUp" title="Subir">\\u2191</button>' +
+    '<button type="button" data-action="moveDown" title="Descer">\\u2193</button>' +
+    '<button type="button" data-action="duplicate" title="Duplicar">\\u29c9</button>' +
+    '<button type="button" data-action="delete" title="Excluir">\\u2715</button>';
+  document.body.appendChild(toolbar);
+  toolbar.style.display = 'none';
+
+  toolbar.addEventListener('click', function (event) {
+    var action = event.target.getAttribute && event.target.getAttribute('data-action');
+    if (action && selectedId) {
+      parent.postMessage({ type: 'dvf:action', action: action, id: selectedId }, '*');
+    }
+  });
+
+  function positionToolbar(el) {
+    var rect = el.getBoundingClientRect();
+    toolbar.style.display = 'flex';
+    var top = rect.top + window.scrollY - toolbar.offsetHeight - 6;
+    if (top < window.scrollY) top = rect.bottom + window.scrollY + 6;
+    toolbar.style.top = top + 'px';
+    toolbar.style.left = Math.max(4, rect.left + window.scrollX) + 'px';
+  }
+
+  function apply(id, label) {
+    selectedId = id;
     document.querySelectorAll('[data-dvf-selected]').forEach(function (el) {
       el.removeAttribute('data-dvf-selected');
     });
-    if (!id) return;
-    var el = document.querySelector('[data-dvf-id="' + id + '"]');
-    if (el) {
-      el.setAttribute('data-dvf-selected', '');
-      el.scrollIntoView({ block: 'nearest' });
-    }
+    var el = id && document.querySelector('[data-dvf-id="' + id + '"]');
+    if (!el) { toolbar.style.display = 'none'; return; }
+    el.setAttribute('data-dvf-selected', '');
+    el.scrollIntoView({ block: 'nearest' });
+    document.getElementById('dvf-label').textContent = label || '';
+    positionToolbar(el);
   }
+
   document.addEventListener('click', function (event) {
+    if (toolbar.contains(event.target)) return;
     var el = event.target.closest('[data-dvf-id]');
     event.preventDefault();
     event.stopPropagation();
     parent.postMessage({ type: 'dvf:select', id: el ? el.getAttribute('data-dvf-id') : null }, '*');
   }, true);
+
+  // ---- drag to reorder ----------------------------------------------------
+  // The toolbar's label is the drag handle for the selected element; every
+  // block is also draggable directly. Drops land before/after the hovered
+  // block by cursor height; the editor applies the actual move.
+  var dragId = null;
+
+  document.addEventListener('dragstart', function (event) {
+    var el = event.target.closest && event.target.closest('[data-dvf-id]');
+    if (event.target.id === 'dvf-label') { dragId = selectedId; }
+    else if (el) { dragId = el.getAttribute('data-dvf-id'); }
+    else return;
+    event.dataTransfer.effectAllowed = 'move';
+    try { event.dataTransfer.setData('text/plain', dragId); } catch (e) {}
+  });
+
+  function clearDrop() {
+    document.querySelectorAll('[data-dvf-drop]').forEach(function (el) {
+      el.removeAttribute('data-dvf-drop');
+    });
+  }
+
+  document.addEventListener('dragover', function (event) {
+    if (!dragId) return;
+    var el = event.target.closest && event.target.closest('[data-dvf-id]');
+    clearDrop();
+    if (!el || el.getAttribute('data-dvf-id') === dragId) return;
+    event.preventDefault();
+    var rect = el.getBoundingClientRect();
+    var pos = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+    el.setAttribute('data-dvf-drop', pos);
+  });
+
+  document.addEventListener('drop', function (event) {
+    if (!dragId) return;
+    event.preventDefault();
+    var el = event.target.closest && event.target.closest('[data-dvf-id]');
+    var target = el && el.getAttribute('data-dvf-id');
+    var pos = el && el.getAttribute('data-dvf-drop');
+    clearDrop();
+    if (target && pos && target !== dragId) {
+      parent.postMessage({ type: 'dvf:move', id: dragId, targetId: target, position: pos }, '*');
+    }
+    dragId = null;
+  });
+
+  document.addEventListener('dragend', function () { clearDrop(); dragId = null; });
+
+  document.querySelectorAll('[data-dvf-id]').forEach(function (el) {
+    el.setAttribute('draggable', 'true');
+  });
+
+  // The iframe swallows keystrokes when the canvas has focus, so undo/redo
+  // are forwarded out instead of silently dying here.
+  document.addEventListener('keydown', function (event) {
+    if (!(event.ctrlKey || event.metaKey)) return;
+    var key = event.key.toLowerCase();
+    if (key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      parent.postMessage({ type: 'dvf:key', key: 'undo' }, '*');
+    } else if ((key === 'z' && event.shiftKey) || key === 'y') {
+      event.preventDefault();
+      parent.postMessage({ type: 'dvf:key', key: 'redo' }, '*');
+    }
+  });
+
   window.addEventListener('message', function (event) {
-    if (event.data && event.data.type === 'dvf:selected') apply(event.data.id);
+    if (event.data && event.data.type === 'dvf:selected') apply(event.data.id, event.data.label);
   });
 })();
 </script>`;
