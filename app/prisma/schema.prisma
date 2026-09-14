@@ -1,0 +1,70 @@
+// Data model for D&VFly. See docs/ARQUITETURA.md section 4.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// A Shopify store this installation can publish to. Credentials are per store
+/// because the client credentials grant is per store; see ARQUITETURA.md 2.5.
+model Store {
+  id           String       @id @default(cuid())
+  domain       String       @unique
+  label        String
+  clientId     String
+  clientSecret String
+  isProduction Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  deployments  Deployment[]
+}
+
+/// A page is authored once and deployed to many stores. It deliberately does
+/// not belong to a store — that is the difference between "export and import"
+/// and multi-store publishing as a first-class operation.
+model Page {
+  id        String    @id @default(cuid())
+  title     String
+  handle    String
+  /// Block document as JSON. For now usually a single html block.
+  doc       String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  versions  Version[]
+
+  deployments Deployment[]
+}
+
+/// Every save is a version. compilerVersion is invariant I2 as a column:
+/// updating the builder never rewrites a page that was already published.
+model Version {
+  id              String   @id @default(cuid())
+  pageId          String
+  page            Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  doc             String
+  compilerVersion String
+  label           String?
+  createdAt       DateTime @default(now())
+
+  deployments Deployment[]
+}
+
+/// One page, on one store, at one version. Stores the compiled output so a
+/// republish is byte-identical and an export needs no recompilation.
+model Deployment {
+  id          String   @id @default(cuid())
+  pageId      String
+  page        Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  versionId   String
+  version     Version  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  shopifyGid  String
+  isPublished Boolean  @default(false)
+  bytes       Int
+  publishedAt DateTime @default(now())
+
+  @@unique([pageId, storeId])
+}
