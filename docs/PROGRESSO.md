@@ -291,6 +291,60 @@ outro argumento e reordena a execução.
 
 ---
 
+### 🔴 Uso real — `docs/USO_REAL.md` (lido de gravação de tela)
+
+**A descoberta de requisito mais importante do projeto até aqui.** Uma gravação de 6min07s da
+operação real foi baixada, fatiada em frames com `ffmpeg` e lida quadro a quadro.
+
+**O que se esperava:** alguém arrastando blocos de uma biblioteca. Foi para isso que a pesquisa
+dimensionou 56 P0, 20 deles blocos.
+
+**O que acontece:** a landing page inteira é **um bloco de HTML escrito à mão**. A árvore da
+página tem dois elementos — um pixel de rastreio oculto e um bloco HTML/Liquid chamado "Landing
+Page" com a página toda dentro. Selecionado, o inspector inteiro oferece um controle: "Abrir
+editor de código".
+
+O construtor visual não está sendo usado para construir. Está sendo usado como encanamento da
+Shopify (criar página e template, atribuir a produtos, publicar), hospedagem do HTML, preview
+mobile e integração com o tema.
+
+**Um passo do fluxo não estava em nenhum documento:** depois de publicar, o trabalho continua no
+**editor de temas da Shopify**, onde a seção do app aparece entre as seções do tema e precisa ser
+posicionada.
+
+**Três coisas documentadas só pela API apareceram funcionando:** o `templateSuffix` (campo "Nome do
+modelo: `pf-4f4ffdfa`"), o Page Assignment e o controle de header/footer do tema.
+
+**Perfil da operação:** COD multi-país (admin pt-BR, loja em espanhol, páginas `250-CO-S-…` e
+`08-MX-S-…`), formato advertorial, 40 slots contratados, dezenas de páginas em sua maioria
+despublicadas, editor Legacy, e o tipo "Bloque" (seção reutilizável) tão usado quanto "Produto".
+
+**Efeito na priorização** — a lista de 145 itens não muda; muda o peso:
+
+| Sobe para P0 | Desce |
+|---|---|
+| Bloco HTML/Liquid com editor de código de verdade (**o nº 1**) | Biblioteca ampla de blocos: de 20 P0 para ~6 |
+| Compor com as seções do tema | Templates prontos → P1 |
+| Esconder header/footer por página | Edição inline de texto → P1 |
+| Seções reutilizáveis, atribuição a produtos | |
+| Lista de páginas com busca e filtro (era **P2**) | |
+
+Entram novos: duplicar página como ponto de partida (P0), importar HTML → árvore (P1), campo de
+código de rastreio (P1), gestão em lote (P1).
+
+**A tensão que isso cria, encarada no documento:** a arquitetura compila documento de dados para
+HTML otimizado; a operação entrega HTML pronto. Se o HTML entra e sai cru, a vantagem de
+performance evapora. A saída recomendada é o compilador virar **otimizador** — o HTML segue como
+fonte, mas passa por um passe no publish que extrai CSS inline para o stylesheet escopado, põe
+`width`/`height`/`loading` nas imagens e valida semântica. O parser completo de HTML → árvore fica
+como P1, deixando de ser pré-requisito.
+
+**Cinco perguntas que a gravação não respondeu** estão listadas no documento — entre elas se o
+bloco único de HTML é regra ou foi o caso daquela página, de onde vem o HTML, e por que o editor
+Legacy em vez do Gen 2.
+
+---
+
 ### ⚠️ R1 — o único risco que ainda bloqueia algo
 
 A ambiguidade do `write_themes` **continua aberta** — não dá para resolver daqui, precisa da sua
