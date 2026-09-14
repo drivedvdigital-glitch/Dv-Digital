@@ -8,7 +8,7 @@ Page builder visual para Shopify, app privado. Interface em pt-BR, código e com
 |---|---|---|
 | 1 | Pesquisa de mercado (referência: PageFly) | ✅ Concluída — verificada em fontes primárias |
 | 2 | Arquitetura | ✅ Documento escrito; 1 risco aberto (R1) |
-| 3 | MVP | ⬜ Não iniciada |
+| 3 | MVP | 🔨 Em andamento — compilador pronto |
 | 4 | Recursos P1 | ⬜ Não iniciada |
 
 ---
@@ -421,15 +421,55 @@ arquitetura.
 
 ---
 
-## Fase 3 — MVP ⬜
+## Fase 3 — MVP 🔨
 
-Não iniciada. Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da
-arquitetura — escolhida para que cada etapa produza algo verificável:
+### ✅ Feito — o compilador, com o passe de otimização de HTML
 
-1. App rodando (template React Router, autenticação, Prisma, listagem em Polaris web components)
-2. Rodar a sonda de permissões e fechar o R1
-3. Trazer o compilador do `prototype/` para dentro do app, com os testes junto
-4. **Publicação da trilha A** — `pageCreate`/`pageUpdate` com o fragmento compilado
+`prototype/` virou **`packages/compiler/`**, o pacote núcleo do produto.
+
+**A ordem da Fase 3 foi invertida de propósito.** A arquitetura previa começar pelo app rodando
+(passo 1); o `USO_REAL.md` mostrou que o item nº 1 é outro. Comecei pelo **passo 3** porque ele
+(a) não depende de credencial nenhuma da loja e (b) resolvia a maior incerteza de arquitetura que
+tinha sobrado — a tensão da seção 6 do `USO_REAL.md`: *se o HTML entra cru e sai cru, o compilador
+não otimiza nada e a vantagem de performance evapora*.
+
+**A saída foi a recomendada lá: o compilador virou otimizador.** O HTML escrito à mão continua
+sendo a fonte; no publish ele passa por um passe que:
+
+| O que faz | Por quê |
+|---|---|
+| Extrai todo `style="..."` para o stylesheet **deduplicado** | Estilo inline do autor e estilo de bloco caem no mesmo pote — doze parágrafos iguais custam **uma** regra |
+| **Escopa** os blocos `<style>`, com `body`/`:root` virando a raiz da nossa subárvore | Um `body{...}` dentro de um bloco não repinta a loja inteira. É exatamente o conflito que o concorrente remenda mandando colar CSS de descrição de vídeo |
+| Põe `loading`/`decoding` nas imagens, sem nunca sobrescrever o autor | Só a primeira imagem (ou a marcada `data-dvf-eager`) fica eager |
+| **Reporta** imagem sem dimensão/alt, `onclick` no lugar de link, scripts | Reporta, não reescreve — mexer calado no markup do autor é pior que não mexer |
+
+Parseia com biblioteca de verdade, não regex.
+
+**Medido no fixture de advertorial** (escrito para o repo, 22 estilos inline):
+
+| | |
+|---|---|
+| Estilos inline extraídos | 22 → **10 regras** (2,2× de reúso) |
+| Blocos `<style>` escopados | 1 |
+| Total compilado | **3,7 KB** — 1,4% do teto da Shopify |
+
+**Um bug real que o novo relatório expôs e que foi corrigido:** o `audit()` só andava na árvore de
+blocos, então reportava "página sem H1" numa página cujo H1 estava dentro do HTML do autor — e
+teria reclamado uma vez por bloco de HTML. As checagens **de página** (um H1, existe CTA) passaram
+para o `compile()`, o único lugar que vê a árvore **e** o interior do HTML. O `audit()` ficou com
+as checagens **por nó**.
+
+Testes: de 18 para **41**.
+
+### ⬜ O que falta
+
+Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da arquitetura — com os
+passos 1, 2 e 4 agora dependendo só de você criar o app na Shopify:
+
+1. App rodando (template React Router, autenticação, Prisma, listagem em Polaris web components) — **bloqueado: precisa do app criado na sua Shopify**
+2. Rodar a sonda de permissões e fechar o R1 — **bloqueado: idem**
+3. ~~Compilador~~ — ✅ **feito**, em `packages/compiler/`
+4. **Publicação da trilha A** — `pageCreate`/`pageUpdate` com o fragmento compilado — **bloqueado pelo 1**
 5. Canvas em iframe (o módulo mais arriscado, feito cedo)
 6. Painéis: árvore, biblioteca de blocos, inspector com herança de breakpoint visível
 7. Blocos P0, começando pelo repetidor genérico
