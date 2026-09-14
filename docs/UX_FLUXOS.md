@@ -21,7 +21,16 @@ O PageFly mantém uma biblioteca de vídeos-tutorial embutida na documentação.
 | **643 passos documentados**, em 117 das 241 páginas da central de ajuda | Os fluxos reais, escritos: "Passo 1 clique no ícone X → Passo 2 vá na aba Y → Passo 3 salve" |
 | **101 títulos de vídeo**, recuperados via oEmbed do YouTube | O mapa de onde a interface não se explica sozinha |
 
-### ⚠️ O que não foi possível
+### Atualização — a limitação abaixo foi superada
+
+A seção que segue descreve a tentativa original de ler os vídeos, que falhou. **Isso mudou:** as
+transcrições completas dos 15 vídeos mais vistos do canal oficial foram obtidas por outro meio e
+lidas. O resultado está na **seção 8**, que substitui o que este documento dizia não ter.
+
+O registro abaixo fica como está, porque descreve honestamente o que este ambiente consegue e não
+consegue fazer sozinho.
+
+### ⚠️ O que não foi possível *(pela via automatizada)*
 
 **Não consegui assistir aos vídeos.** Não tenho processamento de vídeo nem de áudio, e testei três
 caminhos para contornar isso:
@@ -377,3 +386,156 @@ Os três primeiros são o produto. Os dois últimos são conveniência.
 **E acrescenta um critério de aceite**, que é a regra U1 virada em teste: antes de dar um bloco
 por pronto, alguém que nunca o viu tem de conseguir usá-lo sem explicação. Se precisaria de vídeo,
 não está pronto.
+
+
+---
+
+## 8. O modelo mental do concorrente, pelas transcrições dos próprios tutoriais
+
+> **Fonte:** transcrições dos 15 vídeos mais vistos do canal oficial do concorrente que tratam do
+> app (de 7,8 mil a 82 mil views; de 1 a 29 minutos). Lidas integralmente.
+>
+> Isto é o que a seção 0 dizia não ser recuperável de texto: **o método**, ensinado pelo próprio
+> fornecedor, com os erros que o apresentador comete ao vivo.
+
+### 8.1 A tese que justifica a existência da categoria
+
+O vídeo conceitual mais assistido não fala de recursos. Fala de uma limitação da Shopify:
+
+- **A home page** é flexível no editor de temas — dá para adicionar e reordenar seções.
+- **Todo o resto** (produto, coleção, blog) é praticamente fixo. A demonstração abre a página de
+  produto num tema gratuito e mostra que só existem três coisas: header, o bloco do produto,
+  footer. Nada para adicionar, nada para ajustar.
+
+> É o argumento inteiro da categoria, em uma frase: **o tema deixa você desenhar a vitrine e
+> proíbe você de desenhar a prateleira.** Todo page builder de Shopify existe para desfazer essa
+> proibição.
+>
+> **Para o D&VFly:** confirma a escolha das trilhas de publicação da arquitetura. A trilha A
+> (páginas avulsas) resolve a parte fácil; o valor real está na trilha B — produto e coleção —
+> que é justamente onde o tema não deixa mexer.
+
+### 8.2 As regras de layout, como o fornecedor as ensina
+
+A aula mais longa (29 minutos) é de fundamentos. As regras que ela repete:
+
+| Regra ensinada | O que ela revela |
+|---|---|
+| Sempre comece por uma **Full Section** | O container vem antes do conteúdo — o usuário monta andaime, não página |
+| **Colunas são rígidas — defina-as primeiro** | Não dá para decidir o layout depois. Errou a contagem de colunas, refaz |
+| **Padding vai na section**, não no elemento | Regra que existe só porque a hierarquia vaza para o usuário |
+| **Percentagem em vez de pixels** | Conselho de sobrevivência para o responsivo não quebrar |
+| Centralizar verticalmente = Column → Flex → Direction Column → Justify Center | Quatro passos para centralizar |
+| Inverter colunas = **Row** → Flex → **Row Reverse** | E o apresentador erra: seleciona a section, não a row |
+| Imagem colada nas bordas = gutter 0 na row + padding 0 na section + max-width off | Três ajustes em dois níveis diferentes da árvore |
+
+E o detalhe mais revelador de todos: **a aula ensina a instalar três extensões de navegador**
+(um medidor de fontes, um conta-gotas de cor e uma régua de pixels) **para medir o design de
+referência à mão** e depois transcrever os números no painel.
+
+> Isso não é tutorial de page builder. É tutorial de engenharia reversa manual de CSS.
+>
+> **Para o D&VFly:** é a régua do nosso trabalho. Se para reproduzir um layout comum o usuário
+> precisa de três extensões e de saber em qual dos quatro níveis da árvore aplicar cada
+> propriedade, a ferramenta terceirizou o problema. Reforça U2 (o gesto comum é direto; o conceito
+> técnico fica no modelo, não no caminho) e a decisão de nascer flex com alvos de drop visíveis.
+
+### 8.3 Os erros que o apresentador comete — mapa de armadilhas
+
+Numa aula gravada, editada e publicada pelo próprio fornecedor, o apresentador erra e corrige ao
+vivo:
+
+1. Aplica o padding no **heading** quando deveria ser na **section**.
+2. Cola o texto do parágrafo dentro do **heading**.
+3. Seleciona a **section** quando precisava da **row**, para inverter as colunas.
+4. Tenta configurar a cor de hover de um botão, **não encontra**, e remete à documentação.
+
+Os três primeiros são o mesmo erro: **aplicar a propriedade no nível errado da árvore**. O
+mecanismo oficial de correção é o breadcrumb, que existe justamente porque a seleção é ambígua.
+
+> **Para o D&VFly:** um nível de container a menos (flex, sem row/column) elimina por construção
+> a classe inteira de erro nº 1, 2 e 3. E o hover ter derrotado o próprio apresentador é o
+> argumento para estados de elemento serem visíveis no inspector, não escondidos atrás de um
+> seletor de estado.
+
+### 8.4 A anatomia canônica de landing page
+
+O tutorial de landing page dá o esqueleto oficial, em ordem:
+
+1. Hero banner
+2. Lista de produtos
+3. Lista de coleções
+4. Banner de oferta / contador
+5. Depoimentos
+6. Selos de confiança
+7. Newsletter
+
+> **Para o D&VFly:** é a especificação dos nossos templates P0 — e casa com o que a seção 4.7 da
+> pesquisa já pedia ("5+ templates de landing de conversão criados do zero"). Agora existe uma
+> lista de seções para preencher, escrita a partir do consenso de mercado e não do nosso palpite.
+> O conteúdo e o desenho são nossos; a sequência é de domínio público.
+
+### 8.5 Conflito de tema: o procedimento oficial de socorro
+
+O vídeo de troubleshooting descreve a causa raiz sem rodeios: **o CSS do tema sobrescreve o CSS
+do app**. Os sintomas e as correções oficiais:
+
+| Sintoma | Correção oficial |
+|---|---|
+| A página fica diferente no editor e ao vivo | Ligar o "estilo do tema" para o editor **adotar** o CSS do tema |
+| Seção não fica em largura total | **Três trechos de CSS diferentes, distribuídos na descrição do vídeo — "teste cada um para ver qual funciona no seu tema"** |
+| Espaço em branco abaixo do header | Outro CSS avulso, que só funciona em alguns temas gratuitos |
+| Nada funciona | Chat de suporte, que fornece o CSS específico do seu tema |
+
+> **Este é o achado mais forte da seção 8, e confirma a reclamação nº 1 da pesquisa (3.1) pela
+> boca do próprio fornecedor.** O procedimento oficial para fazer uma seção ocupar a largura da
+> tela é colar CSS que você pegou na descrição de um vídeo do YouTube, testando três variantes até
+> uma funcionar.
+>
+> **Para o D&VFly:** é exatamente o que os invariantes I1 (um compilador só) e o isolamento de CSS
+> escopado existem para tornar impossível. Nosso CSS é prefixado e não disputa cascata com o tema;
+> nosso preview renderiza o output real dentro do CSS do tema, então divergência não sobrevive até
+> a publicação. Largura total é uma propriedade do bloco, não um remédio externo.
+
+### 8.6 Passos obrigatórios que ninguém adivinha
+
+Três coisas que os tutoriais precisam ensinar porque a interface não as revela:
+
+| Passo | Por que existe |
+|---|---|
+| **Página avulsa publicada não aparece na loja** — é preciso linká-la no menu de navegação do Shopify | Publicar não é o mesmo que ser encontrável, e a interface não diz isso |
+| **A página de produto aparece duplicada** — é preciso esconder a seção nativa do tema pelo ícone de olho no editor de temas | Confirma o "passo 8" observado na gravação (`docs/USO_REAL.md`) |
+| **Esconder header/footer só funciona depois de publicar** e recarregar | Ordem de operações escondida |
+
+> **Para o D&VFly:** os três viram comportamento automático ou aviso no momento certo. Publicar
+> uma página avulsa deve oferecer, ali mesmo, adicioná-la ao menu. Publicar uma página de produto
+> deve detectar e resolver a duplicação — ou no mínimo avisar, com o link para onde resolver.
+> Nenhum deles merece um tutorial.
+
+### 8.7 Regras de integração de terceiros
+
+Elementos de apps externos têm um contrato irregular: alguns só funcionam **uma vez por página**,
+outros **precisam estar dentro do bloco de produto**, e o app precisa estar instalado e
+configurado **antes**. Recursos que parecem básicos exigem app externo — status de estoque, lista
+de desejos, avaliações, personalização de produto.
+
+> **Para o D&VFly:** confirma a aposta da seção 4.9 — bloco HTML/Liquid e bloco de app do OS 2.0
+> como P0 cobrem quase tudo, sem catálogo de integrações dedicadas. E o contrato tem de ser
+> uniforme: se um bloco tiver restrição de uso, a interface impede em vez de deixar falhar calado
+> (regra U7).
+
+### 8.8 O que esta leitura muda
+
+**Nada na lista de 145 itens.** Confirma e afina:
+
+| Já estava | Agora tem evidência do próprio fornecedor |
+|---|---|
+| **I1 — um compilador só** | O procedimento oficial de conflito de tema é colar CSS de descrição de vídeo |
+| **Nascer flex, sem row/column** | Três dos quatro erros da aula oficial são "propriedade no nível errado da árvore" |
+| **U2 — gesto comum direto** | Centralizar verticalmente são quatro passos; inverter colunas exige saber que é a row |
+| **Templates P0** | A sequência de sete seções dá a especificação |
+| **U7 — nenhum estado silencioso** | Três passos obrigatórios que só existem em tutorial |
+
+**Um item novo, P1:** **detectar e resolver a duplicação da seção nativa do tema** ao publicar
+página de produto. Está nos tutoriais do concorrente como passo manual e apareceu na gravação
+real — é a mesma dor, vista de dois ângulos independentes.

@@ -291,6 +291,53 @@ outro argumento e reordena a execução.
 
 ---
 
+### Transcrições dos tutoriais oficiais — seção 8 do `docs/UX_FLUXOS.md`
+
+As transcrições completas dos 15 vídeos mais vistos do canal oficial do concorrente (de 7,8 mil a
+82 mil views) foram lidas. **Isto fechou a lacuna que o próprio `UX_FLUXOS.md` tinha declarado
+impossível de recuperar de texto:** o método de trabalho ensinado pelo fornecedor, com os erros
+que o apresentador comete ao vivo.
+
+**Nota de PI:** o zip com as transcrições **não foi versionado**. A regra da seção 0.3 da pesquisa
+("descreva funcionalidades, não transcreva a documentação alheia") vale para isto. O material foi
+lido em diretório temporário e a seção 8 é síntese com palavras próprias.
+
+**Os cinco achados que mais pesam:**
+
+1. **A tese da categoria, dita pelo fornecedor.** O editor de temas da Shopify é flexível **só na
+   home**; produto e coleção são praticamente fixos — a demonstração abre a página de produto num
+   tema gratuito e mostra que só há header, bloco do produto e footer. Confirma que o valor real
+   está na trilha B da arquitetura (produto/coleção), não na trilha A.
+
+2. **O procedimento oficial de conflito de tema é colar CSS de descrição de vídeo.** Para uma seção
+   ocupar a largura da tela, a orientação é testar **três trechos de CSS diferentes**, publicados
+   na descrição do vídeo, até um funcionar no seu tema. Se nada funcionar, o suporte fornece o CSS
+   específico. É a confirmação da reclamação nº 1 (editor ≠ página publicada) pela boca do próprio
+   fornecedor — e é exatamente o que o invariante I1 e o CSS escopado existem para tornar
+   impossível.
+
+3. **A aula oficial de fundamentos ensina a instalar três extensões de navegador** (medidor de
+   fonte, conta-gotas de cor, régua de pixels) para medir o design de referência à mão e transcrever
+   os números no painel. Não é tutorial de page builder; é engenharia reversa manual de CSS.
+
+4. **Três dos quatro erros que o apresentador comete ao vivo são o mesmo erro:** aplicar a
+   propriedade no nível errado da árvore (padding no heading em vez da section, texto no heading em
+   vez do parágrafo, section selecionada em vez da row). Um nível de container a menos — flex, sem
+   row/column — elimina a classe inteira por construção. O quarto erro: ele não consegue configurar
+   a cor de hover de um botão e remete à documentação.
+
+5. **A anatomia canônica de landing page** (hero → lista de produtos → lista de coleções → banner
+   de oferta/contador → depoimentos → selos → newsletter) vira a especificação dos nossos templates
+   P0, que até aqui era só "5+ templates criados do zero".
+
+**Efeito na priorização:** nada muda nos 145 itens. Confirma I1, a decisão de nascer flex, a regra
+U2 e a U7, agora com evidência do próprio fornecedor em vez de inferência. **Entra um item P1:**
+detectar e resolver a duplicação da seção nativa do tema ao publicar página de produto — aparece
+como passo manual obrigatório nos tutoriais deles **e** na gravação da operação real, a mesma dor
+por dois ângulos independentes.
+
+---
+
 ### 🔴 Uso real — `docs/USO_REAL.md` (lido de gravação de tela)
 
 **A descoberta de requisito mais importante do projeto até aqui.** Uma gravação de 6min07s da
