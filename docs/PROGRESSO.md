@@ -521,6 +521,29 @@ colapsando dois estilos inline iguais numa classe só. 41/41 testes passando.
 A lição que fica: **teste de máquina limpa é diferente de teste unitário.** Nenhum dos 41 testes
 pegaria isso, porque todos rodam de dentro do pacote que tem a dependência.
 
+### 🔴 A sequela: duas cópias do React
+
+Virar workspace cria um problema **para quem já tinha instalado antes**. O `app/node_modules`
+antigo não some sozinho — o install da raiz escreve a própria árvore e ignora o que estava lá. A
+resolução então sobe a partir de `app/app/routes/` e acha o React **velho**, enquanto o
+`react-router`, resolvido da raiz, acha o iça­do. Duas cópias do React, dispatcher de hooks nulo, e
+toda tela morre com `Cannot read properties of null (reading 'useContext')`.
+
+Essa mensagem não aponta para nada. Quem está depurando não tem por onde puxar o fio.
+
+**Reproduzido de propósito** — plantei uma segunda cópia do React em `app/node_modules` e a tela
+quebrou com exatamente essa mensagem; removi e voltou. Só então escrevi a correção, em vez de
+adivinhar.
+
+`scripts/preflight.mjs` detecta a duplicata e **recusa subir** (`predev`), dizendo qual pasta
+apagar e qual comando rodar (`npm run fix:duplicados`). Um install limpo na raiz não gera
+`node_modules` aninhado neste projeto, então React aninhado aqui é sempre resto — nunca algo que o
+npm precisou.
+
+Verificado clicando no navegador de verdade (Playwright, Chromium): abrir `/`, `/` com `?shop=`,
+trocar de aba, criar página, digitar HTML, salvar e voltar — **zero erros de JavaScript** em todos
+os passos.
+
 ### ⬜ O que falta
 
 Escopo: os **56 itens P0** da seção 4 da pesquisa, na ordem da seção 11 da arquitetura:

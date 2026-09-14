@@ -11,7 +11,9 @@
     "packages/*"
   ],
   "scripts": {
-    "setup": "npm install && npm run db:setup --workspace @dvfly/app",
+    "setup": "npm install && node scripts/preflight.mjs && npm run db:setup --workspace @dvfly/app",
+    "fix:duplicados": "node scripts/preflight.mjs --fix",
+    "predev": "node scripts/preflight.mjs",
     "dev": "npm run dev --workspace @dvfly/app",
     "test": "npm run test --workspace @dvfly/compiler"
   }

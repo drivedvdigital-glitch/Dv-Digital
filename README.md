@@ -19,6 +19,18 @@ rodar de novo à vontade — ele não apaga nada.
 
 ⚠️ **Os comandos são na raiz, não dentro de `app/`.** O motivo está em [`app/README.md`](app/README.md).
 
+### Se aparecer "Instalação duplicada do React"
+
+```sh
+npm run fix:duplicados
+npm run setup
+```
+
+Acontece uma vez só, em quem instalou o projeto antes dele virar workspace: fica um
+`app/node_modules` velho com uma segunda cópia do React, e o app quebra com
+`Cannot read properties of null (reading 'useContext')`. O `npm run dev` se recusa a subir nesse
+estado em vez de deixar você descobrir pelo erro.
+
 ## O que tem aqui
 
 | Pasta | O quê |
