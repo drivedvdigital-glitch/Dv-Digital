@@ -130,7 +130,7 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - ⬜ **Biblioteca de mídia com upload** (melhor que a deles: upload já aplica).
 - ⬜ **Galeria de templates** (com fricção proporcional no aplicar + prova social).
 - ⬜ **Zoom do canvas** + indicador "1440px, 58%".
-- ⬜ **Busca na árvore**; nomes semânticos de seção (renomear seção na árvore).
+- ⬜ **Busca na árvore** (o renomear semântico já saiu da fila — feito).
 - ⬜ Ícone, Tabela, QR Code, Barra de progresso, Comparação de imagens, Slideshow,
   Popup, Vimeo/HTML video, Google Map, Adicionar ao carrinho (+ callout no botão).
 - ⬜ Aba de SEO nomeada; variantes por elemento; "?" de ajuda por item.
