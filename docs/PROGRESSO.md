@@ -678,6 +678,24 @@ input re-renderiza antes de o React processar o mesmo evento — e a primeira te
 campo controlado era silenciosamente revertida. A marcação de "sujo" tinha de ser `onInput` do
 próprio React, não um listener nativo. Verificado dirigindo o app: 13/13.
 
+### ✅ Rodada de paridade (15/09) — parte 2: a lista de páginas
+
+- **Pré-visualizar** (`/preview/:id`): a página compilada numa aba própria, antes de publicar.
+  Mesmos bytes da publicação — o teste pina que a prévia não carrega nenhum resíduo de editor.
+- **Exportar / Importar**: exportar baixa um `.json` legível (título, handle, documento);
+  importar recria a página em qualquer instalação. O servidor **compila o arquivo antes de
+  aceitar** — o que não compila não vira página — e resolve conflito de handle com sufixo.
+  Arquivo alheio é recusado com mensagem honesta.
+- **Publicar / Despublicar na lista**: liga e desliga a visibilidade do que JÁ está em cada
+  loja (sem recompilar — conteúdo novo é papel do editor). Badge mostra "(pausada)" quando
+  despublicada. Verificado **contra a loja real**: despublicou e republicou a página de
+  demonstração na tf1vp1-fd via API, com o estado restaurado ao final. (A conferência pela
+  vitrine não foi possível daqui: a loja responde com desafio anti-robô ao container.)
+- Sem teste A/B e sem "ver análises" — decisão de escopo do dono, registrada.
+
+Verificado dirigindo o app: 6/6 (a limpeza revelou 7 páginas-fantasma de rodadas de debug,
+removidas direto no banco).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

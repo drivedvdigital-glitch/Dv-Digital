@@ -8,4 +8,6 @@ export default [
     route('pages/:id', 'routes/app.pages.$id.tsx'),
   ]),
   route('api/preview/:id', 'routes/api.preview.$id.tsx'),
+  route('api/pages/:id/export', 'routes/api.pages.$id.export.tsx'),
+  route('preview/:id', 'routes/preview.$id.tsx'),
 ] satisfies RouteConfig;
