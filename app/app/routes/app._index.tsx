@@ -6,6 +6,18 @@ import { redirect } from 'react-router';
 import { compile, type Doc } from '../lib/compiler.server.ts';
 import { db } from '../lib/db.server.ts';
 import { clientFor, updatePage } from '../lib/shopify.server.ts';
+import {
+  bannerErr,
+  bannerOk,
+  buttonGhost,
+  buttonPrimary,
+  FONT_STACK,
+  pillNeutral,
+  pillSuccess,
+  ThemeToggle,
+  UiStyle,
+  useUiTheme,
+} from '../ui/theme.tsx';
 
 export async function loader() {
   const pages = await db.page.findMany({
@@ -138,6 +150,7 @@ export default function PagesList() {
   const submit = useSubmit();
   const busy = useNavigation().state !== 'idle';
   const filePicker = useRef<HTMLInputElement>(null);
+  const [uiTheme, toggleUiTheme] = useUiTheme();
 
   // Deleting asks for a second click on the same row instead of a dialog:
   // `confirm()` can be silently blocked inside the admin's iframe, and a
@@ -164,16 +177,28 @@ export default function PagesList() {
   };
 
   return (
-    <s-page heading="Páginas">
-      <s-button slot="primary-action" variant="primary" disabled={busy || undefined} onClick={() => act('create')}>
-        Criar página
-      </s-button>
+    <div className="dv-ui" data-theme={uiTheme} style={pageShell}>
+      <UiStyle />
+      <div style={pageWrap}>
+        <header style={listHead}>
+          <img src="/mark.svg" alt="" width={26} height={26} />
+          <h1 style={listTitle}>Páginas</h1>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} style={iconButton} />
+            <button
+              type="button"
+              style={buttonGhost}
+              disabled={busy}
+              onClick={() => filePicker.current?.click()}
+            >
+              Importar página (.json)
+            </button>
+            <button type="button" style={buttonPrimary} disabled={busy} onClick={() => act('create')}>
+              Criar página
+            </button>
+          </div>
+        </header>
 
-      {result ? (
-        <s-banner tone={result.ok ? 'success' : 'critical'} heading={result.message} />
-      ) : null}
-
-      <s-section padding="none">
         <input
           ref={filePicker}
           type="file"
@@ -181,50 +206,52 @@ export default function PagesList() {
           style={{ display: 'none' }}
           onChange={(e) => importFile(e.target.files?.[0])}
         />
-        <s-box padding="small-200">
-          <s-button variant="tertiary" disabled={busy || undefined} onClick={() => filePicker.current?.click()}>
-            Importar página (.json)
-          </s-button>
-        </s-box>
-        {pages.length === 0 ? (
-          <s-box padding="large">
-            <s-paragraph tone="subdued">
+
+        {result ? (
+          <div style={{ ...(result.ok ? bannerOk : bannerErr), marginBottom: 14 }} data-result>
+            {result.message}
+          </div>
+        ) : null}
+
+        <div style={card}>
+          {pages.length === 0 ? (
+            <div style={emptyState}>
               Nenhuma página ainda. Clique em <strong>Criar página</strong> para começar.
-            </s-paragraph>
-          </s-box>
-        ) : (
-          <s-table>
-            <s-table-header-row>
-              <s-table-header>Título</s-table-header>
-              <s-table-header>Handle</s-table-header>
-              <s-table-header>Publicada em</s-table-header>
-              <s-table-header>Atualizada</s-table-header>
-              <s-table-header />
-            </s-table-header-row>
-            <s-table-body>
-              {pages.map((page) => (
-                <s-table-row key={page.id}>
-                  <s-table-cell>
-                    <Link to={`/app/pages/${page.id}${search}`} style={titleLink}>
-                      {page.title}
-                    </Link>
-                  </s-table-cell>
-                  <s-table-cell>
-                    <s-text tone="subdued">/{page.handle}</s-text>
-                  </s-table-cell>
-                  <s-table-cell>
-                    {page.deployments.length === 0 ? (
-                      <s-badge>rascunho</s-badge>
-                    ) : (
-                      page.deployments.map((d) => (
-                        <s-badge key={d.id} tone={d.isPublished ? 'success' : 'neutral'}>
-                          {d.isPublished ? d.store.label : `${d.store.label} (pausada)`}
-                        </s-badge>
-                      ))
-                    )}
-                  </s-table-cell>
-                  <s-table-cell>
-                    <s-text tone="subdued">
+            </div>
+          ) : (
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={th}>Título</th>
+                  <th style={th}>Handle</th>
+                  <th style={th}>Publicada em</th>
+                  <th style={th}>Atualizada</th>
+                  <th style={th} />
+                </tr>
+              </thead>
+              <tbody>
+                {pages.map((page) => (
+                  <tr key={page.id}>
+                    <td style={td}>
+                      <Link to={`/app/pages/${page.id}${search}`} style={titleLink}>
+                        {page.title}
+                      </Link>
+                    </td>
+                    <td style={{ ...td, color: 'var(--dv-ink-2)' }}>/{page.handle}</td>
+                    <td style={td}>
+                      <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+                        {page.deployments.length === 0 ? (
+                          <span style={pillNeutral}>rascunho</span>
+                        ) : (
+                          page.deployments.map((d) => (
+                            <span key={d.id} style={d.isPublished ? pillSuccess : pillNeutral}>
+                              {d.isPublished ? d.store.label : `${d.store.label} (pausada)`}
+                            </span>
+                          ))
+                        )}
+                      </span>
+                    </td>
+                    <td style={{ ...td, color: 'var(--dv-ink-2)', whiteSpace: 'nowrap' }}>
                       {new Date(page.updatedAt).toLocaleString('pt-BR', {
                         day: '2-digit',
                         month: '2-digit',
@@ -232,90 +259,177 @@ export default function PagesList() {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
-                    </s-text>
-                  </s-table-cell>
-                  <s-table-cell>
-                    {confirming === page.id ? (
-                      <>
-                        <s-button
-                          variant="tertiary"
-                          tone="critical"
-                          disabled={busy || undefined}
-                          onClick={() => act('delete', page.id)}
-                        >
-                          Confirmar exclusão
-                        </s-button>
-                        <s-button variant="tertiary" onClick={() => setConfirming(null)}>
-                          Cancelar
-                        </s-button>
-                      </>
-                    ) : (
-                      <>
-                        <a href={`/preview/${page.id}`} target="_blank" rel="noreferrer" style={rowLink}>
-                          Pré-visualizar
-                        </a>
-                        <a href={`/api/pages/${page.id}/export`} style={rowLink} download>
-                          Exportar
-                        </a>
-                        {page.deployments.some((d) => d.isPublished) ? (
-                          <s-button
-                            variant="tertiary"
-                            disabled={busy || undefined}
-                            onClick={() => act('unpublish', page.id)}
+                    </td>
+                    <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {confirming === page.id ? (
+                        <>
+                          <button
+                            type="button"
+                            style={{ ...rowAction, color: 'var(--dv-danger)', fontWeight: 600 }}
+                            disabled={busy}
+                            onClick={() => act('delete', page.id)}
                           >
-                            Despublicar
-                          </s-button>
-                        ) : page.deployments.length > 0 ? (
-                          <s-button
-                            variant="tertiary"
-                            disabled={busy || undefined}
-                            onClick={() => act('publish', page.id)}
+                            Confirmar exclusão
+                          </button>
+                          <button type="button" style={rowAction} onClick={() => setConfirming(null)}>
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <a href={`/preview/${page.id}`} target="_blank" rel="noreferrer" style={rowLink}>
+                            Pré-visualizar
+                          </a>
+                          <a href={`/api/pages/${page.id}/export`} style={rowLink} download>
+                            Exportar
+                          </a>
+                          {page.deployments.some((d) => d.isPublished) ? (
+                            <button
+                              type="button"
+                              style={rowAction}
+                              disabled={busy}
+                              onClick={() => act('unpublish', page.id)}
+                            >
+                              Despublicar
+                            </button>
+                          ) : page.deployments.length > 0 ? (
+                            <button
+                              type="button"
+                              style={rowAction}
+                              disabled={busy}
+                              onClick={() => act('publish', page.id)}
+                            >
+                              Publicar
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            style={rowAction}
+                            disabled={busy}
+                            onClick={() => act('duplicate', page.id)}
                           >
-                            Publicar
-                          </s-button>
-                        ) : null}
-                        <s-button
-                          variant="tertiary"
-                          disabled={busy || undefined}
-                          onClick={() => act('duplicate', page.id)}
-                        >
-                          Duplicar
-                        </s-button>
-                        <s-button
-                          variant="tertiary"
-                          tone="critical"
-                          disabled={busy || undefined}
-                          onClick={() => setConfirming(page.id)}
-                        >
-                          Excluir
-                        </s-button>
-                      </>
-                    )}
-                  </s-table-cell>
-                </s-table-row>
-              ))}
-            </s-table-body>
-          </s-table>
-        )}
-      </s-section>
-    </s-page>
+                            Duplicar
+                          </button>
+                          <button
+                            type="button"
+                            style={{ ...rowAction, color: 'var(--dv-danger)' }}
+                            disabled={busy}
+                            onClick={() => setConfirming(page.id)}
+                          >
+                            Excluir
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
-// react-router's Link renders a plain <a>; match it to Polaris link styling so
-// it does not read as a foreign element in the middle of the table.
-const titleLink: React.CSSProperties = {
-  color: '#005bd3',
-  textDecoration: 'none',
-  fontWeight: 450,
+const pageShell: React.CSSProperties = {
+  minHeight: '100vh',
+  background: 'var(--dv-sfc-sub)',
+  fontFamily: FONT_STACK,
+  color: 'var(--dv-ink)',
 };
 
-// Plain anchors (preview opens a tab, export downloads a file) dressed to sit
-// beside the tertiary s-buttons without reading as foreign.
+const pageWrap: React.CSSProperties = {
+  maxWidth: 1080,
+  margin: '0 auto',
+  padding: '24px 20px 48px',
+};
+
+const listHead: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  marginBottom: 18,
+};
+
+const listTitle: React.CSSProperties = {
+  fontSize: 19,
+  fontWeight: 650,
+  margin: 0,
+};
+
+const iconButton: React.CSSProperties = {
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
+  borderRadius: 8,
+  width: 32,
+  height: 32,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  color: 'var(--dv-ink-2)',
+};
+
+const card: React.CSSProperties = {
+  background: 'var(--dv-sfc)',
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 12,
+  overflow: 'hidden',
+};
+
+const emptyState: React.CSSProperties = {
+  padding: 32,
+  fontSize: 13.5,
+  color: 'var(--dv-ink-2)',
+  textAlign: 'center',
+};
+
+const tableStyle: React.CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  fontSize: 13,
+};
+
+const th: React.CSSProperties = {
+  textAlign: 'left',
+  fontSize: 11,
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  color: 'var(--dv-ink-3)',
+  padding: '10px 14px',
+  borderBottom: '1px solid var(--dv-edge)',
+};
+
+const td: React.CSSProperties = {
+  padding: '10px 14px',
+  borderBottom: '1px solid var(--dv-edge-soft)',
+  verticalAlign: 'middle',
+};
+
+const titleLink: React.CSSProperties = {
+  color: 'var(--dv-link)',
+  textDecoration: 'none',
+  fontWeight: 500,
+};
+
+// Preview/export are plain anchors (new tab, download); the other actions are
+// buttons. Both wear the same clothes so the row reads as one toolbar.
 const rowLink: React.CSSProperties = {
-  color: '#005bd3',
+  color: 'var(--dv-link)',
   textDecoration: 'none',
   fontSize: 13,
   padding: '4px 8px',
+  whiteSpace: 'nowrap',
+};
+
+const rowAction: React.CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  color: 'var(--dv-link)',
+  fontSize: 13,
+  padding: '4px 8px',
+  cursor: 'pointer',
   whiteSpace: 'nowrap',
 };

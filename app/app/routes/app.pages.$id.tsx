@@ -31,6 +31,16 @@ import {
   toStore,
   updatePage,
 } from '../lib/shopify.server.ts';
+import {
+  bannerErr,
+  bannerOk,
+  pillDanger,
+  pillNeutral,
+  pillSuccess,
+  ThemeToggle,
+  UiStyle,
+  useUiTheme,
+} from '../ui/theme.tsx';
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const page = await db.page.findUniqueOrThrow({
@@ -320,6 +330,7 @@ export default function PageEditor() {
   const form = useRef<HTMLFormElement>(null);
   const [showKeys, setShowKeys] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [uiTheme, toggleUiTheme] = useUiTheme();
 
   // What the theme's font tokens resolve to TODAY, read from the storefront.
   // Labels the tokens ("fonte-do-corpo (Helvetica)") and feeds the canvas so
@@ -657,7 +668,15 @@ export default function PageEditor() {
   };
 
   return (
-    <form ref={form} onSubmit={(e) => e.preventDefault()} onInput={onFormInput} style={shell}>
+    <form
+      ref={form}
+      onSubmit={(e) => e.preventDefault()}
+      onInput={onFormInput}
+      className="dv-ui"
+      data-theme={uiTheme}
+      style={shell}
+    >
+      <UiStyle />
       <input type="hidden" name="doc" value={JSON.stringify(doc)} />
       <input type="hidden" name="handle" value={handle} />
       <input type="hidden" name="pageType" value={pageType} />
@@ -670,9 +689,9 @@ export default function PageEditor() {
         </Link>
         <img src="/mark.svg" alt="" width={20} height={20} />
         <input name="title" defaultValue={data.page.title} style={titleInput} aria-label="Título da página" />
-        <s-badge tone={published ? 'success' : 'neutral'}>
+        <span style={published ? pillSuccess : pillNeutral} data-status>
           {published ? 'publicada' : 'rascunho'}
-        </s-badge>
+        </span>
         {published && !busy ? (
           <button
             type="button"
@@ -691,11 +710,15 @@ export default function PageEditor() {
           onClick={() => setShowSettings(true)}
           style={historyOn}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="8" cy="8" r="2.2" />
-            <path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4" />
+          {/* Sliders, not a gear: a stroked gear reads as a sun next to the
+              theme toggle's actual sun. */}
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
+            <path d="M2 4.5h6.7M12.3 4.5H14M2 11.5h3.2M8.8 11.5H14" />
+            <circle cx="10.5" cy="4.5" r="1.8" />
+            <circle cx="7" cy="11.5" r="1.8" />
           </svg>
         </button>
+        <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} style={historyOn} />
 
         <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
           <button
@@ -742,7 +765,7 @@ export default function PageEditor() {
             title="Atalhos de teclado"
             aria-label="Atalhos de teclado"
             onClick={() => setShowKeys((v) => !v)}
-            style={showKeys ? { ...historyOn, background: '#f1f1f1' } : historyOn}
+            style={showKeys ? { ...historyOn, background: 'var(--dv-inset)' } : historyOn}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
               <rect x="1.5" y="4" width="13" height="8" rx="1.5" />
@@ -761,7 +784,7 @@ export default function PageEditor() {
                       </kbd>
                     ))}
                   </span>
-                  <span style={{ color: '#616161' }}>{s.what}</span>
+                  <span style={{ color: 'var(--dv-ink-2)' }}>{s.what}</span>
                 </div>
               ))}
             </div>
@@ -801,7 +824,9 @@ export default function PageEditor() {
               >
                 {confirmingDiscard ? 'Descartar mesmo?' : 'Descartar'}
               </button>
-              <s-button onClick={() => act('save')}>Salvar</s-button>
+              <button type="button" style={publishButton} onClick={() => act('save')}>
+                Salvar
+              </button>
             </>
           ) : (
             <button type="button" onClick={() => act('publish')} style={publishButton}>
@@ -867,11 +892,11 @@ export default function PageEditor() {
       <main style={canvas}>
         <div style={crumbBar}>
           {crumbs.length === 0 ? (
-            <span style={{ color: '#8a8a8a' }}>Clique num elemento para selecionar</span>
+            <span style={{ color: 'var(--dv-ink-3)' }}>Clique num elemento para selecionar</span>
           ) : (
             crumbs.map((node, i) => (
               <span key={node.id}>
-                {i > 0 ? <span style={{ color: '#c0c0c0' }}> / </span> : null}
+                {i > 0 ? <span style={{ color: 'var(--dv-ink-4)' }}> / </span> : null}
                 <button type="button" style={crumbButton} onClick={() => select(node.id)}>
                   {nameOf(node)}
                 </button>
@@ -900,17 +925,20 @@ export default function PageEditor() {
       <aside style={rightPanel}>
         {result && result.message !== 'Salvo.' ? (
           <div style={{ padding: '10px 12px 0' }}>
-            <s-banner tone={result.ok ? 'success' : 'critical'} heading={result.message}>
-              {result.urls?.length ? (
-                <s-paragraph>
-                  {result.urls.map((url) => (
-                    <s-link key={url} href={url} target="_blank">
-                      {url}
-                    </s-link>
-                  ))}
-                </s-paragraph>
-              ) : null}
-            </s-banner>
+            <div style={result.ok ? bannerOk : bannerErr} data-result>
+              <div style={{ fontWeight: 600 }}>{result.message}</div>
+              {result.urls?.map((url) => (
+                <a
+                  key={url}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: 'var(--dv-link)', display: 'block', marginTop: 4, fontSize: 12.5, overflowWrap: 'anywhere' }}
+                >
+                  {url}
+                </a>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -931,7 +959,7 @@ export default function PageEditor() {
                   <button type="button" style={opButton} title="Duplicar (todos os selecionados)" onClick={() => shortcutAction('duplicate')}>⧉</button>
                   <button
                     type="button"
-                    style={{ ...opButton, color: '#b42318' }}
+                    style={{ ...opButton, color: 'var(--dv-danger)' }}
                     title="Excluir"
                     onClick={() => shortcutAction('delete')}
                   >
@@ -968,7 +996,7 @@ export default function PageEditor() {
                             <div key={child.id} style={active ? tabItemRowOn : tabItemRow} data-tab-item={child.id}>
                               <button
                                 type="button"
-                                style={{ ...tabItemLabel, color: active ? '#fff' : '#303030' }}
+                                style={{ ...tabItemLabel, color: active ? 'var(--dv-invert-ink)' : 'var(--dv-ink)' }}
                                 onClick={() => select(child.id)}
                               >
                                 {String(child.props?.title ?? 'Aba')}
@@ -976,7 +1004,7 @@ export default function PageEditor() {
                               <button
                                 type="button"
                                 title="Duplicar aba"
-                                style={{ ...tabItemOp, color: active ? '#fff' : '#616161' }}
+                                style={{ ...tabItemOp, color: active ? 'var(--dv-invert-ink)' : 'var(--dv-ink-2)' }}
                                 onClick={() => setRoot(duplicateNode(doc.root, child.id))}
                               >
                                 ⧉
@@ -984,7 +1012,7 @@ export default function PageEditor() {
                               <button
                                 type="button"
                                 title="Excluir aba"
-                                style={{ ...tabItemOp, color: active ? '#fff' : '#b42318' }}
+                                style={{ ...tabItemOp, color: active ? 'var(--dv-invert-ink)' : 'var(--dv-danger)' }}
                                 onClick={() => {
                                   setRoot(removeNode(doc.root, child.id));
                                   if (active) select(tabsNode.id);
@@ -1135,20 +1163,22 @@ export default function PageEditor() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {data.stores.map((store) => (
-                <div key={store.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <s-checkbox
-                    label={store.label}
+                <label key={store.id} style={storeRow}>
+                  <input
+                    type="checkbox"
                     name="storeIds"
                     value={store.id}
-                    checked={
-                      data.deployedStoreIds.includes(store.id) || store.domain === shop || undefined
-                    }
+                    defaultChecked={data.deployedStoreIds.includes(store.id) || store.domain === shop}
                   />
-                  {store.isProduction ? <s-badge tone="critical">produção</s-badge> : null}
-                </div>
+                  {store.label}
+                  {store.isProduction ? <span style={pillDanger}>produção</span> : null}
+                </label>
               ))}
               {data.stores.some((s) => s.isProduction) ? (
-                <s-checkbox label="Confirmo publicar em produção" name="allowProduction" value="on" />
+                <label style={storeRow}>
+                  <input type="checkbox" name="allowProduction" value="on" />
+                  Confirmo publicar em produção
+                </label>
               ) : null}
             </div>
           )}
@@ -1184,7 +1214,7 @@ export default function PageEditor() {
             <label style={fieldLabel}>
               URL da página
               <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <span style={{ color: '#8a8a8a', fontSize: 13 }}>/pages/</span>
+                <span style={{ color: 'var(--dv-ink-3)', fontSize: 13 }}>/pages/</span>
                 <input
                   style={{ ...fieldInput, marginTop: 0 }}
                   data-settings="handle"
@@ -1294,10 +1324,10 @@ function Tree({
 
   const hintStyle = (node: DocNode): React.CSSProperties => {
     if (hint?.id !== node.id) return {};
-    if (hint.position === 'inside') return { background: '#eafaf0', outline: '2px solid #0BE05C' };
+    if (hint.position === 'inside') return { background: 'var(--dv-accent-tint)', outline: '2px solid var(--dv-accent)' };
     return hint.position === 'before'
-      ? { boxShadow: '0 -3px 0 0 #0BE05C' }
-      : { boxShadow: '0 3px 0 0 #0BE05C' };
+      ? { boxShadow: '0 -3px 0 0 var(--dv-accent)' }
+      : { boxShadow: '0 3px 0 0 var(--dv-accent)' };
   };
 
   return (
@@ -1797,8 +1827,8 @@ function StylePanel({
               width: 22,
               height: 22,
               borderRadius: 6,
-              border: '1px solid #d0d0d0',
-              background: shown || '#fff',
+              border: '1px solid var(--dv-edge-input)',
+              background: shown || '#ffffff',
               flexShrink: 0,
             }}
           />
@@ -1980,9 +2010,9 @@ const shell: React.CSSProperties = {
   gridTemplateRows: '52px 1fr',
   gridTemplateColumns: '260px 1fr 340px',
   gridTemplateAreas: `"top top top" "left canvas right"`,
-  background: '#fff',
+  background: 'var(--dv-sfc)',
   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  color: '#303030',
+  color: 'var(--dv-ink)',
   zIndex: 10,
 };
 
@@ -1992,13 +2022,13 @@ const topBar: React.CSSProperties = {
   alignItems: 'center',
   gap: 10,
   padding: '0 12px',
-  borderBottom: '1px solid #e3e3e3',
+  borderBottom: '1px solid var(--dv-edge)',
 };
 
 const backLink: React.CSSProperties = {
   fontSize: 18,
   textDecoration: 'none',
-  color: '#616161',
+  color: 'var(--dv-ink-2)',
   padding: '2px 8px',
   borderRadius: 8,
 };
@@ -2017,7 +2047,7 @@ const deviceGroup: React.CSSProperties = {
   marginLeft: 'auto',
   marginRight: 12,
   display: 'flex',
-  background: '#f1f1f1',
+  background: 'var(--dv-inset)',
   borderRadius: 8,
   padding: 2,
   gap: 2,
@@ -2030,17 +2060,17 @@ const deviceBase: React.CSSProperties = {
   fontSize: 12,
   cursor: 'pointer',
   background: 'transparent',
-  color: '#616161',
+  color: 'var(--dv-ink-2)',
   display: 'flex',
   alignItems: 'center',
 };
 const deviceIdle = deviceBase;
 const deviceActive: React.CSSProperties = {
   ...deviceBase,
-  background: '#fff',
-  color: '#303030',
+  background: 'var(--dv-sfc)',
+  color: 'var(--dv-ink)',
   fontWeight: 600,
-  boxShadow: '0 1px 2px rgba(0,0,0,.15)',
+  boxShadow: 'var(--dv-shadow-soft)',
 };
 
 const historyBase: React.CSSProperties = {
@@ -2052,26 +2082,26 @@ const historyBase: React.CSSProperties = {
   fontSize: 15,
   lineHeight: 1,
 };
-const historyOn: React.CSSProperties = { ...historyBase, color: '#303030', cursor: 'pointer' };
-const historyOff: React.CSSProperties = { ...historyBase, color: '#c9c9c9', cursor: 'default' };
+const historyOn: React.CSSProperties = { ...historyBase, color: 'var(--dv-ink)', cursor: 'pointer' };
+const historyOff: React.CSSProperties = { ...historyBase, color: 'var(--dv-ink-4)', cursor: 'default' };
 
 const liveLink: React.CSSProperties = {
   fontSize: 13,
-  color: '#005bd3',
+  color: 'var(--dv-link)',
   textDecoration: 'none',
   marginRight: 4,
 };
 
 const liveLinkOff: React.CSSProperties = {
   ...liveLink,
-  color: '#b8b8b8',
+  color: 'var(--dv-ink-4)',
   cursor: 'default',
 };
 
 const unpublishLink: React.CSSProperties = {
   border: 0,
   background: 'transparent',
-  color: '#8a5700',
+  color: 'var(--dv-warn-text)',
   fontSize: 12.5,
   cursor: 'pointer',
   padding: '2px 4px',
@@ -2080,23 +2110,23 @@ const unpublishLink: React.CSSProperties = {
 
 const unsavedNote: React.CSSProperties = {
   fontSize: 12.5,
-  color: '#8a6116',
+  color: 'var(--dv-warn-text)',
   whiteSpace: 'nowrap',
 };
 
 const discardButton: React.CSSProperties = {
-  border: '1px solid #e3e3e3',
-  background: '#fff',
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
   borderRadius: 8,
   padding: '7px 12px',
   fontSize: 13,
   cursor: 'pointer',
-  color: '#616161',
+  color: 'var(--dv-ink-2)',
 };
 
 const publishButton: React.CSSProperties = {
-  background: '#0BE05C',
-  color: '#06301b',
+  background: 'var(--dv-accent)',
+  color: 'var(--dv-accent-ink)',
   border: 0,
   borderRadius: 8,
   padding: '8px 16px',
@@ -2107,13 +2137,13 @@ const publishButton: React.CSSProperties = {
 
 const leftPanel: React.CSSProperties = {
   gridArea: 'left',
-  borderRight: '1px solid #e3e3e3',
+  borderRight: '1px solid var(--dv-edge)',
   overflowY: 'auto',
 };
 
 const rightPanel: React.CSSProperties = {
   gridArea: 'right',
-  borderLeft: '1px solid #e3e3e3',
+  borderLeft: '1px solid var(--dv-edge)',
   overflowY: 'auto',
   display: 'flex',
   flexDirection: 'column',
@@ -2121,7 +2151,7 @@ const rightPanel: React.CSSProperties = {
 
 const panelSection: React.CSSProperties = {
   padding: 12,
-  borderBottom: '1px solid #ececec',
+  borderBottom: '1px solid var(--dv-edge-soft)',
 };
 
 const panelLabel: React.CSSProperties = {
@@ -2129,7 +2159,7 @@ const panelLabel: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-  color: '#8a8a8a',
+  color: 'var(--dv-ink-3)',
   marginBottom: 8,
 };
 
@@ -2140,14 +2170,14 @@ const inspectorHead: React.CSSProperties = {
 };
 
 const opButton: React.CSSProperties = {
-  border: '1px solid #e3e3e3',
-  background: '#fff',
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
   borderRadius: 6,
   width: 26,
   height: 26,
   fontSize: 13,
   cursor: 'pointer',
-  color: '#616161',
+  color: 'var(--dv-ink-2)',
   lineHeight: 1,
 };
 
@@ -2163,20 +2193,20 @@ const treeRow: React.CSSProperties = {
   padding: '5px 8px',
   borderRadius: 6,
   cursor: 'pointer',
-  color: '#303030',
+  color: 'var(--dv-ink)',
 };
 
 const treeRowSelected: React.CSSProperties = {
-  background: '#eafaf0',
-  outline: '1px solid #b6ecd0',
+  background: 'var(--dv-accent-tint)',
+  outline: '1px solid var(--dv-accent-edge)',
   fontWeight: 600,
 };
 
-const treeIcon: React.CSSProperties = { fontSize: 10, color: '#0a6b38', width: 10 };
-const treeHint: React.CSSProperties = { color: '#8a8a8a', fontWeight: 400, fontSize: 12 };
+const treeIcon: React.CSSProperties = { fontSize: 10, color: 'var(--dv-accent-text)', width: 10 };
+const treeHint: React.CSSProperties = { color: 'var(--dv-ink-3)', fontWeight: 400, fontSize: 12 };
 
 /** A hidden row reads as switched off: gray all over, label struck through. */
-const treeRowHidden: React.CSSProperties = { color: '#a3a3a3' };
+const treeRowHidden: React.CSSProperties = { color: 'var(--dv-ink-4)' };
 
 const eyeButton: React.CSSProperties = {
   marginLeft: 'auto',
@@ -2184,20 +2214,20 @@ const eyeButton: React.CSSProperties = {
   alignItems: 'center',
   padding: 2,
   borderRadius: 4,
-  color: '#8a8a8a',
+  color: 'var(--dv-ink-3)',
   cursor: 'pointer',
 };
-const eyeOff: React.CSSProperties = { color: '#b0b0b0' };
+const eyeOff: React.CSSProperties = { color: 'var(--dv-ink-4)' };
 
 const keysPanel: React.CSSProperties = {
   position: 'absolute',
   top: 40,
   right: 0,
   zIndex: 30,
-  background: '#fff',
-  border: '1px solid #e3e3e3',
+  background: 'var(--dv-sfc)',
+  border: '1px solid var(--dv-edge)',
   borderRadius: 12,
-  boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+  boxShadow: 'var(--dv-shadow-pop)',
   padding: 14,
   width: 250,
 };
@@ -2212,8 +2242,8 @@ const keysRow: React.CSSProperties = {
 };
 
 const visBase: React.CSSProperties = {
-  border: '1px solid #e3e3e3',
-  background: '#fff',
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
   borderRadius: 8,
   width: 34,
   height: 30,
@@ -2224,33 +2254,33 @@ const visBase: React.CSSProperties = {
 };
 const visOn: React.CSSProperties = {
   ...visBase,
-  background: '#eafaf0',
-  borderColor: '#b6ecd0',
-  color: '#0a6b38',
+  background: 'var(--dv-accent-tint)',
+  borderColor: 'var(--dv-accent-edge)',
+  color: 'var(--dv-accent-text)',
 };
-const visOff: React.CSSProperties = { ...visBase, color: '#c0c0c0' };
+const visOff: React.CSSProperties = { ...visBase, color: 'var(--dv-ink-4)' };
 
 const animOff: React.CSSProperties = {
-  border: '1px solid #e3e3e3',
-  background: '#fff',
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
   borderRadius: 8,
   padding: '6px 10px',
   fontSize: 12.5,
   cursor: 'pointer',
-  color: '#303030',
+  color: 'var(--dv-ink)',
 };
 const animOn: React.CSSProperties = {
   ...animOff,
-  background: '#eafaf0',
-  borderColor: '#b6ecd0',
-  color: '#0a6b38',
+  background: 'var(--dv-accent-tint)',
+  borderColor: 'var(--dv-accent-edge)',
+  color: 'var(--dv-accent-text)',
   fontWeight: 600,
 };
 
 // The tab items list: the container owns its add button, and the active row
 // is a FULL color inversion — instantly readable.
 const tabItemsBox: React.CSSProperties = {
-  background: '#f4f4f4',
+  background: 'var(--dv-inset2)',
   borderRadius: 10,
   padding: 6,
   display: 'flex',
@@ -2269,7 +2299,7 @@ const tabItemRow: React.CSSProperties = {
 
 const tabItemRowOn: React.CSSProperties = {
   ...tabItemRow,
-  background: '#17201c',
+  background: 'var(--dv-invert-bg)',
 };
 
 const tabItemLabel: React.CSSProperties = {
@@ -2293,22 +2323,22 @@ const tabItemOp: React.CSSProperties = {
 };
 
 const addItemButton: React.CSSProperties = {
-  border: '1px solid #e3e3e3',
-  background: '#fff',
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
   borderRadius: 8,
   padding: '8px 0',
   fontSize: 12.5,
   cursor: 'pointer',
-  color: '#303030',
+  color: 'var(--dv-ink)',
   width: '100%',
   marginTop: 2,
 };
 
 const multiNote: React.CSSProperties = {
   fontSize: 12.5,
-  color: '#0a6b38',
-  background: '#eafaf0',
-  border: '1px solid #b6ecd0',
+  color: 'var(--dv-accent-text)',
+  background: 'var(--dv-accent-tint)',
+  border: '1px solid var(--dv-accent-edge)',
   borderRadius: 8,
   padding: '8px 10px',
   marginBottom: 10,
@@ -2317,7 +2347,7 @@ const multiNote: React.CSSProperties = {
 const drawerBackdrop: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(0,0,0,.28)',
+  background: 'var(--dv-backdrop)',
   zIndex: 40,
 };
 
@@ -2327,39 +2357,47 @@ const drawer: React.CSSProperties = {
   right: 0,
   bottom: 0,
   width: 360,
-  background: '#fff',
+  background: 'var(--dv-sfc)',
   zIndex: 41,
   padding: 16,
   overflowY: 'auto',
-  boxShadow: '-8px 0 24px rgba(0,0,0,.15)',
+  boxShadow: 'var(--dv-shadow-drawer)',
 };
 
 const kbdChip: React.CSSProperties = {
-  background: '#f1f1f1',
-  border: '1px solid #e0e0e0',
+  background: 'var(--dv-inset)',
+  border: '1px solid var(--dv-edge)',
   borderRadius: 5,
   padding: '2px 6px',
   fontSize: 11,
   fontFamily: 'inherit',
-  color: '#303030',
+  color: 'var(--dv-ink)',
 };
 
 const paletteButton: React.CSSProperties = {
-  border: '1px solid #e3e3e3',
-  background: '#fff',
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
   borderRadius: 8,
   padding: '6px 10px',
   fontSize: 12.5,
   cursor: 'pointer',
-  color: '#303030',
+  color: 'var(--dv-ink)',
 };
 
-const metaLine: React.CSSProperties = { fontSize: 12.5, color: '#616161', padding: '2px 0' };
+const metaLine: React.CSSProperties = { fontSize: 12.5, color: 'var(--dv-ink-2)', padding: '2px 0' };
+
+const storeRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  fontSize: 13,
+  cursor: 'pointer',
+};
 const findingLine: React.CSSProperties = {
   fontSize: 12.5,
-  color: '#8a6116',
-  background: '#fdf6e3',
-  border: '1px solid #f0e3b9',
+  color: 'var(--dv-warn-text)',
+  background: 'var(--dv-warn-tint)',
+  border: '1px solid var(--dv-warn-edge)',
   borderRadius: 6,
   padding: '6px 8px',
   marginTop: 6,
@@ -2368,7 +2406,7 @@ const findingLine: React.CSSProperties = {
 const tabRow: React.CSSProperties = {
   display: 'flex',
   gap: 2,
-  background: '#f1f1f1',
+  background: 'var(--dv-inset)',
   borderRadius: 8,
   padding: 2,
   marginBottom: 10,
@@ -2381,33 +2419,33 @@ const tabBase2: React.CSSProperties = {
   fontSize: 12.5,
   cursor: 'pointer',
   background: 'transparent',
-  color: '#616161',
+  color: 'var(--dv-ink-2)',
 };
 const tabOff = tabBase2;
 const tabOn: React.CSSProperties = {
   ...tabBase2,
-  background: '#fff',
-  color: '#303030',
+  background: 'var(--dv-sfc)',
+  color: 'var(--dv-ink)',
   fontWeight: 600,
-  boxShadow: '0 1px 2px rgba(0,0,0,.15)',
+  boxShadow: 'var(--dv-shadow-soft)',
 };
 
 const bpRow: React.CSSProperties = { display: 'flex', gap: 4, marginBottom: 4 };
 const bpBase: React.CSSProperties = {
-  border: '1px solid #e3e3e3',
-  background: '#fff',
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
   borderRadius: 999,
   padding: '3px 10px',
   fontSize: 12,
   cursor: 'pointer',
-  color: '#616161',
+  color: 'var(--dv-ink-2)',
 };
 const bpOff = bpBase;
 const bpOn: React.CSSProperties = {
   ...bpBase,
-  background: '#eafaf0',
-  borderColor: '#b6ecd0',
-  color: '#0a6b38',
+  background: 'var(--dv-accent-tint)',
+  borderColor: 'var(--dv-accent-edge)',
+  color: 'var(--dv-accent-text)',
   fontWeight: 600,
 };
 
@@ -2416,14 +2454,14 @@ const groupLabel: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-  color: '#8a8a8a',
+  color: 'var(--dv-ink-3)',
   margin: '10px 0 6px',
 };
 
 const fieldLabel: React.CSSProperties = {
   display: 'block',
   fontSize: 12,
-  color: '#616161',
+  color: 'var(--dv-ink-2)',
   marginBottom: 10,
 };
 
@@ -2431,12 +2469,12 @@ const fieldInput: React.CSSProperties = {
   display: 'block',
   width: '100%',
   marginTop: 4,
-  border: '1px solid #d0d0d0',
+  border: '1px solid var(--dv-edge-input)',
   borderRadius: 8,
   padding: '7px 9px',
   fontSize: 13,
   boxSizing: 'border-box',
-  background: '#fff',
+  background: 'var(--dv-sfc)',
 };
 
 const fieldArea: React.CSSProperties = {
@@ -2448,7 +2486,7 @@ const fieldArea: React.CSSProperties = {
 
 const canvas: React.CSSProperties = {
   gridArea: 'canvas',
-  background: '#f1f1f1',
+  background: 'var(--dv-canvas-bg)',
   display: 'grid',
   gridTemplateRows: 'auto 1fr auto',
   minHeight: 0,
@@ -2461,19 +2499,19 @@ const toastStyle: React.CSSProperties = {
   bottom: 44,
   left: '50%',
   transform: 'translateX(-50%)',
-  background: '#1a1a1a',
-  color: '#fff',
+  background: 'var(--dv-toast-bg)',
+  color: 'var(--dv-toast-ink)',
   borderRadius: 8,
   padding: '8px 16px',
   fontSize: 13,
-  boxShadow: '0 2px 8px rgba(0,0,0,.3)',
+  boxShadow: 'var(--dv-shadow-pop)',
   zIndex: 20,
 };
 
 const countPill: React.CSSProperties = {
-  background: '#eafaf0',
-  border: '1px solid #b6ecd0',
-  color: '#0a6b38',
+  background: 'var(--dv-accent-tint)',
+  border: '1px solid var(--dv-accent-edge)',
+  color: 'var(--dv-accent-text)',
   borderRadius: 999,
   padding: '1px 8px',
   fontSize: 11,
@@ -2486,21 +2524,21 @@ const paletteGroupLabel: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
-  color: '#a3a3a3',
+  color: 'var(--dv-ink-4)',
   margin: '4px 0',
 };
 
 const crumbBar: React.CSSProperties = {
   padding: '8px 16px',
   fontSize: 12.5,
-  borderBottom: '1px solid #e7e7e7',
-  background: '#fafafa',
+  borderBottom: '1px solid var(--dv-edge-soft)',
+  background: 'var(--dv-sfc-sub)',
 };
 
 const crumbButton: React.CSSProperties = {
   border: 0,
   background: 'transparent',
-  color: '#005bd3',
+  color: 'var(--dv-link)',
   fontSize: 12.5,
   cursor: 'pointer',
   padding: 0,
@@ -2515,9 +2553,11 @@ const canvasScroll: React.CSSProperties = {
 };
 
 const canvasPage: React.CSSProperties = {
-  background: '#fff',
+  // Literal white on purpose: this is the storefront page's paper, not editor
+  // chrome — it does not follow the dark skin.
+  background: '#ffffff',
   borderRadius: 8,
-  boxShadow: '0 1px 4px rgba(0,0,0,.12)',
+  boxShadow: 'var(--dv-shadow-page)',
   overflow: 'hidden',
   height: 'fit-content',
   minHeight: '100%',
@@ -2530,13 +2570,13 @@ const previewFrame: React.CSSProperties = {
   minHeight: 600,
   border: 0,
   display: 'block',
-  background: '#fff',
+  background: '#ffffff',
 };
 
 const statusBar: React.CSSProperties = {
   padding: '6px 16px',
   fontSize: 12,
-  color: '#616161',
-  borderTop: '1px solid #e7e7e7',
-  background: '#fafafa',
+  color: 'var(--dv-ink-2)',
+  borderTop: '1px solid var(--dv-edge-soft)',
+  background: 'var(--dv-sfc-sub)',
 };

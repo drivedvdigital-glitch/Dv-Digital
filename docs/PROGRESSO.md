@@ -795,6 +795,25 @@ barato e de alto retorno em páginas grandes. A regra de fricção-por-reversibi
 entrou no CLAUDE.md junto com as demais regras de interface aprendidas da referência.
 Verificado: 52/52 + 4/4 novo + regressão verde.
 
+### ✅ Refino visual + modo escuro (15/09)
+
+Todo o cromo do app passou a usar **tokens de design** (`--dv-*`, em
+`app/app/ui/theme.tsx`): nenhuma cor solta em componente, e o **modo escuro é um
+atributo** (`data-theme="dark"` na raiz `.dv-ui`), com toggle sol/lua no editor e na
+lista, lembrado por navegador (localStorage, primeira visita segue o sistema). O
+`color-scheme` acompanha, então scrollbars/checkboxes/selects nativos escurecem de
+graça. O papel do canvas fica **branco de propósito** nos dois temas — ele é a página
+da loja, não o editor. A lista de páginas saiu do visual Polaris e ganhou a identidade
+D&VFly (mesmos tokens, tabela própria, badges e banner coerentes com o editor); os
+s-checkbox/s-badge/s-banner do editor viraram nativos tematizados. Extras de uso:
+transições e hover em todos os controles, foco visível em verde, ícone de
+configurações redesenhado (sliders — a engrenagem de traço lia como um segundo sol ao
+lado do toggle). Armadilha nova documentada: CSS com `[data-theme="dark"]` como filho
+de texto de `<style>` quebra a hidratação SSR (aspas escapadas) — o `<UiStyle />`
+injeta via innerHTML. Verificado: flow17 7/7 (toggle real por cor computada,
+persistência após reload, editor herda o tema, papel branco no escuro) + regressão
+flow6/12/14/16 verde + 52/52 compilador + typecheck limpo.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:
