@@ -891,16 +891,36 @@ visita — cobria as abas Geral/Estilo (o flow6 pegou). Regras promovidas ao CLA
 (três caminhos + nome; avisar o caminho de volta; dizer onde a ação acontece antes do
 clique). Verificado: flow20 7/7 + flow6 13/13 + flow14 + flow16 + typecheck.
 
+### ✅ Instalável em qualquer loja (15/09) — "como o PageFly"
+
+Pedido: instalar o D&VFly numa loja Shopify como se instala o PageFly, com o app se
+configurando sozinho. Pesquisa nova em `shopify.dev` (instalação gerenciada, token exchange,
+ID tokens, TOML, distribuição, webhooks, escopos) → `docs/INSTALACAO.md` (passo a passo) +
+`shopify.app.toml` na raiz. Implementado: **toda rota autentica** (`requireShop`: ID token
+HS256 com o client secret, claims `exp/nbf/aud/iss×dest`, tolerância de 10 s), **instalação
+por token exchange** na primeira abertura (`installStore` → `Store.accessToken` offline),
+**`/bounce`** para documento sem token dentro do admin, **links de nova aba** com token,
+**webhooks** `app/uninstalled` + `app/scopes_update` + os 3 de compliance com HMAC do corpo
+bruto (401 sem), `Store` sem cópia do segredo do app, `DVFLY_AUTH=off` só fora de produção.
+O client credentials ficou como caminho de desenvolvimento para lojas da própria organização.
+Nuances honestas registradas: distribuição custom = uma loja ou uma organização Plus por
+app (lojas de terceiros sem relação = App Store, com revisão); token offline expirável é
+obrigatório só para apps públicos (2027); a política 5.1.1 da App Store proíbe escrever no
+tema (nosso "sem cabeçalho" e páginas de produto) — irrelevante na distribuição custom.
+Verificado: 14 testes novos (87 no total), flow21 5/5 com auth ligada (bounce, 401 + header de
+retry, token assinado com o segredo real aceito, webhooks HMAC, criar→editar→excluir sob
+Authorization), regressão 18/20/6/17 no modo dev, typecheck. **Pendente por natureza:** o
+ciclo dentro do admin real só se prova instalando numa loja — o guia diz o que observar.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
 
-1. **Não há verificação de requisição (P0.1).** O App Bridge carrega, mas ainda não se valida
-   o ID token. Desenho pronto (`requireShop`, HS256 com o client secret, claims); precisa ser
-   testado dentro do admin real — primeira tarefa do "bora hospedar".
-2. **Credenciais por loja no SQLite (P0.2).** O ambiente já é a fonte primária e produção não
-   lê o banco; falta a decisão do dono: remover as colunas (um app = um par) ou cifrar.
-3. **`shopify.app.toml` (P0.3)** para versionar scopes/webhooks e publicar a versão do app.
+1. **Ciclo de instalação dentro do admin real** — implementado e testado com tokens assinados
+   pelo segredo real; a prova final é instalar numa loja de verdade ao hospedar.
+2. **Access token das lojas em texto claro no SQLite** — cifrar em repouso antes de sair da
+   loja de teste (P1).
+3. **`application_url` real no `shopify.app.toml`** + `shopify app deploy` ao hospedar.
 
 ## Fase 4 — Recursos P1 ⬜
 

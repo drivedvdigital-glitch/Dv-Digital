@@ -34,14 +34,17 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 
 - `packages/compiler/` — **o único renderizador** (invariante I1): documento de blocos → HTML+CSS
   deduplicado. Preview do editor e publicação chamam a MESMA função. Editor-only: `nodeIds`.
-- `packages/shopify/` — client credentials grant (por loja), `upsertPage` idempotente por handle,
-  deploy multi-loja com lojas independentes.
-- `app/` — React Router 7 + Prisma/SQLite. Telas em Polaris web components (CDN); editor em tela
-  cheia (árvore / canvas / inspetor). Loja se registra sozinha ao abrir o app (`ensureStore`).
+- `packages/shopify/` — instalação gerenciada + token exchange (`session.ts`; client credentials
+  só para lojas da própria organização em dev), `upsertPage` pela id lembrada, deploy multi-loja
+  com lojas independentes, templates de produto por página.
+- `app/` — React Router 7 + Prisma/SQLite. Telas próprias (tokens `--dv-*`, claro/escuro); editor
+  em tela cheia (árvore / canvas / inspetor). **Toda rota chama `requireShop`** (ID token da
+  Shopify); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só em dev.
 - Decisões e porquês: `docs/ARQUITETURA.md` (invariantes I1–I7), `docs/UX_FLUXOS.md` (U1–U7),
   histórico honesto em `docs/PROGRESSO.md` — **atualizar a cada entrega**, incluindo o que falhou.
   Estado real do código × plataforma × concorrente: `docs/CONFIGURACAO_E_MECANISMOS.md`
-  (auditoria de 15/09, com o plano P0/P1/P2 antes de hospedar).
+  (auditoria de 15/09, com o plano P0/P1/P2 antes de hospedar). Instalar numa loja:
+  `docs/INSTALACAO.md` + `shopify.app.toml` na raiz.
 
 ## Armadilhas já pagas (não repagar)
 

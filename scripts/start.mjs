@@ -191,6 +191,10 @@ function announce() {
       'Se o endereço público MUDOU desde a última vez, cola ele',
       `no App URL do app na Shopify${copied ? ' (já está copiado)' : ''}.`,
       '',
+      'Abra o app pelo admin da loja (Apps → D&VFly): é de lá que vem',
+      'o token que autentica cada tela. O endereço local só abre com',
+      'DVFLY_AUTH="off" no app/.env (modo de desenvolvimento).',
+      '',
       'Pode minimizar esta janela. Para desligar, FECHE a janela.',
     ]);
   } else {

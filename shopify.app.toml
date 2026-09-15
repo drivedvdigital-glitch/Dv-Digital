@@ -1,0 +1,49 @@
+# D&VFly — configuração do app na Shopify (Dev Dashboard).
+#
+# Este arquivo é a fonte da verdade do que a Shopify sabe sobre o app: URL,
+# escopos, webhooks. Depois de editar, `shopify app deploy` cria uma versão do
+# app e a libera para todas as lojas instaladas (é isso que faz os escopos e
+# os webhooks existirem de verdade — o pedido de token não os carrega).
+# Guia completo: docs/INSTALACAO.md
+#
+# client_id é o identificador PÚBLICO do app (vai no HTML de cada tela). O
+# client secret nunca entra aqui — vive em app/.env (SHOPIFY_CLIENT_SECRET).
+
+client_id = "90c1e96f2c78ab7b88750d387691d07f"
+name = "D&VFly"
+handle = "dvfly"
+
+# Troque pelo endereço público onde o app está hospedado (HTTPS, sem caminho).
+# É este endereço que o admin da Shopify abre dentro do iframe e para o qual
+# os webhooks abaixo (URIs relativas) são entregues.
+application_url = "https://SEU-ENDERECO-PUBLICO"
+embedded = true
+
+[build]
+# Em produção o endereço não muda a cada `shopify app dev`; deixe falso.
+automatically_update_urls_on_dev = false
+
+[access_scopes]
+# Escopo de escrita já inclui o de leitura (write_products ⊃ read_products).
+#   write_content   páginas, blogs e artigos (pageCreate/pageUpdate)
+#   write_themes    templates e seções escritos no tema (cabeçalho/rodapé off, páginas de produto)
+#   write_products  templateSuffix dos produtos vinculados
+# Quando a biblioteca de mídia sair: acrescentar write_files.
+scopes = "write_content,write_themes,write_products"
+# Instalação gerenciada pela Shopify: ela pede a permissão, o app nunca faz OAuth.
+use_legacy_install_flow = false
+
+[auth]
+# Exigido pela Shopify mesmo com instalação gerenciada (nunca é usado).
+redirect_urls = ["https://SEU-ENDERECO-PUBLICO/app"]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled", "app/scopes_update"]
+uri = "/webhooks/app"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks/compliance"

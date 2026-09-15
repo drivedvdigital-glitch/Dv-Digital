@@ -39,11 +39,21 @@ validação num lugar (`.env.example` documenta cada uma). Em produção o app r
 `SHOPIFY_CLIENT_ID`/`SHOPIFY_CLIENT_SECRET` no ambiente. Constantes que um componente de rota
 lê vêm de `app/lib/shared.ts` (módulos `.server.ts` não entram no bundle do cliente).
 
-**Não existe tela de lojas.** Uma loja que abre o app se registra sozinha (`ensureStore`): o
-`?shop=` chega na URL, as credenciais do app valem para qualquer loja que o instalou (é o mesmo
-app, o grant de client credentials é por domínio), e a linha só é gravada depois de provada com um
-`shop { name }` real. Loja nova entra como **produção** por padrão — publicar nela exige a
-confirmação extra do editor.
+**Não existe tela de lojas.** Uma loja que abre o app se registra sozinha. O caminho normal
+(qualquer loja) é a **instalação gerenciada pela Shopify**: a loja instala o app, o admin abre
+o App URL com um ID token, `requireShop` verifica o token com o client secret, e na primeira
+vez `installStore` troca esse token por um **access token offline** da loja (token exchange),
+gravado em `Store.accessToken`. O caminho de desenvolvimento (`DVFLY_AUTH=off`, só fora de
+produção) usa o client credentials grant, que vale apenas para lojas da nossa própria
+organização. Loja nova entra como **produção** por padrão — publicar nela exige a confirmação
+extra do editor. Guia completo de instalação em `docs/INSTALACAO.md`.
+
+**Toda rota autentica** (`app/lib/auth.server.ts`): dados com `Authorization: Bearer` (o App
+Bridge põe sozinho no `fetch`), documento com `?id_token=`; sem token, uma página inteira vai
+pelo `/bounce` (pede o token ao App Bridge e volta) e uma chamada de dados leva 401 com
+`X-Shopify-Retry-Invalid-Session-Request`. Links que abrem nova aba (pré-visualizar, exportar)
+buscam o token antes de abrir (`app/ui/embedded.ts`). Webhooks em `/webhooks/app` e
+`/webhooks/compliance`, com HMAC do corpo bruto.
 
 ## Três decisões que valem explicar
 

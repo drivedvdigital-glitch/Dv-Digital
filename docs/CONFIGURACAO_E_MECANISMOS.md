@@ -29,11 +29,12 @@
 6. Sem tratamento de limite de requisições (429/THROTTLED), sem `build`/`start` na raiz
    (caminho de produção nunca rodado), `allowedActionOrigins` com curinga indo pro build.
 
-**O que esta entrega corrigiu** (seção 4): itens 3, 4, 5 e 6 inteiros; o item 2 parcialmente
-(o ambiente virou fonte primária; em produção o app recusa subir sem as credenciais no
-ambiente e nunca lê o banco para isso). O item 1 tem o desenho pronto na seção 5 e **é a
-única coisa que impede hospedar** — depende de ser testado dentro do admin real, que não dá
-para dirigir por Playwright daqui.
+**O que foi corrigido** (seção 4 + entrega seguinte no mesmo dia): **todos os seis**. O item 1
+virou a camada de instalação (`app/app/lib/auth.server.ts` + `packages/shopify/src/session.ts`):
+ID token verificado em toda rota, instalação gerenciada pela Shopify com token exchange,
+`/bounce`, webhooks com HMAC, `shopify.app.toml` — passo a passo em `docs/INSTALACAO.md`.
+O que resta é o teste do ciclo completo **dentro do admin real** ao hospedar (o que se prova
+daqui é com tokens assinados pelo segredo real — flow21).
 
 **As duas descobertas de plataforma que mudam configuração:**
 
@@ -213,8 +214,8 @@ Estado: ✅ corrigido nesta entrega · 🟡 parcial · ⬜ pendente (ver seção
 
 | # | Achado | Onde | Estado |
 |---|---|---|---|
-| 1 | Nenhuma rota verifica ID token/HMAC; `?shop=` sozinho dispara pedido de token para qualquer domínio myshopify | todas as rotas; `app.tsx:30` | ⬜ **P0** |
-| 2 | Segredo do app copiado em cada `Store`, banco como fonte primária | `schema.prisma:17-18`, `shopify.server.ts` | 🟡 ambiente é a fonte; produção recusa sem ele; colunas ainda existem |
+| 1 | Nenhuma rota verifica ID token/HMAC; `?shop=` sozinho dispara pedido de token para qualquer domínio myshopify | todas as rotas; `app.tsx:30` | ✅ `requireShop` em toda rota; instalação por token exchange; `/bounce`; webhooks HMAC (docs/INSTALACAO.md) |
+| 2 | Segredo do app copiado em cada `Store`, banco como fonte primária | `schema.prisma:17-18`, `shopify.server.ts` | ✅ colunas opcionais, não mais gravadas; lojas instaladas guardam só o access token offline delas |
 | 3 | `.env` carregado só pelo Prisma gerado | — | ✅ `config.server.ts` carrega e valida |
 | 4 | Versão da API fixa `2026-07`, sem forma de trocar; sem checagem do header servido | `client.ts:16` | ✅ `SHOPIFY_API_VERSION` + aviso de fall-forward |
 | 5 | `allowedActionOrigins: ['*.trycloudflare.com']` incondicional | `react-router.config.ts` | ✅ só fora de produção / `DVFLY_DEV_ORIGINS` |
@@ -233,9 +234,9 @@ Estado: ✅ corrigido nesta entrega · 🟡 parcial · ⬜ pendente (ver seção
 | 18 | `dvfly-solo` e regex de domínio duplicados; `SOLO_SUFFIX` num módulo com o client | vários | ✅ `constants.ts`, `shared.ts`, `SHOP_DOMAIN` exportado |
 | 19 | Pacote shopify sem nenhum teste | `packages/shopify` | ✅ 14 testes (token, retry, versão, upsert por id, deploy isolado) |
 | 20 | Arquivos do tema escritos sem inventário nem remoção (I3) | `templates.ts` | ⬜ P1 |
-| 21 | Sem webhook `app/uninstalled` (loja desinstalada continua registrada) | — | ⬜ P1 |
+| 21 | Sem webhook `app/uninstalled` (loja desinstalada continua registrada) | — | ✅ `/webhooks/app` + `/webhooks/compliance` |
 | 22 | `Page.handle` não é único; `freeHandle` só no import | `schema.prisma` | ⬜ P1 |
-| 23 | Sem `shopify.app.toml` — scopes só no painel | — | ⬜ P1 |
+| 23 | Sem `shopify.app.toml` — scopes só no painel | — | ✅ na raiz; `shopify app deploy` (docs/INSTALACAO.md) |
 | 24 | Sem migrations (`db push` a cada start); provider sqlite fixo | `app/package.json`, schema | ⬜ P1 (hospedagem) |
 | 25 | `INICIAR-DVFLY.cmd` faz `git pull` sem `--rebase` nem checar a branch; `start.mjs` duplica chaves no `.env` | scripts | ⬜ P2 |
 | 26 | `audit()` exportado e nunca usado no editor | `compiler.server.ts` | ⬜ P2 |
@@ -288,18 +289,18 @@ Estado: ✅ corrigido nesta entrega · 🟡 parcial · ⬜ pendente (ver seção
    na primeira carga; a partir daí as chamadas de dados vão por `fetch` com header.
 6. `DVFLY_AUTH=off` **só fora de produção**, para os fluxos Playwright e para abrir o app
    pelo túnel sem admin. Em produção a chave não existe.
-   *Por que não foi feito hoje:* precisa ser validado dentro do admin real (embed + token),
-   que não se dirige por Playwright deste ambiente. É a primeira tarefa do "bora hospedar".
+   **Feito** (mesmo dia): `requireShop`/`installStore`, `/bounce`, `openWithToken` para
+   links de nova aba, `DVFLY_AUTH=off` só fora de produção. Falta o teste dentro do admin
+   real ao hospedar — `docs/INSTALACAO.md` diz o que observar.
 
-**P0.2 Credenciais.** Decisão do dono: (a) remover `clientId/clientSecret` de `Store`
-(um app da organização = um par, no ambiente) — recomendado; ou (b) manter por loja e cifrar
-com `DVFLY_SECRET_KEY`. O código já trata o ambiente como fonte; falta só a migração.
+**P0.2 Credenciais.** **Feito**: `clientId/clientSecret` viraram opcionais e não são mais
+gravados; lojas instaladas guardam só o **access token offline delas** (`Store.accessToken`).
+Cifrar esse token em repouso continua na fila (P1) — hoje o banco é o segredo.
 
-**P0.3 `shopify.app.toml` + `shopify app deploy`.** Versionar a configuração do app:
-`client_id`, `application_url` (a URL final), `embedded = true`, `[access_scopes] scopes =
-"write_content,read_themes,write_themes"` (mais `write_products`, `write_files` quando o
-bloco de produtos e a biblioteca saírem), `[webhooks] api_version` = a mesma
-`SHOPIFY_API_VERSION`. É o que faz os scopes existirem na versão do app.
+**P0.3 `shopify.app.toml` + `shopify app deploy`.** **Feito**: arquivo na raiz com
+`client_id`, `embedded`, `[access_scopes] scopes = "write_content,write_themes,write_products"`
+(write ⊃ read), `[auth] redirect_urls`, webhooks `app/*` e de compliance com URIs relativas.
+Falta só o endereço público real antes do `shopify app deploy` (`docs/INSTALACAO.md`).
 
 ### P1 — antes de operar no dia a dia em várias lojas
 
