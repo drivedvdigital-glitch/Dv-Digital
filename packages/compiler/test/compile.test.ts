@@ -322,3 +322,38 @@ test('entrance animations: opt-in runtime, CSS only when used, content visible w
   });
   assert.ok(!bogus.html.includes('data-dvf-anim'), 'unknown animation compiles to nothing');
 });
+
+test('list renders real ul/ol markup with escaped items', () => {
+  const { html } = compile({
+    version: 1,
+    root: [
+      { id: 'l1', type: 'list', props: { text: 'Um\n<b>Dois</b>\n\nTrês  ' } },
+      { id: 'l2', type: 'list', props: { text: 'A\nB', ordered: true } },
+    ],
+  });
+  assert.ok(html.includes('<ul><li>Um</li><li>&lt;b&gt;Dois&lt;/b&gt;</li><li>Três</li></ul>'), html);
+  assert.ok(html.includes('<ol><li>A</li><li>B</li></ol>'), html);
+});
+
+test('youtube embeds only the video id, whatever URL shape was pasted', () => {
+  const forms = [
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    'https://youtu.be/dQw4w9WgXcQ?t=10',
+    'https://www.youtube.com/shorts/dQw4w9WgXcQ',
+    'dQw4w9WgXcQ',
+  ];
+  for (const url of forms) {
+    const { html } = compile({ version: 1, root: [{ id: 'y1', type: 'youtube', props: { url } }] });
+    assert.ok(
+      html.includes('src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"'),
+      `${url} → ${html}`,
+    );
+    assert.ok(!html.includes('t=10'), 'nothing but the id survives');
+  }
+  // Garbage or empty → the block emits nothing at all.
+  const empty = compile({
+    version: 1,
+    root: [{ id: 'y2', type: 'youtube', props: { url: 'javascript:alert(1)' } }],
+  });
+  assert.ok(!empty.html.includes('iframe'), empty.html);
+});

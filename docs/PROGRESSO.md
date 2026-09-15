@@ -739,6 +739,18 @@ Publicar sai de cena com pendências), **"Ver no ar" desabilitado em vez de ocul
 Fila atualizada no MAPA_DE_LACUNAS (fontes do tema com tokens, zoom do canvas, busca na
 árvore, variantes por elemento, add-to-cart…).
 
+### ✅ Pesquisa por vídeo (15/09) — relatórios 3 e 4 aplicados
+
+O catálogo completo de elementos (Garry) e a lista completa de atalhos (Easytorial)
+fecharam os buracos da referência. Aplicado: **paleta "Adicionar" em grupos**
+(Estrutura/Básico/Mídia/Avançado) com pílula de contagem calculada; **elemento Lista**
+(`<ul>/<ol>` reais, um item por linha, opção numerada); **elemento Vídeo YouTube**
+(qualquer formato de link → só o id de 11 caracteres entra na página, embed nocookie,
+lazy, 16:9 — link inválido compila para nada); **toast "Salvo ✓" sobre o canvas**.
+**Atalhos: paridade 1:1 confirmada** com a lista completa da referência (falta só a
+multi-seleção com Ctrl, na fila). Verificado: 48/48 compilador + 5/5 novo + 13/13
+regressão. Fila consolidada dos 4 relatórios no MAPA_DE_LACUNAS.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

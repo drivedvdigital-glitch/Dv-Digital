@@ -220,8 +220,18 @@ const SHORTCUTS: Array<{ keys: string[]; what: string }> = [
   { keys: ['Ctrl', 'V'], what: 'Colar estilo' },
 ];
 
-/** Blocks offered by "Adicionar". Order is roughly how often each is reached for. */
-const PALETTE = ['section', 'heading', 'text', 'image', 'button', 'divider', 'html'];
+/**
+ * Blocks offered by "Adicionar", grouped the way page builders teach their
+ * catalog: structure first (the default, no fancy name needed), then the
+ * everyday blocks, media, and the specialized ones last.
+ */
+const PALETTE_GROUPS: Array<{ name: string; types: string[] }> = [
+  { name: 'Estrutura', types: ['section', 'stack', 'repeater'] },
+  { name: 'Básico', types: ['heading', 'text', 'button', 'list', 'divider', 'html'] },
+  { name: 'Mídia', types: ['image', 'youtube'] },
+  { name: 'Avançado', types: ['accordion', 'countdown'] },
+];
+const PALETTE_COUNT = PALETTE_GROUPS.reduce((n, g) => n + g.types.length, 0);
 
 interface PreviewStats {
   bytes: { html: number; css: number; js: number; total: number };
@@ -289,12 +299,19 @@ export default function PageEditor() {
   }, []);
 
   // A successful save (publishing also saves) resets the dirty tracking to
-  // exactly what was submitted.
+  // exactly what was submitted. A plain save also confirms itself as a toast
+  // over the canvas — where the eye already is — instead of a side banner.
+  const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     if (result?.ok && pendingSnapshot.current !== null) {
       setSavedSnapshot(pendingSnapshot.current);
       setMetaDirty(false);
       pendingSnapshot.current = null;
+    }
+    if (result?.ok && result.message === 'Salvo.') {
+      setToast('Salvo ✓');
+      const timer = setTimeout(() => setToast(null), 2500);
+      return () => clearTimeout(timer);
     }
   }, [result]);
 
@@ -695,20 +712,30 @@ export default function PageEditor() {
         </section>
 
         <section style={panelSection}>
-          <div style={panelLabel}>Adicionar</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {PALETTE.map((type) => (
-              <button
-                key={type}
-                type="button"
-                data-palette={type}
-                style={paletteButton}
-                onClick={() => addBlock(type)}
-              >
-                {BLOCK_LABELS[type]}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={panelLabel}>Adicionar</div>
+            <span style={countPill} title="Blocos disponíveis">
+              D&VFly {PALETTE_COUNT}
+            </span>
           </div>
+          {PALETTE_GROUPS.map((group) => (
+            <div key={group.name} style={{ marginBottom: 8 }}>
+              <div style={paletteGroupLabel}>{group.name}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {group.types.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    data-palette={type}
+                    style={paletteButton}
+                    onClick={() => addBlock(type)}
+                  >
+                    {BLOCK_LABELS[type]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
           <div style={{ ...metaLine, marginTop: 6 }}>
             Entra dentro do bloco selecionado, ou depois dele.
           </div>
@@ -737,6 +764,11 @@ export default function PageEditor() {
             <iframe ref={frame} title="Preview" style={previewFrame} />
           </div>
         </div>
+        {toast ? (
+          <div style={toastStyle} data-toast>
+            {toast}
+          </div>
+        ) : null}
         <div style={statusBar}>
           Total {kb(live.stats.bytes.total)} · {((live.stats.bytes.total / (256 * 1024)) * 100).toFixed(1)}%
           do teto · {live.stats.htmlOptimization.inlineStylesHoisted} estilos inline →{' '}
@@ -746,7 +778,7 @@ export default function PageEditor() {
 
       {/* ---- right: inspector + publish ----------------------------------- */}
       <aside style={rightPanel}>
-        {result ? (
+        {result && result.message !== 'Salvo.' ? (
           <div style={{ padding: '10px 12px 0' }}>
             <s-banner tone={result.ok ? 'success' : 'critical'} heading={result.message}>
               {result.urls?.length ? (
@@ -1316,6 +1348,55 @@ function Inspector({
                 onChange={(e) => onChange({ height: Number(e.target.value) || undefined })}
               />
             </label>
+          </div>
+        </>
+      );
+    case 'list':
+      return (
+        <>
+          <label style={{ ...fieldLabel, flex: 1, display: 'flex', flexDirection: 'column' }}>
+            Itens — um por linha
+            <textarea
+              style={{ ...fieldArea, flex: 1 }}
+              value={String(p.text ?? '')}
+              onChange={(e) => onChange({ text: e.target.value })}
+            />
+          </label>
+          <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              data-list-ordered
+              checked={p.ordered === true}
+              onChange={(e) => onChange({ ordered: e.target.checked ? true : undefined })}
+            />
+            Numerada (1, 2, 3…)
+          </label>
+        </>
+      );
+    case 'youtube':
+      return (
+        <>
+          <label style={fieldLabel}>
+            Link do vídeo
+            <input
+              style={fieldInput}
+              data-youtube-url
+              value={String(p.url ?? '')}
+              placeholder="https://www.youtube.com/watch?v=…"
+              onChange={(e) => onChange({ url: e.target.value })}
+            />
+          </label>
+          <label style={fieldLabel}>
+            Título (acessibilidade)
+            <input
+              style={fieldInput}
+              value={String(p.title ?? '')}
+              onChange={(e) => onChange({ title: e.target.value })}
+            />
+          </label>
+          <div style={metaLine}>
+            Cole qualquer link do YouTube (watch, youtu.be, Shorts) — só o vídeo entra na
+            página, sem cookies antes do play.
           </div>
         </>
       );
@@ -2000,6 +2081,42 @@ const canvas: React.CSSProperties = {
   display: 'grid',
   gridTemplateRows: 'auto 1fr auto',
   minHeight: 0,
+  position: 'relative',
+};
+
+/** Confirmation toast, floating over the canvas near the bottom. */
+const toastStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 44,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  background: '#1a1a1a',
+  color: '#fff',
+  borderRadius: 8,
+  padding: '8px 16px',
+  fontSize: 13,
+  boxShadow: '0 2px 8px rgba(0,0,0,.3)',
+  zIndex: 20,
+};
+
+const countPill: React.CSSProperties = {
+  background: '#eafaf0',
+  border: '1px solid #b6ecd0',
+  color: '#0a6b38',
+  borderRadius: 999,
+  padding: '1px 8px',
+  fontSize: 11,
+  fontWeight: 600,
+  marginBottom: 8,
+};
+
+const paletteGroupLabel: React.CSSProperties = {
+  fontSize: 10.5,
+  fontWeight: 600,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+  color: '#a3a3a3',
+  margin: '4px 0',
 };
 
 const crumbBar: React.CSSProperties = {

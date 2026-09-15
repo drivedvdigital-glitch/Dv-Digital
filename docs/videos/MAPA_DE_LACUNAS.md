@@ -82,6 +82,33 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - ⚠️ Integração Instagram: o OAuth deles sai do produto com outro nome de app —
   decisão de confiança a pesar se formos fazer parecido.
 
+### Dos vídeos 3 e 4 (catálogo + atalhos) — implementado em 15/09
+
+- ✅ **Paleta "Adicionar" em grupos com contagem** (Estrutura / Básico / Mídia /
+  Avançado + pílula "D&VFly N" calculada, nunca hardcoded — a deles muda entre versões).
+- ✅ **Elemento Lista** (um item por linha, opção numerada — `<ul>/<ol>` de verdade,
+  acessível).
+- ✅ **Elemento Vídeo YouTube** (cola qualquer formato de link — watch, youtu.be,
+  Shorts — e só o id do vídeo entra na página; embed nocookie, lazy, 16:9).
+- ✅ **Toast "Salvo ✓" sobre o canvas** (onde o olho está), no lugar do banner lateral
+  para o caso comum.
+- ✅ **Atalhos: paridade confirmada** — nossos 9 batem 1:1 com a lista completa deles
+  (Ctrl+C/V = estilo, Ctrl+D = duplicar). Falta só **segurar Ctrl = multi-seleção**.
+
+### Fila (consolidada dos 4 relatórios, por valor)
+
+- ⬜ **Multi-seleção (segurar Ctrl)** — o único atalho da referência que falta.
+- ⬜ **Tabs (abas)** — requer runtime próprio.
+- ⬜ **Fontes do tema com tokens** no seletor de tipografia.
+- ⬜ **Biblioteca de mídia com upload** (melhor que a deles: upload já aplica).
+- ⬜ **Galeria de templates** (com fricção proporcional no aplicar + prova social).
+- ⬜ **Zoom do canvas** + indicador "1440px, 58%".
+- ⬜ **Busca na árvore**; nomes semânticos de seção (renomear seção na árvore).
+- ⬜ Ícone, Tabela, QR Code, Barra de progresso, Comparação de imagens, Slideshow,
+  Popup, Vimeo/HTML video, Google Map, Adicionar ao carrinho (+ callout no botão).
+- ⬜ Aba de SEO nomeada; variantes por elemento; "?" de ajuda por item.
+- ❌ Soundcloud (nicho, sem demanda nossa) · ❌ Product Personalizer · ❌ IA/FlyMate.
+
 ### Do vídeo 1 — fila (por ordem de valor)
 
 - ⬜ **Elemento Abas (tabs)** — único bloco de conteúdo da demonstração que não temos.

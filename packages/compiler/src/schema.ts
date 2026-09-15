@@ -110,6 +110,8 @@ export type BlockType =
   | 'image'
   | 'button'
   | 'divider'
+  | 'list'
+  | 'youtube'
   | 'accordion'
   | 'repeater'
   | 'countdown'

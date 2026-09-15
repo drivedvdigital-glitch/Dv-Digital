@@ -121,6 +121,52 @@ const button: Renderer = (node, ctx) => {
 const divider: Renderer = (node, ctx) => tag('hr', ctx.baseAttrs(node));
 
 /**
+ * A plain list: one item per line of `text`. Real <ul>/<ol> markup — a stack
+ * of paragraphs with bullet characters would break screen readers and lose
+ * the browser's own list styling.
+ */
+const list: Renderer = (node, ctx) => {
+  const lines = String(prop(node, 'text', ''))
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const body = lines.map((line) => tag('li', {}, escapeText(line))).join('');
+  return tag(prop(node, 'ordered', false) ? 'ol' : 'ul', ctx.baseAttrs(node), body);
+};
+
+/**
+ * YouTube embed. Only the 11-character video id survives into the output —
+ * whatever URL shape the author pastes, nothing else from it is emitted —
+ * and the privacy-enhanced host keeps the page from setting cookies before
+ * the visitor presses play.
+ */
+export function youtubeId(raw: string): string | null {
+  const value = raw.trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(value)) return value;
+  const match =
+    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/.exec(
+      value,
+    );
+  return match ? match[1] : null;
+}
+
+const youtube: Renderer = (node, ctx) => {
+  const id = youtubeId(String(prop(node, 'url', '')));
+  // No id yet → nothing on the page. An empty player frame would ship bytes
+  // for a block the author has not finished configuring.
+  if (!id) return '';
+  return tag('iframe', {
+    ...ctx.baseAttrs(node),
+    src: `https://www.youtube-nocookie.com/embed/${id}`,
+    title: escapeText(prop(node, 'title', 'Vídeo')),
+    loading: 'lazy',
+    allowfullscreen: '',
+    allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
+    style: 'aspect-ratio:16/9;width:100%;border:0',
+  });
+};
+
+/**
  * Accordion. `<details>` gives open/close, keyboard support and find-in-page
  * for free. A JavaScript accordion gives none of those and costs bytes.
  */
@@ -228,6 +274,8 @@ export const BLOCKS: Record<string, Renderer> = {
   image,
   button,
   divider,
+  list,
+  youtube,
   accordion,
   repeater,
   countdown,

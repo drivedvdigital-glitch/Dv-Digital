@@ -39,6 +39,8 @@ export const BLOCK_LABELS: Record<string, string> = {
   image: 'Imagem',
   button: 'Botão',
   divider: 'Divisor',
+  list: 'Lista',
+  youtube: 'Vídeo YouTube',
   accordion: 'Sanfona',
   repeater: 'Repetidor',
   countdown: 'Contagem',
@@ -201,6 +203,10 @@ export function newBlock(type: string): DocNode {
       return { id, type, props: { label: 'Quero agora', href: '' } };
     case 'divider':
       return { id, type };
+    case 'list':
+      return { id, type, props: { text: 'Primeiro item\nSegundo item\nTerceiro item', ordered: false } };
+    case 'youtube':
+      return { id, type, props: { url: '', title: 'Vídeo' } };
     case 'html':
       return { id, type, props: { html: '<p>Seu HTML aqui.</p>' } };
     default:
