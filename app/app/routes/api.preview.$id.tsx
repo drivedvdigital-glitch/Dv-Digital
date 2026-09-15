@@ -45,7 +45,8 @@ const EDITOR_BRIDGE = `
     font: 12px/1 -apple-system, system-ui, sans-serif;
     box-shadow: 0 2px 8px rgba(0,0,0,.3);
   }
-  #dvf-toolbar span { padding: 0 6px; color: #9ef7c0; font-weight: 600; cursor: grab; }
+  #dvf-toolbar span { padding: 0 6px; color: #9ef7c0; font-weight: 600; cursor: grab; display: inline-flex; align-items: center; gap: 5px; }
+  #dvf-toolbar span i { font-style: normal; color: #7fd8a4; letter-spacing: -1px; }
   #dvf-toolbar button {
     background: transparent; border: 0; color: #fff; cursor: pointer;
     border-radius: 5px; width: 24px; height: 24px; font-size: 13px; line-height: 1;
@@ -60,11 +61,11 @@ const EDITOR_BRIDGE = `
   var toolbar = document.createElement('div');
   toolbar.id = 'dvf-toolbar';
   toolbar.innerHTML =
-    '<span id="dvf-label" draggable="true" title="Arraste para mover"></span>' +
-    '<button type="button" data-action="moveUp" title="Subir">\\u2191</button>' +
-    '<button type="button" data-action="moveDown" title="Descer">\\u2193</button>' +
-    '<button type="button" data-action="duplicate" title="Duplicar">\\u29c9</button>' +
-    '<button type="button" data-action="delete" title="Excluir">\\u2715</button>';
+    '<span id="dvf-label" draggable="true" title="Arraste pelo nome para mover o bloco"><i>\\u283f</i><b></b></span>' +
+    '<button type="button" data-action="moveUp" title="Subir uma posi\\u00e7\\u00e3o">\\u2191</button>' +
+    '<button type="button" data-action="moveDown" title="Descer uma posi\\u00e7\\u00e3o">\\u2193</button>' +
+    '<button type="button" data-action="duplicate" title="Duplicar (Ctrl+D)">\\u29c9</button>' +
+    '<button type="button" data-action="delete" title="Excluir (Delete) \\u2014 Ctrl+Z desfaz">\\u2715</button>';
   document.body.appendChild(toolbar);
   toolbar.style.display = 'none';
 
@@ -109,9 +110,24 @@ const EDITOR_BRIDGE = `
       }
     }
     el.scrollIntoView({ block: 'nearest' });
-    document.getElementById('dvf-label').textContent = label || '';
+    document.querySelector('#dvf-label b').textContent = label || '';
     positionToolbar(el);
   }
+
+  // Right-click on a block: the editor draws a menu with every action, at the
+  // pointer. Coordinates are the iframe's; the editor adds its own offset.
+  document.addEventListener('contextmenu', function (event) {
+    if (event.target.isContentEditable) return;
+    var el = event.target.closest('[data-dvf-id]');
+    if (!el) return;
+    event.preventDefault();
+    parent.postMessage({
+      type: 'dvf:context',
+      id: el.getAttribute('data-dvf-id'),
+      x: event.clientX,
+      y: event.clientY,
+    }, '*');
+  });
 
   document.addEventListener('click', function (event) {
     if (toolbar.contains(event.target)) return;

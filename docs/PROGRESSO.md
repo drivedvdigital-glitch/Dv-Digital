@@ -873,6 +873,24 @@ comentário antes do JSON; o nome da seção no schema tem teto de 25 caracteres
 seções do tema; desvincular devolveu na hora; sufixo null e zero arquivos `dvfly` no tema
 ao final) + flow18/17/6 + 73/73 testes (21 no pacote Shopify) + typecheck.
 
+### ✅ Passada de usabilidade (15/09) — "tem coisa que não dá pra entender como usar"
+
+Diagnóstico: as ações existiam mas eram ícones minúsculos sem nome, mover só por arrasto
+sem nenhum sinal de que arrastava, nenhum menu de contexto, a nota da paleta vaga, e zero
+orientação no primeiro uso. Entregue: **barra de ações nomeada** no inspetor (↑ Subir, ↓
+Descer, ⧉ Duplicar, 👁 Esconder/Mostrar, ✕ Excluir, com atalho no tooltip) + frase de como
+mover; **menu do botão direito** em qualquer bloco, na Estrutura E no canvas (mesmas ações +
+Editar conteúdo/estilo, título com o nome do bloco, Esc fecha); **grip ⠿** nas linhas da
+árvore e na barra flutuante do canvas (com tooltip "arraste pelo nome"); **nota da paleta
+dinâmica** ("Entra dentro de «Seção»" / "logo depois de «Título»" / "no fim da página");
+**toast "Bloco excluído · Ctrl+Z desfaz"** em qualquer caminho de exclusão; **guia "Como
+usar"** com os 6 gestos — na primeira visita mora dentro do inspetor vazio (não cobre
+nada; "Entendi" some pra sempre), e o botão ? no topo traz de volta; **Configurações**
+virou botão com texto. Tentativa descartada: abrir o guia como popover na primeira
+visita — cobria as abas Geral/Estilo (o flow6 pegou). Regras promovidas ao CLAUDE.md
+(três caminhos + nome; avisar o caminho de volta; dizer onde a ação acontece antes do
+clique). Verificado: flow20 7/7 + flow6 13/13 + flow14 + flow16 + typecheck.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

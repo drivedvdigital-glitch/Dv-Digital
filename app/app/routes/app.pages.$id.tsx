@@ -525,6 +525,42 @@ export default function PageEditor() {
   const frame = useRef<HTMLIFrameElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const [showKeys, setShowKeys] = useState(false);
+  // "Como usar": a popover from the "?" button any time, and — on the first
+  // visit of this browser — laid out inside the empty inspector, where it
+  // covers nothing and stays until the person says "Entendi". A guide that
+  // never shows is a guide nobody reads; one that hides the controls is worse.
+  const [showHelp, setShowHelp] = useState(false);
+  const [firstVisit, setFirstVisit] = useState(false);
+  useEffect(() => {
+    try {
+      if (!window.localStorage.getItem('dvfly:help-seen')) setFirstVisit(true);
+    } catch {
+      // No storage: the guide stays a click away.
+    }
+  }, []);
+  const dismissGuide = () => {
+    setFirstVisit(false);
+    try {
+      window.localStorage.setItem('dvfly:help-seen', '1');
+    } catch {
+      // Fine — it will show again next time.
+    }
+  };
+  // The right-click menu: which block, and where on screen.
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('click', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
   const [showSettings, setShowSettings] = useState(false);
   const [uiTheme, toggleUiTheme] = useUiTheme();
 
@@ -574,6 +610,13 @@ export default function PageEditor() {
   // exactly what was submitted. A plain save also confirms itself as a toast
   // over the canvas — where the eye already is — instead of a side banner.
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** A short confirmation over the canvas, replacing any that is still up. */
+  const announce = useCallback((message: string) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }, []);
   useEffect(() => {
     if (result?.ok && pendingSnapshot.current !== null) {
       setSavedSnapshot(pendingSnapshot.current);
@@ -676,6 +719,8 @@ export default function PageEditor() {
         for (const id of ids) next = removeNode(next, id);
         setRoot(next);
         select(null);
+        // Deleting is instant (reversible); the toast teaches the way back.
+        announce(ids.length > 1 ? `${ids.length} blocos excluídos · Ctrl+Z desfaz` : 'Bloco excluído · Ctrl+Z desfaz');
       }
       if (name === 'copyStyle') {
         const node = findNode(root, primary);
@@ -689,7 +734,7 @@ export default function PageEditor() {
         setRoot(next);
       }
     },
-    [act, setRoot, select],
+    [act, setRoot, select, announce],
   );
 
   // The full shortcut map (also listed in the "Atalhos" panel):
@@ -826,12 +871,20 @@ export default function PageEditor() {
         if (message.action === 'delete') {
           setRoot(removeNode(doc.root, message.id));
           select(null);
+          announce('Bloco excluído · Ctrl+Z desfaz');
         }
+      }
+      // Right-click inside the canvas: select the block and open the menu at
+      // the pointer, translating the iframe's coordinates to the window's.
+      if (message.type === 'dvf:context') {
+        const rect = frame.current?.getBoundingClientRect();
+        select(message.id);
+        setMenu({ id: message.id, x: (rect?.left ?? 0) + message.x, y: (rect?.top ?? 0) + message.y });
       }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [doc, setRoot, undo, redo, shortcutAction, select]);
+  }, [doc, setRoot, undo, redo, shortcutAction, select, announce]);
 
   // Editor → canvas: highlight whatever is selected, however it got selected.
   useEffect(() => {
@@ -877,6 +930,43 @@ export default function PageEditor() {
     select(block.id);
   };
 
+  // Where the next block lands, said before the click: inside a selected
+  // container, right after any other selected block, at the end otherwise.
+  const insertionNote = !selectedNode
+    ? 'Entra no fim da página. Selecione um bloco para inserir perto dele.'
+    : CONTAINER_TYPES.has(selectedNode.type) && selectedNode.type !== 'tabs'
+      ? `Entra dentro de «${nameOf(selectedNode)}».`
+      : `Entra logo depois de «${nameOf(selectedNode)}».`;
+
+  /** Everything the right-click menu can do with one block. */
+  const menuNode = menu ? findNode(doc.root, menu.id) : null;
+  const menuActions = menuNode
+    ? [
+        { key: 'up', label: '↑ Subir', run: () => setRoot(moveNode(doc.root, menuNode.id, -1)) },
+        { key: 'down', label: '↓ Descer', run: () => setRoot(moveNode(doc.root, menuNode.id, 1)) },
+        { key: 'duplicate', label: '⧉ Duplicar', hint: 'Ctrl+D', run: () => setRoot(duplicateNode(doc.root, menuNode.id)) },
+        {
+          key: 'hide',
+          label: menuNode.hidden ? '👁 Mostrar na página' : '👁 Esconder da página',
+          hint: 'não publica',
+          run: () => setRoot(toggleHidden(doc.root, menuNode.id)),
+        },
+        { key: 'edit', label: '✎ Editar conteúdo', run: () => setTab('geral') },
+        { key: 'style', label: '◐ Editar estilo', run: () => setTab('estilo') },
+        {
+          key: 'delete',
+          label: '✕ Excluir',
+          hint: 'Delete',
+          danger: true,
+          run: () => {
+            setRoot(removeNode(doc.root, menuNode.id));
+            select(null);
+            announce('Bloco excluído · Ctrl+Z desfaz');
+          },
+        },
+      ]
+    : [];
+
   return (
     <form
       ref={form}
@@ -916,10 +1006,10 @@ export default function PageEditor() {
         ) : null}
         <button
           type="button"
-          title="Configurações da página"
+          title="Configurações da página: URL, tipo, produtos vinculados, cabeçalho e rodapé"
           aria-label="Configurações da página"
           onClick={() => setShowSettings(true)}
-          style={historyOn}
+          style={labeledIconButton}
         >
           {/* Sliders, not a gear: a stroked gear reads as a sun next to the
               theme toggle's actual sun. */}
@@ -928,6 +1018,7 @@ export default function PageEditor() {
             <circle cx="10.5" cy="4.5" r="1.8" />
             <circle cx="7" cy="11.5" r="1.8" />
           </svg>
+          Configurações
         </button>
         <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} style={historyOn} />
 
@@ -971,6 +1062,35 @@ export default function PageEditor() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
+          <button
+            type="button"
+            title="Como usar o editor"
+            aria-label="Como usar o editor"
+            data-help-toggle
+            onClick={() => setShowHelp((v) => !v)}
+            style={showHelp ? { ...historyOn, background: 'var(--dv-inset)' } : historyOn}
+          >
+            ?
+          </button>
+          {showHelp ? (
+            <div style={helpPanel} data-help-panel>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ ...panelLabel, marginBottom: 0 }}>Como usar o editor</div>
+                <button type="button" aria-label="Fechar" onClick={() => setShowHelp(false)} style={historyOn}>
+                  ✕
+                </button>
+              </div>
+              {HELP.map((item) => (
+                <div key={item.title} style={helpRow}>
+                  <strong>{item.title}</strong>
+                  <span style={{ color: 'var(--dv-ink-2)' }}>{item.text}</span>
+                </div>
+              ))}
+              <div style={{ ...metaLine, marginTop: 8 }}>
+                Dúvida num botão? Deixe o mouse em cima: todos explicam o que fazem.
+              </div>
+            </div>
+          ) : null}
           <button
             type="button"
             title="Atalhos de teclado"
@@ -1063,6 +1183,10 @@ export default function PageEditor() {
                 setRoot(relocateNode(doc.root, id, targetId, position))
               }
               onToggleHidden={(id) => setRoot(toggleHidden(doc.root, id))}
+              onContext={(id, x, y) => {
+                select(id);
+                setMenu({ id, x, y });
+              }}
             />
           )}
         </section>
@@ -1092,8 +1216,8 @@ export default function PageEditor() {
               </div>
             </div>
           ))}
-          <div style={{ ...metaLine, marginTop: 6 }}>
-            Entra dentro do bloco selecionado, ou depois dele.
+          <div style={{ ...metaLine, marginTop: 6 }} data-insertion-note>
+            {insertionNote}
           </div>
         </section>
 
@@ -1123,6 +1247,30 @@ export default function PageEditor() {
         {toast ? (
           <div style={toastStyle} data-toast>
             {toast}
+          </div>
+        ) : null}
+        {menu && menuNode ? (
+          <div
+            style={{ ...contextMenu, left: Math.min(menu.x, window.innerWidth - 260), top: Math.min(menu.y, window.innerHeight - 270) }}
+            data-context-menu
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={contextTitle}>{nameOf(menuNode)}</div>
+            {menuActions.map((action) => (
+              <button
+                key={action.key}
+                type="button"
+                style={{ ...contextItem, ...(action.danger ? { color: 'var(--dv-danger)' } : {}) }}
+                data-menu-action={action.key}
+                onClick={() => {
+                  action.run();
+                  setMenu(null);
+                }}
+              >
+                <span>{action.label}</span>
+                {action.hint ? <span style={contextHint}>{action.hint}</span> : null}
+              </button>
+            ))}
           </div>
         ) : null}
         <div style={statusBar}>
@@ -1164,19 +1312,41 @@ export default function PageEditor() {
               ) : null}
               <div style={inspectorHead}>
                 <div style={panelLabel}>{BLOCK_LABELS[selectedNode.type] ?? selectedNode.type}</div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button type="button" style={opButton} title="Subir" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, -1))}>↑</button>
-                  <button type="button" style={opButton} title="Descer" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, 1))}>↓</button>
-                  <button type="button" style={opButton} title="Duplicar (todos os selecionados)" onClick={() => shortcutAction('duplicate')}>⧉</button>
-                  <button
-                    type="button"
-                    style={{ ...opButton, color: 'var(--dv-danger)' }}
-                    title="Excluir"
-                    onClick={() => shortcutAction('delete')}
-                  >
-                    ✕
-                  </button>
-                </div>
+              </div>
+              {/* Every action, named. Icons alone were the first thing people
+                  could not decode; the shortcut rides in the tooltip. */}
+              <div style={actionBar} data-actions>
+                <button type="button" style={actionButton} title="Subir uma posição" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, -1))}>
+                  ↑ Subir
+                </button>
+                <button type="button" style={actionButton} title="Descer uma posição" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, 1))}>
+                  ↓ Descer
+                </button>
+                <button type="button" style={actionButton} title="Duplicar (Ctrl+D) — vale para todos os selecionados" onClick={() => shortcutAction('duplicate')}>
+                  ⧉ Duplicar
+                </button>
+                <button
+                  type="button"
+                  style={actionButton}
+                  title={selectedNode.hidden ? 'Voltar a mostrar este bloco na página' : 'Esconder da página publicada sem apagar'}
+                  data-action-hide
+                  onClick={() => setRoot(toggleHidden(doc.root, selectedNode.id))}
+                >
+                  {selectedNode.hidden ? '👁 Mostrar' : '👁 Esconder'}
+                </button>
+                <button
+                  type="button"
+                  style={{ ...actionButton, color: 'var(--dv-danger)' }}
+                  title="Excluir (Delete) — Ctrl+Z desfaz"
+                  data-action-delete
+                  onClick={() => shortcutAction('delete')}
+                >
+                  ✕ Excluir
+                </button>
+              </div>
+              <div style={{ ...metaLine, marginBottom: 8 }}>
+                Para mover, arraste na Estrutura ou pelo nome na barra do canvas. Botão direito
+                num bloco abre este menu.
               </div>
               <div style={tabRow}>
                 <button
@@ -1358,8 +1528,28 @@ export default function PageEditor() {
             <>
               <div style={panelLabel}>Nada selecionado</div>
               <div style={metaLine}>
-                Clique num elemento do canvas ou na estrutura para editar o conteúdo dele aqui.
+                Clique num bloco no canvas ou na Estrutura para editar o conteúdo e o estilo
+                dele aqui. Para começar uma página, use <strong>Adicionar</strong>, à esquerda.
               </div>
+              {firstVisit ? (
+                <div style={{ marginTop: 12 }} data-help-inline>
+                  <div style={{ ...panelLabel, marginBottom: 4 }}>Como usar o editor</div>
+                  {HELP.map((item) => (
+                    <div key={item.title} style={helpRow}>
+                      <strong>{item.title}</strong>
+                      <span style={{ color: 'var(--dv-ink-2)' }}>{item.text}</span>
+                    </div>
+                  ))}
+                  <button type="button" style={{ ...addItemButton, marginTop: 10 }} onClick={dismissGuide} data-help-dismiss>
+                    Entendi — não mostrar de novo
+                  </button>
+                  <div style={{ ...metaLine, marginTop: 4 }}>O botão ? no topo traz este guia de volta.</div>
+                </div>
+              ) : (
+                <button type="button" style={{ ...addItemButton, marginTop: 10 }} onClick={() => setShowHelp(true)} data-help-open>
+                  ? Como usar o editor
+                </button>
+              )}
             </>
           )}
         </section>
@@ -1737,6 +1927,7 @@ function Tree({
   onSelect,
   onRelocate,
   onToggleHidden,
+  onContext,
   parentHidden = false,
 }: {
   nodes: DocNode[];
@@ -1745,6 +1936,7 @@ function Tree({
   onSelect: (id: string, additive?: boolean) => void;
   onRelocate: (id: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
   onToggleHidden: (id: string) => void;
+  onContext: (id: string, x: number, y: number) => void;
   parentHidden?: boolean;
 }) {
   const [hint, setHint] = useState<{ id: string; position: string } | null>(null);
@@ -1773,7 +1965,13 @@ function Tree({
             data-tree-id={node.id}
             data-tree-selected={selectedIds.includes(node.id) || undefined}
             draggable
+            title="Clique: selecionar · Ctrl+clique: somar à seleção · Arraste: mover · Botão direito: ações"
             onClick={(event) => onSelect(node.id, event.ctrlKey || event.metaKey)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onContext(node.id, event.clientX, event.clientY);
+            }}
             onDragStart={(event) => {
               event.dataTransfer.setData('text/dvf-node', node.id);
               event.dataTransfer.effectAllowed = 'move';
@@ -1800,8 +1998,9 @@ function Tree({
               ...hintStyle(node),
             }}
           >
+            <span style={treeGrip} aria-hidden="true">⠿</span>
             <span style={treeIcon}>{CONTAINER_TYPES.has(node.type) ? '▸' : '·'}</span>
-            <span style={node.hidden || parentHidden ? { textDecoration: 'line-through' } : undefined}>
+            <span data-tree-label style={node.hidden || parentHidden ? { textDecoration: 'line-through' } : undefined}>
               {String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type)}
             </span>
             {node.type === 'heading' || node.type === 'text' ? (
@@ -1836,6 +2035,7 @@ function Tree({
               onSelect={onSelect}
               onRelocate={onRelocate}
               onToggleHidden={onToggleHidden}
+              onContext={onContext}
               parentHidden={parentHidden || Boolean(node.hidden)}
             />
           ) : null}
@@ -2637,6 +2837,114 @@ const treeRowSelected: React.CSSProperties = {
 };
 
 const treeIcon: React.CSSProperties = { fontSize: 10, color: 'var(--dv-accent-text)', width: 10 };
+/** The drag grip: dim, always there, so "this row moves" is visible before any drag. */
+const treeGrip: React.CSSProperties = { color: 'var(--dv-ink-4)', fontSize: 11, cursor: 'grab', marginRight: -2 };
+
+const labeledIconButton: React.CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  borderRadius: 6,
+  height: 28,
+  padding: '0 8px',
+  fontSize: 12.5,
+  color: 'var(--dv-ink)',
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+};
+
+const actionBar: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 4,
+  marginBottom: 6,
+};
+
+const actionButton: React.CSSProperties = {
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
+  borderRadius: 7,
+  padding: '5px 8px',
+  fontSize: 12,
+  cursor: 'pointer',
+  color: 'var(--dv-ink)',
+  whiteSpace: 'nowrap',
+};
+
+const contextMenu: React.CSSProperties = {
+  position: 'fixed',
+  zIndex: 60,
+  width: 250,
+  background: 'var(--dv-sfc)',
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 10,
+  boxShadow: 'var(--dv-shadow-pop)',
+  padding: 4,
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+const contextTitle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--dv-ink-3)',
+  padding: '6px 10px 4px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const contextItem: React.CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  borderRadius: 6,
+  padding: '7px 10px',
+  fontSize: 13,
+  cursor: 'pointer',
+  color: 'var(--dv-ink)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  textAlign: 'left',
+};
+
+const contextHint: React.CSSProperties = { fontSize: 11, color: 'var(--dv-ink-3)' };
+
+const helpPanel: React.CSSProperties = {
+  position: 'absolute',
+  top: 40,
+  right: 0,
+  zIndex: 30,
+  background: 'var(--dv-sfc)',
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 12,
+  boxShadow: 'var(--dv-shadow-pop)',
+  padding: 14,
+  width: 340,
+};
+
+const helpRow: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+  fontSize: 12.5,
+  padding: '6px 0',
+  borderBottom: '1px solid var(--dv-edge-soft)',
+};
+
+/** The six gestures the editor is made of, in the order people need them. */
+const HELP = [
+  { title: 'Adicionar um bloco', text: 'Clique num bloco em Adicionar. Ele entra dentro do bloco selecionado (se for Seção ou Pilha) ou logo depois dele; sem seleção, no fim da página.' },
+  { title: 'Selecionar', text: 'Clique no bloco, no canvas ou na Estrutura. Ctrl+clique soma à seleção para agir em vários de uma vez.' },
+  { title: 'Mover', text: 'Arraste a linha na Estrutura (solte em cima de uma Seção para entrar nela) ou arraste pelo nome na barra do canvas. Ou use ↑ Subir / ↓ Descer.' },
+  { title: 'Duplicar e excluir', text: '⧉ Duplicar (Ctrl+D) e ✕ Excluir (Delete) ficam no inspetor, na barra do canvas e no menu do botão direito. Ctrl+Z desfaz qualquer coisa.' },
+  { title: 'Esconder sem apagar', text: 'O olhinho na Estrutura tira o bloco da página publicada e o mantém aqui para depois.' },
+  { title: 'Salvar e publicar', text: 'Salvar guarda uma versão. Publicar coloca a página no ar nas lojas marcadas em "Publicar em". Configurações da página define URL, tipo e produtos vinculados.' },
+];
 const treeHint: React.CSSProperties = { color: 'var(--dv-ink-3)', fontWeight: 400, fontSize: 12 };
 
 /** A hidden row reads as switched off: gray all over, label struck through. */

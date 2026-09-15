@@ -64,6 +64,11 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 - **Fricção proporcional à reversibilidade**: ação reversível (duplicar, excluir bloco)
   não pede confirmação — o Ctrl+Z cobre; ação destrutiva de página inteira pede gesto
   extra explícito.
+- **Toda ação sobre um bloco tem três caminhos e um nome**: botões nomeados no inspetor
+  ("↑ Subir", "✕ Excluir"), barra flutuante no canvas, menu do botão direito (árvore e
+  canvas) — mais o atalho no tooltip. Ícone sozinho nunca é a única porta.
+- Consequência reversível avisa o caminho de volta ("Bloco excluído · Ctrl+Z desfaz").
+- Onde uma ação vai acontecer é dito antes do clique ("Entra dentro de «Seção»").
 
 ## Cultura de verificação
 
