@@ -39,7 +39,14 @@ export interface RenderContext {
   optimizeHtml: (source: string) => string;
 }
 
-export type RuntimeModule = 'countdown' | 'reveal' | 'tabs';
+export type RuntimeModule = 'countdown' | 'reveal' | 'tabs' | 'contact';
+
+/** Contact form structure. Field visuals inherit the page/theme typography. */
+export const FORM_CSS = `.dvf-form{display:flex;flex-direction:column;gap:12px;max-width:560px;text-align:left}
+.dvf-form-field{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.dvf-form-field input,.dvf-form-field textarea{border:1px solid #c9c9c9;border-radius:8px;padding:10px 12px;font:inherit;background:#fff;width:100%;box-sizing:border-box}
+.dvf-form-submit{align-self:flex-start;border:0;border-radius:8px;padding:10px 20px;cursor:pointer;background:#17201c;color:#fff;font:inherit}
+.dvf-form-success{background:#eafaf0;border:1px solid #b6ecd0;color:#0a6b38;border-radius:8px;padding:10px 12px}`;
 
 /**
  * Entrance animations. A closed set, like the style vocabulary: each name maps
@@ -323,6 +330,57 @@ const tabs: Renderer = (node, ctx) => {
 const tab: Renderer = (node, ctx) => tag('div', ctx.baseAttrs(node), ctx.renderChildren(node.children));
 
 /**
+ * Contact form: a configured widget, not loose form pieces (a deliberate
+ * departure from the reference's compositional model — see report 09; our
+ * audience wants a working form, not an assembly kit).
+ *
+ * Posts to the storefront's native `/contact` endpoint with the standard
+ * `contact[...]` field names, so submissions land in the store's own inbox
+ * and notification settings — no backend of ours involved (the storefront
+ * must never depend on our server). The success message reveals itself when
+ * Shopify redirects back with `contact_posted=true`.
+ */
+const contact: Renderer = (node, ctx) => {
+  ctx.requireRuntime('contact');
+  const attrs = ctx.baseAttrs(node);
+  attrs.class = attrs.class ? `dvf-form ${attrs.class}` : 'dvf-form';
+
+  const field = (label: string, control: string) =>
+    tag('label', { class: 'dvf-form-field' }, tag('span', {}, label) + control);
+
+  const body =
+    tag('input', { type: 'hidden', name: 'form_type', value: 'contact' }) +
+    tag('input', { type: 'hidden', name: 'utf8', value: '✓' }) +
+    tag(
+      'div',
+      { class: 'dvf-form-success', 'data-dvf-form-success': '', hidden: '' },
+      escapeText(prop(node, 'success', 'Mensagem enviada! Vamos te responder em breve.')),
+    ) +
+    (prop(node, 'askName', true)
+      ? field('Nome', tag('input', { type: 'text', name: 'contact[name]', autocomplete: 'name' }))
+      : '') +
+    field(
+      'E-mail',
+      tag('input', { type: 'email', name: 'contact[email]', required: '', autocomplete: 'email' }),
+    ) +
+    (prop(node, 'askPhone', false)
+      ? field('Telefone', tag('input', { type: 'tel', name: 'contact[phone]', autocomplete: 'tel' }))
+      : '') +
+    field('Mensagem', tag('textarea', { name: 'contact[body]', required: '', rows: '5' }, '')) +
+    tag(
+      'button',
+      { type: 'submit', class: 'dvf-form-submit' },
+      escapeText(prop(node, 'buttonLabel', 'Enviar')),
+    );
+
+  return tag(
+    'form',
+    { ...attrs, method: 'post', action: `/contact#f${node.id}`, id: `f${node.id}`, 'accept-charset': 'UTF-8' },
+    body,
+  );
+};
+
+/**
  * Author-written HTML.
  *
  * Deliberately unescaped — that is what it is for. It is the merchant's own
@@ -353,6 +411,7 @@ export const BLOCKS: Record<string, Renderer> = {
   youtube,
   tabs,
   tab,
+  contact,
   accordion,
   repeater,
   countdown,
@@ -390,4 +449,8 @@ panels.forEach(function(p,j){if(j===i)p.removeAttribute("hidden");else p.setAttr
 btns.forEach(function(b,i){b.addEventListener("click",function(){activate(i)})});
 var h=decodeURIComponent(location.hash.slice(1));
 if(h)btns.forEach(function(b,i){if(b.getAttribute("data-dvf-anchor")===h)activate(i)});});`,
+  // Reveals the success message after Shopify redirects back from /contact.
+  contact: `if(/(^|[?&])contact_posted=true/.test(location.search)){
+document.querySelectorAll("[data-dvf-form-success]").forEach(function(el){
+el.removeAttribute("hidden");el.scrollIntoView({block:"center"});});}`,
 };

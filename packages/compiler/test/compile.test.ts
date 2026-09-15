@@ -424,3 +424,32 @@ test('theme font tokens compile to the theme variables; custom stacks pass throu
   assert.ok(css.includes('font-family:var(--font-body-family, inherit)'), css);
   assert.ok(css.includes('font-family:Georgia, serif'), css);
 });
+
+test('contact form posts to the storefront /contact with the native field names', () => {
+  const doc: Doc = {
+    version: 1,
+    root: [
+      { id: 'h1', type: 'heading', props: { level: 1, text: 'Fale conosco' } },
+      { id: 'cf1', type: 'contact', props: { buttonLabel: 'Mandar', askPhone: true } },
+    ],
+  };
+  const out = compile(doc);
+  assert.ok(/<form[^>]*action="\/contact#fcf1"[^>]*method="post"/.test(out.html) ||
+            /<form[^>]*method="post"[^>]*action="\/contact#fcf1"/.test(out.html), out.html);
+  assert.ok(out.html.includes('name="form_type" value="contact"'));
+  assert.ok(out.html.includes('name="utf8"'));
+  assert.ok(/name="contact\[email\]" required/.test(out.html), 'email required');
+  assert.ok(out.html.includes('contact[name]'), 'name field on by default');
+  assert.ok(out.html.includes('contact[phone]'), 'phone field opted in');
+  assert.ok(out.html.includes('contact[body]'));
+  assert.ok(out.html.includes('>Mandar<'));
+  assert.ok(/data-dvf-form-success[^>]*hidden/.test(out.html), 'success starts hidden');
+  assert.ok(out.css.includes('.dvf-form'), 'form CSS shipped');
+  assert.ok(out.js.includes('contact_posted=true'), 'success runtime shipped');
+
+  const noPhone = compile({ version: 1, root: [{ id: 'cf2', type: 'contact' }] });
+  assert.ok(!noPhone.html.includes('contact[phone]'), 'phone off by default');
+
+  const plain = compile({ version: 1, root: [{ id: 'h', type: 'heading', props: { level: 1, text: 'x' } }] });
+  assert.ok(!plain.css.includes('dvf-form'), 'no form CSS without a form');
+});

@@ -16,6 +16,7 @@ import {
   ANIMATION_CSS,
   ANIMATIONS,
   BLOCKS,
+  FORM_CSS,
   RUNTIME,
   TABS_CSS,
   type RenderContext,
@@ -209,7 +210,8 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   const css =
     sheet.toCss(doc.tokens) +
     (runtimes.has('reveal') ? '\n' + ANIMATION_CSS : '') +
-    (runtimes.has('tabs') ? '\n' + TABS_CSS : '');
+    (runtimes.has('tabs') ? '\n' + TABS_CSS : '') +
+    (runtimes.has('contact') ? '\n' + FORM_CSS : '');
 
   const modules = [...runtimes].sort();
   const js = modules.map((name) => RUNTIME[name]).join('\n');

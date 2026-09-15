@@ -775,6 +775,18 @@ verdadeira). De quebra, três consertos de UX que os testes expuseram: container
 só aceita abas, a lista de itens permanece ao editar uma aba, e a barra flutuante não
 cobre mais os botões das abas. Verificado: 51/51 + 9/9 novo + 29 regressão.
 
+### ✅ Relatórios 9-10 aplicados (15/09) — Formulário de contato e Despublicar
+
+A aba Shopify do catálogo deles abriu (35/37 elementos, padrão `<Recurso> <Campo>`,
+adotado) e expôs o modelo composicional de formulários — contra o qual decidimos
+conscientemente: o D&VFly ganhou um **Formulário de contato widget** (grupo "Loja" na
+paleta) que posta no `/contact` nativo da vitrine, com campos opcionais, botão e
+mensagem de sucesso configuráveis — o envio cai na caixa da própria loja, sem servidor
+nosso. E o **Despublicar entrou no editor** (link ao lado do badge), verificado ao vivo
+na loja real com republicação em seguida. Do Product list ficou o desenho do nosso
+futuro bloco de produtos (carrossel = modo de layout, não elemento). Verificado:
+52/52 compilador + 5/5 novo + regressão verde.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

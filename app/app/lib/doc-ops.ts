@@ -43,6 +43,7 @@ export const BLOCK_LABELS: Record<string, string> = {
   youtube: 'Vídeo YouTube',
   tabs: 'Abas',
   tab: 'Aba',
+  contact: 'Formulário de contato',
   accordion: 'Sanfona',
   repeater: 'Repetidor',
   countdown: 'Contagem',
@@ -224,6 +225,17 @@ export function newBlock(type: string): DocNode {
       };
     case 'tab':
       return { id, type, props: { title: 'Nova aba' }, children: [] };
+    case 'contact':
+      return {
+        id,
+        type,
+        props: {
+          askName: true,
+          askPhone: false,
+          buttonLabel: 'Enviar',
+          success: 'Mensagem enviada! Vamos te responder em breve.',
+        },
+      };
     case 'youtube':
       return { id, type, props: { url: '', title: 'Vídeo' } };
     case 'html':

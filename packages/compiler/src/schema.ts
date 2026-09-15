@@ -121,6 +121,7 @@ export type BlockType =
   | 'youtube'
   | 'tabs'
   | 'tab'
+  | 'contact'
   | 'accordion'
   | 'repeater'
   | 'countdown'

@@ -18,9 +18,12 @@ Regra de ouro inalterada: **conceito e funcionalidade deles, código e visual 10
 | 5 | Página de produto (6:49) | How to Easy | ✅ `05-howtoeasy-produto.md` (frames) |
 | 6 | Seções no tema (2:35) | Tutorial Toolkit | ✅ `06-toolkit-secoes-tema.md` (frames) |
 | 7 | Review: preços, limites, CRO Center (5:59) | How to Easy | ✅ `07-howtoeasy-precos-cro.md` (frames) |
-| 8 | Sessão real de design (54 min) | CodemanBD | ⬜ próximo |
-| 9 | Aba Shopify do catálogo (40 elementos) | (a garimpar) | ⬜ |
-| 10 | ~7 elementos PageFly abaixo de "Progress" | (a garimpar) | ⬜ |
+| 8 | Spec Abas + Fontes (frames do vídeo 02) | Claude no Chrome | ✅ `08-spec-abas-fontes.md` |
+| 9 | Aba Shopify + formulários + terceiros (2 clipes) | Be Wiser Clips | ✅ `09-bewiser-shopify-forms.md` |
+| 10 | Product list completo / carrossel (1:27) | Be Wiser Clips | ✅ `10-bewiser-product-list.md` |
+| 11 | Produtos relacionados / duplicar / full-width / vídeo de fundo | Be Wiser Clips | ⬜ um por vez |
+| 12 | Sessão real de design (54 min) | CodemanBD | ⬜ |
+| 13 | ~2 elementos Shopify cortados + painel do formulário deles | (a garimpar) | ⬜ |
 
 **Hierarquia de confiança:** relatório 02 (frames, produto atual) > transcrições novas >
 relatório 01 (EcomSensei — descreve a geração ANTERIOR do produto; usar só onde o 02 cala).

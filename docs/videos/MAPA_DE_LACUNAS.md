@@ -133,6 +133,22 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
   (Archivo)" — nomes resolvidos ao vivo da vitrine; compila para as variáveis do tema;
   o canvas injeta os valores reais (o título renderiza Archivo no editor, igual ao ar).
 
+### Dos relatórios 9-10 (aba Shopify, formulários, Product list) — implementado em 15/09
+
+- ✅ **Formulário de contato** (grupo novo "Loja" na paleta): widget configurável —
+  DECISÃO consciente contra o modelo composicional deles (registrada no rel. 09) —
+  nome/telefone opcionais, e-mail+mensagem fixos, botão e mensagem de sucesso
+  configuráveis. Posta no `/contact` NATIVO da vitrine (campos `contact[...]`): o envio
+  cai na caixa da própria loja, zero servidor nosso; sucesso aparece no
+  `contact_posted=true`. CSS/JS só quando usado.
+- ✅ **Despublicar no editor**: link ao lado do badge "publicada" (o par de estados que
+  o rel. 09 confirmou) — verificado ao vivo na loja real, ida e volta.
+- 📋 Adotados para o plano de produto: nomenclatura `<Recurso> <Campo>`; carrossel como
+  MODO do Product list (não elemento); aviso honesto de limite nomeando a plataforma;
+  fonte por coleção com seleção única; Content (dados) ≠ Layout (grade).
+- 🚫 Não copiar: publicidade no inspetor; dependência de App Embed sem detecção (se
+  tivermos integrações: detectar e avisar no elemento).
+
 ### Fila (consolidada, por valor)
 
 - ⬜ **Biblioteca de mídia com upload** (melhor que a deles: upload já aplica).

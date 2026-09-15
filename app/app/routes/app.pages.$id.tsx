@@ -23,7 +23,14 @@ import {
   type DocNode,
   type DocTree,
 } from '../lib/doc-ops.ts';
-import { deployPage, ProductionNotAllowedError, SOLO_SUFFIX, toStore } from '../lib/shopify.server.ts';
+import {
+  clientFor,
+  deployPage,
+  ProductionNotAllowedError,
+  SOLO_SUFFIX,
+  toStore,
+  updatePage,
+} from '../lib/shopify.server.ts';
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const page = await db.page.findUniqueOrThrow({
@@ -81,6 +88,31 @@ export async function action({ request, params }: ActionFunctionArgs) {
   });
 
   if (intent === 'save') return { ok: true, message: 'Salvo.' };
+
+  // Unpublish flips visibility off on every store the page is live on — the
+  // content stays in Shopify, ready to be republished.
+  if (intent === 'unpublish') {
+    const deployments = await db.deployment.findMany({
+      where: { pageId, isPublished: true },
+      include: { store: true },
+    });
+    if (deployments.length === 0) return { ok: false, message: 'A página não está no ar.' };
+    const outcomes: string[] = [];
+    let failures = 0;
+    for (const deployment of deployments) {
+      try {
+        await updatePage(clientFor(deployment.store), deployment.shopifyGid, {
+          isPublished: false,
+        });
+        await db.deployment.update({ where: { id: deployment.id }, data: { isPublished: false } });
+        outcomes.push(deployment.store.label);
+      } catch (error) {
+        failures++;
+        outcomes.push(`${deployment.store.label}: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    return { ok: failures === 0, message: `Despublicada de: ${outcomes.join('; ')}` };
+  }
 
   // --- publish -------------------------------------------------------------
   const storeIds = form.getAll('storeIds').map(String);
@@ -231,6 +263,9 @@ const PALETTE_GROUPS: Array<{ name: string; types: string[] }> = [
   { name: 'Básico', types: ['heading', 'text', 'button', 'list', 'divider', 'html'] },
   { name: 'Mídia', types: ['image', 'youtube'] },
   { name: 'Avançado', types: ['accordion', 'countdown'] },
+  // Blocks that talk to the store itself (mirror of Shopify's data model —
+  // future product/collection blocks land here).
+  { name: 'Loja', types: ['contact'] },
 ];
 const PALETTE_COUNT = PALETTE_GROUPS.reduce((n, g) => n + g.types.length, 0);
 
@@ -401,7 +436,7 @@ export default function PageEditor() {
   // Polaris buttons submit forms but cannot carry a name/value pair, so the
   // intent is stamped onto the form data here instead of living on the button.
   const act = useCallback(
-    (intent: 'save' | 'publish') => {
+    (intent: 'save' | 'publish' | 'unpublish') => {
       if (!form.current) return;
       const fd = new FormData(form.current);
       fd.set('intent', intent);
@@ -637,6 +672,17 @@ export default function PageEditor() {
         <s-badge tone={published ? 'success' : 'neutral'}>
           {published ? 'publicada' : 'rascunho'}
         </s-badge>
+        {published && !busy ? (
+          <button
+            type="button"
+            data-unpublish
+            title="Tira a página do ar em todas as lojas; o conteúdo fica guardado"
+            onClick={() => act('unpublish')}
+            style={unpublishLink}
+          >
+            Despublicar
+          </button>
+        ) : null}
         <button
           type="button"
           title="Configurações da página"
@@ -732,7 +778,11 @@ export default function PageEditor() {
           )}
           {busy ? (
             <button type="button" disabled style={publishButton}>
-              {navigation.formData?.get('intent') === 'publish' ? 'Publicando…' : 'Salvando…'}
+              {navigation.formData?.get('intent') === 'publish'
+                ? 'Publicando…'
+                : navigation.formData?.get('intent') === 'unpublish'
+                  ? 'Despublicando…'
+                  : 'Salvando…'}
             </button>
           ) : dirty ? (
             // While there are pending changes, publishing steps aside: the
@@ -1549,6 +1599,51 @@ function Inspector({
           />
         </label>
       );
+    case 'contact':
+      return (
+        <>
+          <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              data-contact-name
+              checked={p.askName !== false}
+              onChange={(e) => onChange({ askName: e.target.checked })}
+            />
+            Pedir nome
+          </label>
+          <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              data-contact-phone
+              checked={p.askPhone === true}
+              onChange={(e) => onChange({ askPhone: e.target.checked ? true : undefined })}
+            />
+            Pedir telefone
+          </label>
+          <label style={fieldLabel}>
+            Texto do botão
+            <input
+              style={fieldInput}
+              data-contact-button
+              value={String(p.buttonLabel ?? 'Enviar')}
+              onChange={(e) => onChange({ buttonLabel: e.target.value })}
+            />
+          </label>
+          <label style={fieldLabel}>
+            Mensagem de sucesso
+            <input
+              style={fieldInput}
+              value={String(p.success ?? '')}
+              onChange={(e) => onChange({ success: e.target.value })}
+            />
+          </label>
+          <div style={metaLine}>
+            E-mail e mensagem são sempre pedidos. O envio cai na caixa de entrada da própria
+            loja (Shopify → Configurações → Notificações) — nada passa por servidor nosso. A
+            mensagem de sucesso aparece quando a loja confirma o envio.
+          </div>
+        </>
+      );
     case 'tab':
       return (
         <>
@@ -1970,6 +2065,16 @@ const liveLinkOff: React.CSSProperties = {
   ...liveLink,
   color: '#b8b8b8',
   cursor: 'default',
+};
+
+const unpublishLink: React.CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  color: '#8a5700',
+  fontSize: 12.5,
+  cursor: 'pointer',
+  padding: '2px 4px',
+  textDecoration: 'underline',
 };
 
 const unsavedNote: React.CSSProperties = {
