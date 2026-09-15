@@ -29,6 +29,12 @@ export interface RenderContext {
   baseAttrs: (node: Node) => Record<string, string | undefined>;
   /** Declares that this block needs a runtime module. */
   requireRuntime: (name: RuntimeModule) => void;
+  /**
+   * Editor-only placeholder for a block that is missing required content.
+   * `route` names the exact field that fixes it ("Geral → Link do vídeo").
+   * Returns '' in published builds, so an unconfigured block ships nothing.
+   */
+  hint: (node: Node, route: string) => string;
   /** Runs author-written markup through the optimization pass. */
   optimizeHtml: (source: string) => string;
 }
@@ -78,6 +84,9 @@ const text: Renderer = (node, ctx) =>
 
 const image: Renderer = (node, ctx) => {
   const src = prop<string>(node, 'src', '');
+  // A src-less <img> paints a broken-image glyph on the live page; better to
+  // ship nothing and let the editor point at the field that fixes it.
+  if (!src.trim()) return ctx.hint(node, 'Imagem — informe o endereço em Geral → URL da imagem');
   const width = prop<number | undefined>(node, 'width', undefined);
   const height = prop<number | undefined>(node, 'height', undefined);
   const srcset = prop<string | undefined>(node, 'srcset', undefined);
@@ -152,9 +161,8 @@ export function youtubeId(raw: string): string | null {
 
 const youtube: Renderer = (node, ctx) => {
   const id = youtubeId(String(prop(node, 'url', '')));
-  // No id yet → nothing on the page. An empty player frame would ship bytes
-  // for a block the author has not finished configuring.
-  if (!id) return '';
+  // No id yet → nothing on the published page; the editor shows the way.
+  if (!id) return ctx.hint(node, 'Vídeo do YouTube — cole o link em Geral → Link do vídeo');
   return tag('iframe', {
     ...ctx.baseAttrs(node),
     src: `https://www.youtube-nocookie.com/embed/${id}`,

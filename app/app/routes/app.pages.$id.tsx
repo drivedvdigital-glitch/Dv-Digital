@@ -210,6 +210,7 @@ const ANIMATION_OPTIONS = [
 
 /** What the "Atalhos de teclado" panel lists. One row per gesture. */
 const SHORTCUTS: Array<{ keys: string[]; what: string }> = [
+  { keys: ['Segurar', 'Ctrl'], what: 'Selecionar vários' },
   { keys: ['Ctrl', 'S'], what: 'Salvar' },
   { keys: ['Ctrl', 'Shift', 'S'], what: 'Salvar & publicar' },
   { keys: ['Ctrl', 'Z'], what: 'Desfazer' },
@@ -260,7 +261,19 @@ export default function PageEditor() {
 
   const shop = new URLSearchParams(location.search).get('shop');
   const [doc, setDoc] = useState<DocTree>(data.doc);
-  const [selected, setSelected] = useState<string | null>(null);
+
+  // Selection is a LIST: hold Ctrl to add or remove blocks. The last one
+  // clicked is the "primary" — the one the inspector edits; bulk operations
+  // (delete, duplicate, paste style) apply to all of them.
+  const [selection, setSelection] = useState<string[]>([]);
+  const selected = selection.length > 0 ? selection[selection.length - 1] : null;
+  const select = useCallback((id: string | null, additive = false) => {
+    setSelection((prev) => {
+      if (!id) return [];
+      if (!additive) return [id];
+      return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+    });
+  }, []);
   const [device, setDevice] = useState(0);
   const [tab, setTab] = useState<'geral' | 'estilo'>('geral');
   const [breakpoint, setBreakpoint] = useState<'base' | 'md' | 'lg' | 'xl'>('base');
@@ -318,7 +331,7 @@ export default function PageEditor() {
   // Copied style travels between blocks via Ctrl+C / Ctrl+V. A ref, not
   // state: nothing needs to re-render when it changes.
   const styleClipboard = useRef<Record<string, unknown> | null>(null);
-  const selectedRef = useRef<string | null>(null);
+  const selectionRef = useRef<string[]>([]);
 
   // Undo is a list of documents — the payoff of every tree operation being a
   // pure function. Mutations within 600ms coalesce into one entry, so typing a
@@ -384,30 +397,40 @@ export default function PageEditor() {
 
   // Block operations reachable from shortcuts and from the canvas toolbar
   // alike. They read through refs so one stable callback serves both without
-  // re-subscribing listeners on every document change.
+  // re-subscribing listeners on every document change. Delete, duplicate and
+  // paste-style apply to the WHOLE selection; copy-style reads the primary.
   const shortcutAction = useCallback(
     (name: string) => {
-      const id = selectedRef.current;
-      if (name === 'save') act('save');
-      if (name === 'publish') act('publish');
-      if (!id) return;
+      if (name === 'save') return act('save');
+      if (name === 'publish') return act('publish');
+      const ids = selectionRef.current;
+      if (ids.length === 0) return;
+      const primary = ids[ids.length - 1];
       const root = docRef.current.root;
-      if (name === 'duplicate') setRoot(duplicateNode(root, id));
+      if (name === 'duplicate') {
+        let next = root;
+        for (const id of ids) next = duplicateNode(next, id);
+        setRoot(next);
+      }
       if (name === 'delete') {
-        setRoot(removeNode(root, id));
-        setSelected(null);
+        let next = root;
+        for (const id of ids) next = removeNode(next, id);
+        setRoot(next);
+        select(null);
       }
       if (name === 'copyStyle') {
-        const node = findNode(root, id);
+        const node = findNode(root, primary);
         if (node) {
           styleClipboard.current = JSON.parse(JSON.stringify(node.style ?? {}));
         }
       }
-      if (name === 'pasteStyle') {
-        if (styleClipboard.current) setRoot(setNodeStyle(root, id, styleClipboard.current));
+      if (name === 'pasteStyle' && styleClipboard.current) {
+        let next = root;
+        for (const id of ids) next = setNodeStyle(next, id, styleClipboard.current);
+        setRoot(next);
       }
     },
-    [act, setRoot],
+    [act, setRoot, select],
   );
 
   // The full shortcut map (also listed in the "Atalhos" panel):
@@ -487,7 +510,12 @@ export default function PageEditor() {
         // Re-apply the selection to the fresh document.
         const type = selected ? findNode(doc.root, selected)?.type : null;
         frame.current?.contentWindow?.postMessage(
-          { type: 'dvf:selected', id: selected, label: type ? BLOCK_LABELS[type] ?? type : '' },
+          {
+            type: 'dvf:selected',
+            id: selected,
+            ids: selectionRef.current,
+            label: type ? BLOCK_LABELS[type] ?? type : '',
+          },
           '*',
         );
       }
@@ -502,7 +530,7 @@ export default function PageEditor() {
     const onMessage = (event: MessageEvent) => {
       const message = event.data;
       if (!message) return;
-      if (message.type === 'dvf:select') setSelected(message.id ?? null);
+      if (message.type === 'dvf:select') select(message.id ?? null, message.additive === true);
       if (message.type === 'dvf:move') {
         setRoot(relocateNode(doc.root, message.id, message.targetId, message.position));
       }
@@ -520,24 +548,29 @@ export default function PageEditor() {
         if (message.action === 'moveDown') setRoot(moveNode(doc.root, message.id, 1));
         if (message.action === 'delete') {
           setRoot(removeNode(doc.root, message.id));
-          setSelected(null);
+          select(null);
         }
       }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [doc, setRoot, undo, redo, shortcutAction]);
+  }, [doc, setRoot, undo, redo, shortcutAction, select]);
 
   // Editor → canvas: highlight whatever is selected, however it got selected.
   useEffect(() => {
-    selectedRef.current = selected;
+    selectionRef.current = selection;
     const type = selected ? findNode(doc.root, selected)?.type : null;
     frame.current?.contentWindow?.postMessage(
-      { type: 'dvf:selected', id: selected, label: type ? BLOCK_LABELS[type] ?? type : '' },
+      {
+        type: 'dvf:selected',
+        id: selected,
+        ids: selection,
+        label: type ? BLOCK_LABELS[type] ?? type : '',
+      },
       '*',
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected]);
+  }, [selection]);
 
   const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`;
   const published = data.liveUrls.length > 0;
@@ -548,7 +581,7 @@ export default function PageEditor() {
   const addBlock = (type: string) => {
     const block = newBlock(type);
     setRoot(insertNode(doc.root, selected, block));
-    setSelected(block.id);
+    select(block.id);
   };
 
   return (
@@ -701,8 +734,8 @@ export default function PageEditor() {
             <Tree
               nodes={doc.root}
               depth={0}
-              selected={selected}
-              onSelect={setSelected}
+              selectedIds={selection}
+              onSelect={select}
               onRelocate={(id, targetId, position) =>
                 setRoot(relocateNode(doc.root, id, targetId, position))
               }
@@ -752,7 +785,7 @@ export default function PageEditor() {
             crumbs.map((node, i) => (
               <span key={node.id}>
                 {i > 0 ? <span style={{ color: '#c0c0c0' }}> / </span> : null}
-                <button type="button" style={crumbButton} onClick={() => setSelected(node.id)}>
+                <button type="button" style={crumbButton} onClick={() => select(node.id)}>
                   {BLOCK_LABELS[node.type] ?? node.type}
                 </button>
               </span>
@@ -797,20 +830,23 @@ export default function PageEditor() {
         <section style={{ ...panelSection, flex: 1, display: 'flex', flexDirection: 'column' }}>
           {selectedNode ? (
             <>
+              {selection.length > 1 ? (
+                <div style={multiNote} data-multi-note>
+                  <strong>{selection.length} blocos selecionados.</strong> Excluir, Duplicar e
+                  Colar estilo valem para todos; os campos abaixo editam o último clicado.
+                </div>
+              ) : null}
               <div style={inspectorHead}>
                 <div style={panelLabel}>{BLOCK_LABELS[selectedNode.type] ?? selectedNode.type}</div>
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button type="button" style={opButton} title="Subir" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, -1))}>↑</button>
                   <button type="button" style={opButton} title="Descer" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, 1))}>↓</button>
-                  <button type="button" style={opButton} title="Duplicar" onClick={() => setRoot(duplicateNode(doc.root, selectedNode.id))}>⧉</button>
+                  <button type="button" style={opButton} title="Duplicar (todos os selecionados)" onClick={() => shortcutAction('duplicate')}>⧉</button>
                   <button
                     type="button"
                     style={{ ...opButton, color: '#b42318' }}
                     title="Excluir"
-                    onClick={() => {
-                      setRoot(removeNode(doc.root, selectedNode.id));
-                      setSelected(null);
-                    }}
+                    onClick={() => shortcutAction('delete')}
                   >
                     ✕
                   </button>
@@ -826,10 +862,11 @@ export default function PageEditor() {
                 </button>
                 <button
                   type="button"
-                  style={tab === 'estilo' ? tabOn : tabOff}
+                  style={{ ...(tab === 'estilo' ? tabOn : tabOff), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  title="O Estilo é por dispositivo — o ícone mostra qual está sendo editado"
                   onClick={() => setTab('estilo')}
                 >
-                  Estilo
+                  Estilo {deviceIcon(BP_DEVICES.find((d) => d.bp === breakpoint)!.icon)}
                 </button>
               </div>
               {tab === 'geral' ? (
@@ -1081,7 +1118,7 @@ function EyeIcon({ off }: { off: boolean }) {
 function Tree({
   nodes,
   depth,
-  selected,
+  selectedIds,
   onSelect,
   onRelocate,
   onToggleHidden,
@@ -1089,8 +1126,8 @@ function Tree({
 }: {
   nodes: DocNode[];
   depth: number;
-  selected: string | null;
-  onSelect: (id: string) => void;
+  selectedIds: string[];
+  onSelect: (id: string, additive?: boolean) => void;
   onRelocate: (id: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
   onToggleHidden: (id: string) => void;
   parentHidden?: boolean;
@@ -1119,9 +1156,9 @@ function Tree({
           <button
             type="button"
             data-tree-id={node.id}
-            data-tree-selected={node.id === selected || undefined}
+            data-tree-selected={selectedIds.includes(node.id) || undefined}
             draggable
-            onClick={() => onSelect(node.id)}
+            onClick={(event) => onSelect(node.id, event.ctrlKey || event.metaKey)}
             onDragStart={(event) => {
               event.dataTransfer.setData('text/dvf-node', node.id);
               event.dataTransfer.effectAllowed = 'move';
@@ -1143,14 +1180,14 @@ function Tree({
             style={{
               ...treeRow,
               paddingLeft: 8 + depth * 14,
-              ...(node.id === selected ? treeRowSelected : {}),
+              ...(selectedIds.includes(node.id) ? treeRowSelected : {}),
               ...(node.hidden || parentHidden ? treeRowHidden : {}),
               ...hintStyle(node),
             }}
           >
             <span style={treeIcon}>{CONTAINER_TYPES.has(node.type) ? '▸' : '·'}</span>
             <span style={node.hidden || parentHidden ? { textDecoration: 'line-through' } : undefined}>
-              {BLOCK_LABELS[node.type] ?? node.type}
+              {String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type)}
             </span>
             {node.type === 'heading' || node.type === 'text' ? (
               <span style={treeHint}> {String(node.props?.text ?? '').slice(0, 18)}</span>
@@ -1180,7 +1217,7 @@ function Tree({
             <Tree
               nodes={node.children}
               depth={depth + 1}
-              selected={selected}
+              selectedIds={selectedIds}
               onSelect={onSelect}
               onRelocate={onRelocate}
               onToggleHidden={onToggleHidden}
@@ -1415,10 +1452,23 @@ function Inspector({
     case 'section':
     case 'stack':
       return (
-        <div style={metaLine}>
-          Bloco de estrutura — o conteúdo dele são os filhos na árvore. Selecione um filho para
-          editar, ou use <strong>Adicionar</strong> para pôr algo dentro.
-        </div>
+        <>
+          <label style={fieldLabel}>
+            Nome na estrutura
+            <input
+              style={fieldInput}
+              data-tree-name
+              value={String(p.name ?? '')}
+              placeholder={BLOCK_LABELS[node.type]}
+              onChange={(e) => onChange({ name: e.target.value || undefined })}
+            />
+          </label>
+          <div style={metaLine}>
+            Numa página longa, nomes como "Banner principal" ou "Depoimentos" tornam a
+            estrutura navegável. O conteúdo deste bloco são os filhos na árvore — use{' '}
+            <strong>Adicionar</strong> para pôr algo dentro.
+          </div>
+        </>
       );
     case 'divider':
       return <div style={metaLine}>Uma linha separadora. Não tem conteúdo para editar.</div>;
@@ -1941,6 +1991,16 @@ const animOn: React.CSSProperties = {
   borderColor: '#b6ecd0',
   color: '#0a6b38',
   fontWeight: 600,
+};
+
+const multiNote: React.CSSProperties = {
+  fontSize: 12.5,
+  color: '#0a6b38',
+  background: '#eafaf0',
+  border: '1px solid #b6ecd0',
+  borderRadius: 8,
+  padding: '8px 10px',
+  marginBottom: 10,
 };
 
 const drawerBackdrop: React.CSSProperties = {

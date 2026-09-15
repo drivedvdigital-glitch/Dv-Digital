@@ -58,6 +58,12 @@ export interface CompileOptions {
    * the published page carries no editor residue (I3).
    */
   nodeIds?: boolean;
+  /**
+   * Editor builds only: unconfigured blocks (an image without a source, a
+   * video without a link) render a placeholder naming the exact field that
+   * fixes them. Published output still emits nothing for those blocks.
+   */
+  editorHints?: boolean;
 }
 
 export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
@@ -103,6 +109,20 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     },
     requireRuntime: (name) => {
       runtimes.add(name);
+    },
+    hint: (node, route) => {
+      if (!options.editorHints) return '';
+      return tag(
+        'div',
+        {
+          ...ctx.baseAttrs(node),
+          'data-dvf-hint': '',
+          style:
+            'border:1.5px dashed #d9a514;background:#fdf6e3;color:#8a6116;' +
+            'padding:18px 16px;border-radius:8px;font:13px/1.5 -apple-system,system-ui,sans-serif;text-align:center',
+        },
+        route,
+      );
     },
     optimizeHtml: (source) => {
       const result = optimizeHtml(source, { sheet, scope: `${CLASS_PREFIX}-page` });

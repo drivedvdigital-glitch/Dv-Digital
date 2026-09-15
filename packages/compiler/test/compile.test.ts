@@ -357,3 +357,22 @@ test('youtube embeds only the video id, whatever URL shape was pasted', () => {
   });
   assert.ok(!empty.html.includes('iframe'), empty.html);
 });
+
+test('unconfigured blocks: editor shows the exact route, published output ships nothing', () => {
+  const doc: Doc = {
+    version: 1,
+    root: [
+      { id: 'h1', type: 'heading', props: { level: 1, text: 'Oi' } },
+      { id: 'i1', type: 'image', props: { src: '', alt: '' } },
+      { id: 'y1', type: 'youtube', props: { url: '' } },
+    ],
+  };
+  const published = compile(doc);
+  assert.ok(!published.html.includes('<img'), 'src-less image must not ship');
+  assert.ok(!published.html.includes('data-dvf-hint'), 'no hint residue in published output');
+
+  const editor = compile(doc, { nodeIds: true, editorHints: true });
+  assert.ok(editor.html.includes('Geral → URL da imagem'), editor.html);
+  assert.ok(editor.html.includes('Geral → Link do vídeo'), editor.html);
+  assert.ok(editor.html.includes('data-dvf-id="i1"'), 'hint stays selectable in the canvas');
+});

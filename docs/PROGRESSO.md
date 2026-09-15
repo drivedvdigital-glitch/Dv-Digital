@@ -751,6 +751,19 @@ lazy, 16:9 — link inválido compila para nada); **toast "Salvo ✓" sobre o ca
 multi-seleção com Ctrl, na fila). Verificado: 48/48 compilador + 5/5 novo + 13/13
 regressão. Fila consolidada dos 4 relatórios no MAPA_DE_LACUNAS.
 
+### ✅ Pesquisa por vídeo (15/09) — relatórios 5-7 aplicados
+
+Página de produto, seções-no-tema e preços/CRO Center documentados. Aplicado no código:
+**multi-seleção com Ctrl** (árvore e canvas; excluir/duplicar/colar estilo em lote;
+aviso "N selecionados" no inspetor; destaque múltiplo no canvas — fecha a paridade
+completa de atalhos com a referência), **estados vazios com rota exata** (imagem sem
+URL / YouTube sem link mostram no canvas o campo que resolve, e não saem na página
+publicada), **renomear seções na árvore** ("Banner principal" em vez de "Seção") e
+**ícone do dispositivo na aba Estilo** (a divisão global × por-dispositivo visível).
+Verificado: 49/49 compilador + 11/11 novo + 13/13 + 5/5 regressão. Registros
+estratégicos (economia deles, pergunta aberta de seções, CRO checklist, lição de i18n)
+no MAPA_DE_LACUNAS.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

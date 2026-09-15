@@ -95,9 +95,36 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - ✅ **Atalhos: paridade confirmada** — nossos 9 batem 1:1 com a lista completa deles
   (Ctrl+C/V = estilo, Ctrl+D = duplicar). Falta só **segurar Ctrl = multi-seleção**.
 
-### Fila (consolidada dos 4 relatórios, por valor)
+### Dos vídeos 5-7 (produto, seções no tema, preços/CRO) — implementado em 15/09
 
-- ⬜ **Multi-seleção (segurar Ctrl)** — o único atalho da referência que falta.
+- ✅ **Multi-seleção (segurar Ctrl)** — o último atalho da referência: Ctrl+clique na
+  árvore E no canvas soma/remove da seleção; Excluir, Duplicar e Colar estilo valem
+  para todos; o inspetor avisa "N blocos selecionados" e edita o último clicado; o
+  canvas destaca todos. Painel de atalhos atualizado.
+- ✅ **Estados vazios com a rota exata** (padrão nº 1 do rel. 05): imagem sem URL e
+  YouTube sem link mostram no canvas "… — informe em Geral → [campo]", clicáveis para
+  selecionar. Na página publicada, bloco não configurado **não sai** (nem img quebrada).
+- ✅ **Renomear itens na árvore** (Seção/Pilha): "Nome na estrutura" — "Banner
+  principal" em vez de "Seção", navegável em páginas longas (padrão dos rel. 03/05).
+- ✅ **Indicador de responsividade**: a aba Estilo carrega o ícone do dispositivo em
+  edição — a divisão Geral (global) × Estilo (por dispositivo) fica visível o tempo todo
+  (a versão nossa do "ícone por campo" do rel. 05, coerente com nosso design de abas).
+
+### Registros estratégicos dos rel. 5-7 (sem código)
+
+- Modelo econômico deles: 2 moedas (slots × créditos IA) — nossa vantagem estrutural é
+  NÃO ter moeda artificial; preservar.
+- Pergunta em aberto do rel. 06 a responder no nosso design de seções-no-tema: o que
+  acontece no tema quando a seção é despublicada (resposta explícita, ex. placeholder).
+- CRO checklist completável ("N/M etapas") — padrão a considerar quando tivermos
+  auditorias agrupadas.
+- i18n: se formos multi-idioma, teste que quebra build com chave crua na tela (bug real
+  visto na produção deles).
+- Caminho de mídia deles é frágil (3 falhas em 3 vídeos) — nossa futura biblioteca de
+  mídia deve nascer melhor: upload aplica direto.
+
+### Fila (consolidada dos 7 relatórios, por valor)
+
 - ⬜ **Tabs (abas)** — requer runtime próprio.
 - ⬜ **Fontes do tema com tokens** no seletor de tipografia.
 - ⬜ **Biblioteca de mídia com upload** (melhor que a deles: upload já aplica).

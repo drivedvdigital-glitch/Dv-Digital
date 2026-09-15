@@ -80,14 +80,18 @@ const EDITOR_BRIDGE = `
     toolbar.style.left = Math.max(4, rect.left + window.scrollX) + 'px';
   }
 
-  function apply(id, label) {
+  function apply(id, label, ids) {
     selectedId = id;
     document.querySelectorAll('[data-dvf-selected]').forEach(function (el) {
       el.removeAttribute('data-dvf-selected');
     });
+    // Every selected block gets the outline; the toolbar follows the primary.
+    (ids && ids.length ? ids : id ? [id] : []).forEach(function (each) {
+      var mark = document.querySelector('[data-dvf-id="' + each + '"]');
+      if (mark) mark.setAttribute('data-dvf-selected', '');
+    });
     var el = id && document.querySelector('[data-dvf-id="' + id + '"]');
     if (!el) { toolbar.style.display = 'none'; return; }
-    el.setAttribute('data-dvf-selected', '');
     el.scrollIntoView({ block: 'nearest' });
     document.getElementById('dvf-label').textContent = label || '';
     positionToolbar(el);
@@ -106,7 +110,11 @@ const EDITOR_BRIDGE = `
     var el = event.target.closest('[data-dvf-id]');
     event.preventDefault();
     event.stopPropagation();
-    parent.postMessage({ type: 'dvf:select', id: el ? el.getAttribute('data-dvf-id') : null }, '*');
+    parent.postMessage({
+      type: 'dvf:select',
+      id: el ? el.getAttribute('data-dvf-id') : null,
+      additive: event.ctrlKey || event.metaKey,
+    }, '*');
   }, true);
 
   // ---- drag to reorder ----------------------------------------------------
@@ -217,7 +225,7 @@ const EDITOR_BRIDGE = `
   }
 
   window.addEventListener('message', function (event) {
-    if (event.data && event.data.type === 'dvf:selected') apply(event.data.id, event.data.label);
+    if (event.data && event.data.type === 'dvf:selected') apply(event.data.id, event.data.label, event.data.ids);
     if (event.data && event.data.type === 'dvf:animPreview') animPreview(event.data.id, event.data.name);
   });
 })();
@@ -239,7 +247,7 @@ export async function action({ request }: ActionFunctionArgs) {
     root: [{ id: 'html', type: 'html', props: { html: body.html ?? '' } }],
   };
 
-  const compiled = compile(doc, { nodeIds: true });
+  const compiled = compile(doc, { nodeIds: true, editorHints: true });
 
   // Editor-only framing, never part of the compiled page: the theme's header
   // and footer as gray placeholders (so the page is seen inside its real

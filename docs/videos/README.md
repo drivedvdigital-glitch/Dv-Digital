@@ -15,8 +15,12 @@ Regra de ouro inalterada: **conceito e funcionalidade deles, código e visual 10
 | 2 | Pagefly Shopify Page Builder Tutorial (2026) | How to Easy | ✅ `02-howtoeasy-2026-REFERENCIA.md` ★ **com frames — é a referência-base** |
 | 3 | Catálogo de elementos (2:18) | Guides With Garry | ✅ `03-garry-catalogo.md` (frames) |
 | 4 | Lista completa de atalhos (4:03) | Easytorial | ✅ `04-easytorial-atalhos.md` (frames, out/2025) |
-| 5 | Como usar o PageFly no Shopify em 2025 — Tutorial para iniciantes | Tutorials by Manizha & Ryan | ⬜ |
-| 6 | Review do PageFly | Ecom Mastery Português | ⬜ |
+| 5 | Página de produto (6:49) | How to Easy | ✅ `05-howtoeasy-produto.md` (frames) |
+| 6 | Seções no tema (2:35) | Tutorial Toolkit | ✅ `06-toolkit-secoes-tema.md` (frames) |
+| 7 | Review: preços, limites, CRO Center (5:59) | How to Easy | ✅ `07-howtoeasy-precos-cro.md` (frames) |
+| 8 | Sessão real de design (54 min) | CodemanBD | ⬜ próximo |
+| 9 | Aba Shopify do catálogo (40 elementos) | (a garimpar) | ⬜ |
+| 10 | ~7 elementos PageFly abaixo de "Progress" | (a garimpar) | ⬜ |
 
 **Hierarquia de confiança:** relatório 02 (frames, produto atual) > transcrições novas >
 relatório 01 (EcomSensei — descreve a geração ANTERIOR do produto; usar só onde o 02 cala).
