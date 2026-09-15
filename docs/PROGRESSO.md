@@ -728,6 +728,17 @@ para o desktop — media queries de faixa), **animações de entrada com preview
 e **tipos de ação do botão** (link/âncora/e-mail/telefone). Verificado: 46/46 compilador +
 10/10 fluxo novo + 13/13 regressão. Fila do que sobrou: `docs/videos/MAPA_DE_LACUNAS.md`.
 
+### ✅ Pesquisa por vídeo (15/09) — relatório 2 (★ com frames) aplicado
+
+O relatório 02 (How to Easy, frames lidos com zoom) virou a **referência-base** — e
+revelou que o relatório 01 descrevia a geração anterior do produto. Aplicado no mesmo
+dia: **placeholders do cabeçalho/rodapé do tema no canvas** (clicáveis → abrem as
+Configurações), **estado "Alterações não salvas"** (Descartar com confirmação +
+Publicar sai de cena com pendências), **"Ver no ar" desabilitado em vez de oculto**, e
+**estado vazio instrutivo**. Verificado: 46/46 + 9/9 novo + 13/13 + 10/10 regressão.
+Fila atualizada no MAPA_DE_LACUNAS (fontes do tema com tokens, zoom do canvas, busca na
+árvore, variantes por elemento, add-to-cart…).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

@@ -51,6 +51,37 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - ✅ **Ação ao clicar do botão**: abrir link / rolar até âncora / enviar e-mail / ligar
   (deriva do formato do href, sem campo duplicado).
 
+### Do vídeo 2 (How to Easy, ★ referência-base com frames) — implementado em 15/09
+
+- ✅ **Placeholders do cabeçalho/rodapé do tema no canvas** (cinza, hachurado, não
+  editáveis) — a página é vista dentro do enquadramento real do tema, e a fronteira
+  builder/tema fica declarada na tela. **Clicar no placeholder abre as Configurações da
+  página**, onde a visibilidade deles realmente mora (nosso showChrome).
+- ✅ **Estado "Alterações não salvas"** na barra: aviso ●, botão **Descartar** (com
+  confirmação em dois cliques — reverte ao último salvo) e Salvar; **Publicar sai de
+  cena enquanto há pendências** (Ctrl+Shift+S continua salvando e publicando de uma vez).
+- ✅ **Desabilitar em vez de esconder**: "Ver no ar" agora aparece cinza antes de
+  publicar, com o motivo no tooltip ("Disponível depois de publicar").
+- ✅ **Estado vazio instrutivo no canvas**: "Esta página está vazia" + para onde ir —
+  em vez de um vão em branco.
+
+### Do vídeo 2 — fila nova (com o que já sabemos dos frames)
+
+- ⬜ **Fontes do tema com tokens** no seletor de tipografia (type-heading-font etc.) —
+  reusar a identidade do tema em vez de competir com ela.
+- ⬜ **Zoom do canvas** + indicador conjunto "1440px, 58%".
+- ⬜ **Busca na árvore** (lupa no Page content).
+- ⬜ **Pílulas com contagem** no painel de elementos + badges "Novo".
+- ⬜ **Variantes por elemento** (miniaturas; layouts por fração 1/2, 1/3…).
+- ⬜ **Elemento "Adicionar ao carrinho"** + callout redirecionador no botão comum.
+- ⬜ Popup, Slideshow, Comparação de imagens, YouTube/Vimeo/HTML video.
+- ⬜ **Modal de fricção proporcional** para ação destrutiva de página inteira (quando a
+  galeria de templates existir): "não tem desfazer" + checkbox + confirmar.
+- ⬜ Prova social por template ("usado em N páginas") — quando houver galeria.
+- ❌ FlyMate/créditos/onboarding por nicho — IA fora do escopo atual (registrado).
+- ⚠️ Integração Instagram: o OAuth deles sai do produto com outro nome de app —
+  decisão de confiança a pesar se formos fazer parecido.
+
 ### Do vídeo 1 — fila (por ordem de valor)
 
 - ⬜ **Elemento Abas (tabs)** — único bloco de conteúdo da demonstração que não temos.

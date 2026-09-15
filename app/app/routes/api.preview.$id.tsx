@@ -18,6 +18,18 @@ const EDITOR_BRIDGE = `
      on the page animates yet (the compiled CSS only ships it when used). */
   ${ANIMATION_CSS}
   [data-dvf-id] { cursor: default; }
+  [data-dvf-chrome] {
+    background: repeating-linear-gradient(-45deg, #f4f4f4, #f4f4f4 10px, #ededed 10px, #ededed 20px);
+    color: #8a8a8a; text-align: center; font: 12.5px/1.5 -apple-system, system-ui, sans-serif;
+    padding: 22px 16px; cursor: pointer; user-select: none;
+  }
+  [data-dvf-chrome]:hover { color: #5c5c5c; }
+  [data-dvf-empty] {
+    display: flex; flex-direction: column; gap: 6px; align-items: center;
+    padding: 72px 24px; text-align: center; color: #616161;
+    font: 13.5px/1.6 -apple-system, system-ui, sans-serif;
+  }
+  [data-dvf-empty] strong { font-size: 16px; color: #303030; }
   [data-dvf-id]:hover { outline: 1px dashed rgba(11,224,92,.8); outline-offset: 1px; }
   [data-dvf-selected] { outline: 2px solid #0BE05C !important; outline-offset: 2px; }
   [data-dvf-drop="before"] { box-shadow: 0 -3px 0 0 #0BE05C !important; }
@@ -83,6 +95,14 @@ const EDITOR_BRIDGE = `
 
   document.addEventListener('click', function (event) {
     if (toolbar.contains(event.target)) return;
+    // The theme chrome placeholders are not page content: clicking one opens
+    // the page settings, where their visibility actually lives.
+    if (event.target.closest('[data-dvf-chrome]')) {
+      event.preventDefault();
+      event.stopPropagation();
+      parent.postMessage({ type: 'dvf:chrome' }, '*');
+      return;
+    }
     var el = event.target.closest('[data-dvf-id]');
     event.preventDefault();
     event.stopPropagation();
@@ -213,15 +233,33 @@ const EDITOR_BRIDGE = `
  * bridge, neither of which exists in published output.
  */
 export async function action({ request }: ActionFunctionArgs) {
-  const body = (await request.json()) as { doc?: Doc; html?: string };
+  const body = (await request.json()) as { doc?: Doc; html?: string; chrome?: boolean };
   const doc: Doc = body.doc ?? {
     version: 1,
     root: [{ id: 'html', type: 'html', props: { html: body.html ?? '' } }],
   };
 
   const compiled = compile(doc, { nodeIds: true });
+
+  // Editor-only framing, never part of the compiled page: the theme's header
+  // and footer as gray placeholders (so the page is seen inside its real
+  // frame, and the boundary between builder and theme is visible), and an
+  // instructive empty state instead of a blank void.
+  const header = body.chrome !== false
+    ? `<div data-dvf-chrome="header" title="Abrir Configurações da página">Cabeçalho do tema — aparece aqui quando publicada. Visibilidade em <u>Configurações da página</u>.</div>`
+    : '';
+  const footer = body.chrome !== false
+    ? `<div data-dvf-chrome="footer" title="Abrir Configurações da página">Rodapé do tema</div>`
+    : '';
+  const empty = doc.root.length === 0
+    ? `<div data-dvf-empty>
+         <strong>Esta página está vazia</strong>
+         <span>Escolha um bloco no painel <b>Adicionar</b>, à esquerda, para começar a montar.</span>
+       </div>`
+    : '';
+
   return Response.json({
-    fragment: toFragment(compiled) + EDITOR_BRIDGE,
+    fragment: header + toFragment(compiled) + empty + footer + EDITOR_BRIDGE,
     bytes: compiled.stats.bytes,
     stats: compiled.stats,
     findings: compiled.findings,

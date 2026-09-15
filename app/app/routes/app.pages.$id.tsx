@@ -275,6 +275,7 @@ export default function PageEditor() {
   // the title/handle fields were touched.
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(data.doc));
   const [metaDirty, setMetaDirty] = useState(false);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const pendingSnapshot = useRef<string | null>(null);
   const dirty = metaDirty || JSON.stringify(doc) !== savedSnapshot;
 
@@ -453,7 +454,7 @@ export default function PageEditor() {
       const response = await fetch(`/api/preview/${data.page.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doc }),
+        body: JSON.stringify({ doc, chrome: showChrome }),
       });
       const payload = (await response.json()) as {
         fragment: string;
@@ -477,7 +478,7 @@ export default function PageEditor() {
     return () => clearTimeout(timer);
     // `selected` is intentionally not a dependency: changing it must not recompile.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, data.page.id]);
+  }, [doc, data.page.id, showChrome]);
 
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
@@ -493,6 +494,9 @@ export default function PageEditor() {
         else if (message.key === 'redo') redo();
         else shortcutAction(message.key);
       }
+      // Clicking a theme chrome placeholder opens the drawer where its
+      // visibility actually lives.
+      if (message.type === 'dvf:chrome') setShowSettings(true);
       if (message.type === 'dvf:action') {
         if (message.action === 'duplicate') setRoot(duplicateNode(doc.root, message.id));
         if (message.action === 'moveUp') setRoot(moveNode(doc.root, message.id, -1));
@@ -633,15 +637,40 @@ export default function PageEditor() {
             <a href={data.liveUrls[0]} target="_blank" rel="noreferrer" style={liveLink}>
               Ver no ar
             </a>
-          ) : null}
-          {dirty || busy ? (
-            <s-button disabled={busy || undefined} onClick={() => act('save')}>
-              {busy ? 'Salvando…' : 'Salvar'}
-            </s-button>
-          ) : null}
-          <button type="button" disabled={busy} onClick={() => act('publish')} style={publishButton}>
-            {busy ? 'Publicando…' : 'Publicar'}
-          </button>
+          ) : (
+            // Disabled, not hidden: the person learns the function exists and
+            // exactly why it is unavailable right now.
+            <span style={liveLinkOff} title="Disponível depois de publicar">
+              Ver no ar
+            </span>
+          )}
+          {busy ? (
+            <button type="button" disabled style={publishButton}>
+              {navigation.formData?.get('intent') === 'publish' ? 'Publicando…' : 'Salvando…'}
+            </button>
+          ) : dirty ? (
+            // While there are pending changes, publishing steps aside: the
+            // choice on screen is keep (Salvar) or throw away (Descartar).
+            <>
+              <span style={unsavedNote}>● Alterações não salvas</span>
+              <button
+                type="button"
+                style={discardButton}
+                onClick={() => {
+                  if (confirmingDiscard) window.location.reload();
+                  else setConfirmingDiscard(true);
+                }}
+                onBlur={() => setConfirmingDiscard(false)}
+              >
+                {confirmingDiscard ? 'Descartar mesmo?' : 'Descartar'}
+              </button>
+              <s-button onClick={() => act('save')}>Salvar</s-button>
+            </>
+          ) : (
+            <button type="button" onClick={() => act('publish')} style={publishButton}>
+              Publicar
+            </button>
+          )}
         </div>
       </header>
 
@@ -1656,6 +1685,28 @@ const liveLink: React.CSSProperties = {
   color: '#005bd3',
   textDecoration: 'none',
   marginRight: 4,
+};
+
+const liveLinkOff: React.CSSProperties = {
+  ...liveLink,
+  color: '#b8b8b8',
+  cursor: 'default',
+};
+
+const unsavedNote: React.CSSProperties = {
+  fontSize: 12.5,
+  color: '#8a6116',
+  whiteSpace: 'nowrap',
+};
+
+const discardButton: React.CSSProperties = {
+  border: '1px solid #e3e3e3',
+  background: '#fff',
+  borderRadius: 8,
+  padding: '7px 12px',
+  fontSize: 13,
+  cursor: 'pointer',
+  color: '#616161',
 };
 
 const publishButton: React.CSSProperties = {
