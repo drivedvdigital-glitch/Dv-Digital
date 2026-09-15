@@ -22,7 +22,8 @@ Regra de ouro inalterada: **conceito e funcionalidade deles, código e visual 10
 | 9 | Aba Shopify + formulários + terceiros (2 clipes) | Be Wiser Clips | ✅ `09-bewiser-shopify-forms.md` |
 | 10 | Product list completo / carrossel (1:27) | Be Wiser Clips | ✅ `10-bewiser-product-list.md` |
 | 11 | Produtos relacionados — fecha o Product list (1:30) | Be Wiser Clips | ✅ `11-bewiser-related-products.md` |
-| 11b | Duplicar elementos / imagem full-width / vídeo de fundo | Be Wiser Clips | ⬜ um por vez |
+| 12 | Duplicar elementos (1:26) | Be Wiser Clips | ✅ `12-bewiser-duplicar.md` |
+| 12b | Imagem full-width / vídeo de fundo | Be Wiser Clips | ⬜ um por vez |
 | 12 | Sessão real de design (54 min) | CodemanBD | ⬜ |
 | 13 | ~2 elementos Shopify cortados + painel do formulário deles | (a garimpar) | ⬜ |
 

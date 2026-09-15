@@ -53,6 +53,9 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
 - Limite de plataforma é dito nomeando a origem ("limite da Shopify") — nunca escondido
   nem assumido como culpa nossa.
 - Contagens exibidas vêm sempre de dados, nunca hardcoded.
+- **Fricção proporcional à reversibilidade**: ação reversível (duplicar, excluir bloco)
+  não pede confirmação — o Ctrl+Z cobre; ação destrutiva de página inteira pede gesto
+  extra explícito.
 
 ## Cultura de verificação
 

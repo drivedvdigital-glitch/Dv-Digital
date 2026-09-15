@@ -154,6 +154,17 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - 🚫 Não copiar: publicidade no inspetor; dependência de App Embed sem detecção (se
   tivermos integrações: detectar e avisar no elemento).
 
+### Do relatório 12 (duplicar) — implementado em 15/09
+
+- ✅ **"Cópia de <nome>"** na duplicação, visível nos três lugares ao mesmo tempo
+  (árvore, breadcrumb, etiqueta da barra flutuante do canvas). Vale para blocos e para
+  abas ("Cópia de Aba 1" na lista de itens).
+- ✅ Regra da fricção-por-reversibilidade promovida ao CLAUDE.md.
+- ✓ Confirmados como já-nossos: 3 caminhos pro duplicar (barra/ops/Ctrl+D), cópia após
+  o original sem confirmação, nível semântico separado do tamanho visual.
+- 📋 **Sync item deles = nosso Repetidor por construção** — quando um vídeo abrir o
+  mecanismo deles, comparar os dois modelos (pendência mais interessante da fila).
+
 ### Fila (consolidada, por valor)
 
 - ⬜ **Biblioteca de mídia com upload** (melhor que a deles: upload já aplica).

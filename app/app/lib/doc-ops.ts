@@ -109,11 +109,22 @@ function reidentify(node: DocNode): DocNode {
   };
 }
 
-/** Inserts a copy of `id` right after the original, at the same depth. */
+/**
+ * Inserts a copy of `id` right after the original, at the same depth.
+ * The copy is named "Cópia de <nome>", so in the tree, the breadcrumb and the
+ * canvas label the person never loses sight of which one is the copy.
+ */
 export function duplicateNode(nodes: DocNode[], id: string): DocNode[] {
   const index = nodes.findIndex((node) => node.id === id);
   if (index >= 0) {
-    const copy = reidentify(nodes[index]);
+    const original = nodes[index];
+    const copy = reidentify(original);
+    const base =
+      String(original.props?.name ?? '') || BLOCK_LABELS[original.type] || original.type;
+    copy.props = { ...copy.props, name: `Cópia de ${base}` };
+    if (original.type === 'tab') {
+      copy.props.title = `Cópia de ${String(original.props?.title ?? 'Aba')}`;
+    }
     return [...nodes.slice(0, index + 1), copy, ...nodes.slice(index + 1)];
   }
   return nodes.map((node) =>

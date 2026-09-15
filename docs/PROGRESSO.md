@@ -787,6 +787,14 @@ na loja real com republicação em seguida. Do Product list ficou o desenho do n
 futuro bloco de produtos (carrossel = modo de layout, não elemento). Verificado:
 52/52 compilador + 5/5 novo + regressão verde.
 
+### ✅ Relatório 12 aplicado (15/09) — "Cópia de <nome>"
+
+Duplicar agora nomeia a cópia ("Cópia de Título", "Cópia de Aba 1") e o nome aparece
+nos três lugares ao mesmo tempo — árvore, breadcrumb e etiqueta flutuante do canvas —
+barato e de alto retorno em páginas grandes. A regra de fricção-por-reversibilidade
+entrou no CLAUDE.md junto com as demais regras de interface aprendidas da referência.
+Verificado: 52/52 + 4/4 novo + regressão verde.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

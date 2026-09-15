@@ -566,13 +566,12 @@ export default function PageEditor() {
           );
         }
         // Re-apply the selection to the fresh document.
-        const type = selected ? findNode(doc.root, selected)?.type : null;
         frame.current?.contentWindow?.postMessage(
           {
             type: 'dvf:selected',
             id: selected,
             ids: selectionRef.current,
-            label: type ? BLOCK_LABELS[type] ?? type : '',
+            label: nameOf(selected ? findNode(doc.root, selected) : null),
           },
           '*',
         );
@@ -621,13 +620,12 @@ export default function PageEditor() {
   // Editor → canvas: highlight whatever is selected, however it got selected.
   useEffect(() => {
     selectionRef.current = selection;
-    const type = selected ? findNode(doc.root, selected)?.type : null;
     frame.current?.contentWindow?.postMessage(
       {
         type: 'dvf:selected',
         id: selected,
         ids: selection,
-        label: type ? BLOCK_LABELS[type] ?? type : '',
+        label: nameOf(selected ? findNode(doc.root, selected) : null),
       },
       '*',
     );
@@ -638,6 +636,9 @@ export default function PageEditor() {
   const published = data.liveUrls.length > 0;
   const width = DEVICES[device].width;
   const selectedNode = selected ? findNode(doc.root, selected) : null;
+  // Display name everywhere a block is named: custom name first, type label after.
+  const nameOf = (node: DocNode | null | undefined) =>
+    node ? String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type) : '';
   const crumbs = selected ? pathTo(doc.root, selected) : [];
   // The tab-items list stays on screen while editing a tab, not only when the
   // tabs container itself is selected — the row stays inverted as context.
@@ -872,7 +873,7 @@ export default function PageEditor() {
               <span key={node.id}>
                 {i > 0 ? <span style={{ color: '#c0c0c0' }}> / </span> : null}
                 <button type="button" style={crumbButton} onClick={() => select(node.id)}>
-                  {BLOCK_LABELS[node.type] ?? node.type}
+                  {nameOf(node)}
                 </button>
               </span>
             ))
