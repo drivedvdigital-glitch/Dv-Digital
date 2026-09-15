@@ -36,7 +36,49 @@ escrever o bloco de produtos. Detalhes a adotar quando o tipo produto sair: nome
 modelo visível e copiável nas Configurações; "Ir para o editor de temas"
 desabilitado-com-motivo até publicar; texto de ajuda explicando o vínculo.
 
-## Página de produto — plano (provado por partes, falta montar)
+## Página de produto — ✅ EM PRODUÇÃO no app (15/09, flow19 8/8 na loja real)
+
+O plano abaixo foi montado como descrito, com dois ajustes descobertos ao construir:
+
+- O `templates/product.json` do tema vem com um **bloco de comentário** na frente (o editor
+  de temas escreve) — precisa ser removido antes do `JSON.parse` (`stripJsonComments`).
+- O nome no `{% schema %}` da seção tem **limite de 25 caracteres** no editor de temas —
+  `"D&VFly · <título>"` cortado.
+
+Como ficou (`packages/shopify/src/templates.ts`, `products.ts`, `deploy.ts`;
+`app/app/lib/publish.server.ts`):
+
+1. **Vínculo por loja** (`ProductLink { pageId, storeId, productGid, productHandle,
+   productTitle }`): produtos são diferentes em cada loja, então a lista de vinculados é por
+   loja, com busca no catálogo (`/api/products?storeId&q`, `products(query:"status:active …")`).
+   Um produto só pode pertencer a UMA página do D&VFly — vincular um produto já usado por
+   outra página é recusado nomeando a página.
+2. **Publicar** grava por loja: `sections/dvfly-p-<pageId>.liquid` (fragmento compilado dentro
+   de `{% raw %}` + schema mínimo) e `templates/product.dvfly-<pageId>.json` = **todas as seções
+   do `product.json` do tema** (preço, variantes, comprar continuam) + a nossa, **abaixo** por
+   padrão ou **acima** (`Page.productContentAbove`). Depois, `productUpdate(templateSuffix:
+   "dvfly-<pageId>")` em cada produto vinculado da loja.
+3. **Vincular/desvincular com a página no ar vale na hora** (`applyLinkNow`); fora do ar,
+   vale na próxima publicação — e a interface diz qual dos dois.
+4. **Despublicar** = devolver os produtos ao modelo padrão (`releaseProducts`: só os que ainda
+   apontam para o NOSSO sufixo — um produto que o lojista moveu para outro modelo não é
+   tocado). Os arquivos ficam no tema; republicar é instantâneo.
+5. **Excluir a página** = despublicar + `themeFilesDelete` do template e da seção (I3).
+6. "Ver no ar" abre a URL do primeiro produto vinculado; sem produto vinculado numa página no
+   ar, fica cinza com o motivo ("Vincule um produto…").
+7. Canvas: placeholder "Seções de produto do tema" no lado escolhido, clicável para abrir as
+   Configurações.
+
+Verificado ao vivo em megakciok.shop (produto `pinkjuice`): a URL do produto passou a
+renderizar nosso conteúdo **e** as seções do tema; desvincular devolveu o produto na hora;
+no fim, `templateSuffix` null e zero arquivos `dvfly` no tema.
+
+Ainda na fila para o tipo produto: blocos que leem o produto do contexto (título, preço,
+comprar — a seção é Liquid, então `{{ product.title }}` está ao alcance), "todos os produtos"
+(sobrescrever o `product.json` padrão, como a referência faz), coleções (`collectionUpdate`)
+e o webhook `themes/publish` para reescrever o template quando o tema muda.
+
+## Página de produto — plano original (mantido como registro)
 
 O que o dono descreveu: *"ao vincular, cria um modelo próprio para aquele produto, sem
 danificar outros modelos"*. Em termos Shopify: um **template alternativo de produto** +

@@ -21,7 +21,12 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - ✅ Compilador próprio: mesma saída no editor e no ar; auditoria (H1, alt, CTA)
 
 ### Em construção / planejado
-- 🔨 Página de produto (modelo por produto — plano provado em docs/MODELOS_DE_TEMA.md)
+- ✅ **Página de produto** (15/09): tipo Produto nas Configurações, produtos vinculados por
+  loja com busca, posição do conteúdo, nome do modelo copiável, publica como template +
+  seção no tema e aponta os produtos (`templateSuffix`); vincular/desvincular vale na hora
+  com a página no ar; despublicar devolve os produtos; excluir remove os arquivos do tema.
+  Provado na loja real (flow19). Faltam: blocos que leem o produto do contexto, "todos os
+  produtos", coleções.
 - ⬜ Postagem de blog
 - ⬜ Segurar Ctrl para selecionar vários elementos
 - ⬜ Imagem de compartilhamento social (og:image)

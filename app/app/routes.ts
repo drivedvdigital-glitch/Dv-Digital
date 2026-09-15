@@ -10,5 +10,6 @@ export default [
   route('api/preview/:id', 'routes/api.preview.$id.tsx'),
   route('api/pages/:id/export', 'routes/api.pages.$id.export.tsx'),
   route('api/theme-fonts', 'routes/api.theme-fonts.tsx'),
+  route('api/products', 'routes/api.products.tsx'),
   route('preview/:id', 'routes/preview.$id.tsx'),
 ] satisfies RouteConfig;

@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useActionData, useLoaderData, useLocation, useNavigation, useSubmit } from 'react-router';
+import {
+  Link,
+  useActionData,
+  useFetcher,
+  useLoaderData,
+  useLocation,
+  useNavigation,
+  useSubmit,
+} from 'react-router';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 
 import { COMPILER_VERSION, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
@@ -24,13 +32,14 @@ import {
   type DocNode,
   type DocTree,
 } from '../lib/doc-ops.ts';
+import { applyLinkNow, switchPage } from '../lib/publish.server.ts';
 import {
-  clientFor,
   clientForStore,
   deployPage,
+  deployProductPage,
   ProductionNotAllowedError,
+  productSuffix,
   toStore,
-  updatePage,
 } from '../lib/shopify.server.ts';
 import {
   bannerErr,
@@ -46,11 +55,24 @@ import {
 export async function loader({ params }: LoaderFunctionArgs) {
   const page = await db.page.findUniqueOrThrow({
     where: { id: params.id },
-    include: { deployments: { include: { store: true } } },
+    include: { deployments: { include: { store: true } }, productLinks: { orderBy: { createdAt: 'asc' } } },
   });
   const stores = await db.store.findMany({ orderBy: { isProduction: 'asc' } });
   const doc = JSON.parse(page.doc) as Doc;
   const compiled = compile(doc);
+
+  // A product page has no URL of its own: it is seen at the URL of every
+  // product that adopted it. "Ver no ar" opens the first linked product of
+  // the first store it is live on.
+  const live = page.deployments.filter((d) => d.isPublished);
+  const liveUrls =
+    page.pageType === 'product'
+      ? live.flatMap((d) =>
+          page.productLinks
+            .filter((l) => l.storeId === d.storeId)
+            .map((l) => `https://${d.store.domain}/products/${l.productHandle}`),
+        )
+      : live.map((d) => `https://${d.store.domain}/pages/${page.handle}`);
 
   return {
     page: {
@@ -59,13 +81,21 @@ export async function loader({ params }: LoaderFunctionArgs) {
       handle: page.handle,
       pageType: page.pageType,
       showChrome: page.showChrome,
+      productContentAbove: page.productContentAbove,
     },
     doc: doc as unknown as DocTree,
     stores,
     deployedStoreIds: page.deployments.map((d) => d.storeId),
-    liveUrls: page.deployments
-      .filter((d) => d.isPublished)
-      .map((d) => `https://${d.store.domain}/pages/${page.handle}`),
+    liveStoreIds: live.map((d) => d.storeId),
+    productLinks: page.productLinks.map((l) => ({
+      id: l.id,
+      storeId: l.storeId,
+      productGid: l.productGid,
+      productHandle: l.productHandle,
+      productTitle: l.productTitle,
+    })),
+    productSuffix: productSuffix(page.id),
+    liveUrls,
     stats: compiled.stats,
     findings: compiled.findings,
   };
@@ -76,10 +106,61 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const intent = String(form.get('intent'));
   const pageId = String(params.id);
 
+  // --- product links: independent of the document, applied on the spot ----
+  if (intent === 'link-product') {
+    const storeId = String(form.get('storeId') ?? '');
+    const productGid = String(form.get('productGid') ?? '');
+    const productHandle = String(form.get('productHandle') ?? '');
+    const productTitle = String(form.get('productTitle') ?? '');
+    if (!storeId || !productGid || !productHandle) return { ok: false, message: 'Produto incompleto.' };
+    const clash = await db.productLink.findFirst({
+      where: { storeId, productGid, NOT: { pageId } },
+      include: { page: true },
+    });
+    if (clash) {
+      // One product renders one template; two pages claiming it would take
+      // turns silently. Said out loud instead.
+      return {
+        ok: false,
+        message: `Este produto já está vinculado à página "${clash.page.title}". Desvincule lá primeiro.`,
+      };
+    }
+    await db.productLink.upsert({
+      where: { pageId_storeId_productGid: { pageId, storeId, productGid } },
+      create: { pageId, storeId, productGid, productHandle, productTitle },
+      update: { productHandle, productTitle },
+    });
+    try {
+      const applied = await applyLinkNow(pageId, storeId, productGid, true);
+      return {
+        ok: true,
+        message:
+          applied === 'applied'
+            ? `"${productTitle}" já está mostrando esta página.`
+            : `"${productTitle}" vinculado — passa a usar esta página na próxima publicação.`,
+        quiet: true,
+      };
+    } catch (error) {
+      return { ok: false, message: `Vinculado, mas não consegui aplicar na loja agora: ${error instanceof Error ? error.message : error}` };
+    }
+  }
+  if (intent === 'unlink-product') {
+    const link = await db.productLink.findUnique({ where: { id: String(form.get('linkId') ?? '') } });
+    if (!link || link.pageId !== pageId) return { ok: false, message: 'Vínculo não encontrado.' };
+    try {
+      await applyLinkNow(pageId, link.storeId, link.productGid, false);
+    } catch (error) {
+      return { ok: false, message: `Não consegui devolver o produto ao modelo do tema: ${error instanceof Error ? error.message : error}` };
+    }
+    await db.productLink.delete({ where: { id: link.id } });
+    return { ok: true, message: `"${link.productTitle}" voltou ao modelo padrão do tema.` };
+  }
+
   const title = String(form.get('title') ?? '');
   const handle = String(form.get('handle') ?? '');
   const pageType = form.get('pageType') === 'product' ? 'product' : 'regular';
   const showChrome = form.get('showChrome') !== 'off';
+  const productContentAbove = form.get('productContentAbove') === 'on';
 
   let doc: Doc;
   try {
@@ -94,7 +175,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (intent === 'publish') {
     const missing: string[] = [];
     if (!title.trim()) missing.push('o título (campo no topo do editor)');
-    if (!handle.trim()) missing.push('a URL (Configurações da página → URL da página)');
+    // A product page has the products' URLs; only a regular page needs its own.
+    if (pageType !== 'product' && !handle.trim()) {
+      missing.push('a URL (Configurações da página → URL da página)');
+    }
     if (missing.length > 0) {
       return { ok: false, message: `Para publicar, preencha ${missing.join(' e ')}.` };
     }
@@ -104,7 +188,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // later compiler change cannot rewrite what was already published (I2).
   await db.page.update({
     where: { id: pageId },
-    data: { title, handle, doc: JSON.stringify(doc), pageType, showChrome },
+    data: { title, handle, doc: JSON.stringify(doc), pageType, showChrome, productContentAbove },
   });
   const version = await db.version.create({
     data: { pageId, doc: JSON.stringify(doc), compilerVersion: COMPILER_VERSION },
@@ -115,26 +199,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // Unpublish flips visibility off on every store the page is live on — the
   // content stays in Shopify, ready to be republished.
   if (intent === 'unpublish') {
-    const deployments = await db.deployment.findMany({
-      where: { pageId, isPublished: true },
-      include: { store: true },
-    });
-    if (deployments.length === 0) return { ok: false, message: 'A página não está no ar.' };
-    const outcomes: string[] = [];
-    let failures = 0;
-    for (const deployment of deployments) {
-      try {
-        await updatePage(clientFor(deployment.store), deployment.shopifyGid, {
-          isPublished: false,
-        });
-        await db.deployment.update({ where: { id: deployment.id }, data: { isPublished: false } });
-        outcomes.push(deployment.store.label);
-      } catch (error) {
-        failures++;
-        outcomes.push(`${deployment.store.label}: ${error instanceof Error ? error.message : error}`);
-      }
-    }
-    return { ok: failures === 0, message: `Despublicada de: ${outcomes.join('; ')}` };
+    const result = await switchPage(pageId, false, { publishedOnly: true });
+    if (result.touched === 0) return { ok: false, message: 'A página não está no ar.' };
+    return { ok: result.ok, message: `Despublicada de: ${result.outcomes.join('; ')}` };
   }
 
   // --- publish -------------------------------------------------------------
@@ -145,6 +212,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const rows = await db.store.findMany({ where: { id: { in: storeIds } } });
   const compiled = compile(doc);
   const fragment = toFragment(compiled);
+
+  if (pageType === 'product') {
+    return publishProductPage({ pageId, title, fragment, bytes: compiled.stats.bytes.total, rows, versionId: version.id, productContentAbove, allowProduction: form.get('allowProduction') === 'on' });
+  }
 
   // The ceilings are Shopify's, not ours: the page body column (64 KB) on the
   // regular track, the theme template (256 KB) behind it. Refusing here, with
@@ -217,6 +288,95 @@ export async function action({ request, params }: ActionFunctionArgs) {
               .map((f) => `${f.store.label} — ${f.error}`)
               .join('; ')}`,
       urls: result.succeeded.map((t) => `https://${t.store.domain}/pages/${t.page!.handle}`),
+    };
+  } catch (error) {
+    if (error instanceof ProductionNotAllowedError) {
+      return { ok: false, message: error.message, needsProductionConfirm: true };
+    }
+    throw error;
+  }
+}
+
+/**
+ * A product page goes into each store's theme as a template + section, and
+ * every linked product on that store is pointed at it. The section is a
+ * Liquid file, so the 256 KB theme-file ceiling is the one that applies.
+ */
+async function publishProductPage(input: {
+  pageId: string;
+  title: string;
+  fragment: string;
+  bytes: number;
+  rows: Awaited<ReturnType<typeof db.store.findMany>>;
+  versionId: string;
+  productContentAbove: boolean;
+  allowProduction: boolean;
+}) {
+  const fragmentBytes = Buffer.byteLength(input.fragment, 'utf8');
+  if (fragmentBytes > TEMPLATE_LIMIT_BYTES) {
+    return {
+      ok: false,
+      message:
+        `A página compilada tem ${(fragmentBytes / 1024).toFixed(1)} KB e o limite da Shopify para um ` +
+        `arquivo de seção do tema é ${(TEMPLATE_LIMIT_BYTES / 1024).toFixed(0)} KB. Reduza blocos de HTML colado ou divida a página.`,
+    };
+  }
+  const links = await db.productLink.findMany({ where: { pageId: input.pageId }, include: { store: true } });
+  const productsByDomain: Record<string, string[]> = {};
+  for (const link of links) (productsByDomain[link.store.domain] ??= []).push(link.productGid);
+
+  try {
+    const result = await deployProductPage(
+      input.rows.map(toStore),
+      {
+        pageId: input.pageId,
+        title: input.title,
+        fragment: input.fragment,
+        contentAbove: input.productContentAbove,
+        productsByDomain,
+      },
+      { allowProduction: input.allowProduction, clientFor: clientForStore },
+    );
+    for (const target of result.succeeded) {
+      const row = input.rows.find((r) => r.domain === target.store.domain)!;
+      await db.deployment.upsert({
+        where: { pageId_storeId: { pageId: input.pageId, storeId: row.id } },
+        create: {
+          pageId: input.pageId,
+          storeId: row.id,
+          versionId: input.versionId,
+          shopifyGid: `template:product.${target.suffix}`,
+          isPublished: true,
+          bytes: input.bytes,
+        },
+        update: {
+          versionId: input.versionId,
+          shopifyGid: `template:product.${target.suffix}`,
+          isPublished: true,
+          publishedAt: new Date(),
+          bytes: input.bytes,
+        },
+      });
+    }
+    const unbound = result.succeeded.filter((t) => (t.bound ?? 0) === 0).map((t) => t.store.label);
+    const bound = result.succeeded.reduce((n, t) => n + (t.bound ?? 0), 0);
+    const failed = result.failed;
+    const summary =
+      `Modelo de produto publicado em ${result.succeeded.length} loja(s), aplicado a ${bound} produto(s).` +
+      (unbound.length > 0
+        ? ` Em ${unbound.join(', ')} nenhum produto está vinculado ainda — vincule em Configurações da página → Produtos vinculados.`
+        : '');
+    return {
+      ok: failed.length === 0,
+      message:
+        failed.length === 0
+          ? summary
+          : `${summary} ${failed.length} com erro: ${failed.map((f) => `${f.store.label} — ${f.error}`).join('; ')}`,
+      urls: result.succeeded.flatMap((t) =>
+        links
+          .filter((l) => l.store.domain === t.store.domain)
+          .map((l) => `https://${t.store.domain}/products/${l.productHandle}`),
+      ),
     };
   } catch (error) {
     if (error instanceof ProductionNotAllowedError) {
@@ -390,6 +550,7 @@ export default function PageEditor() {
   const [handle, setHandle] = useState(data.page.handle);
   const [pageType, setPageType] = useState(data.page.pageType);
   const [showChrome, setShowChrome] = useState(data.page.showChrome);
+  const [productContentAbove, setProductContentAbove] = useState(data.page.productContentAbove);
 
   // "Salvar" only exists while there is something to save — the reference
   // behavior. Dirty is: the document differs from the last saved snapshot, or
@@ -592,7 +753,12 @@ export default function PageEditor() {
       const response = await fetch(`/api/preview/${data.page.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doc, chrome: showChrome }),
+        body: JSON.stringify({
+          doc,
+          chrome: showChrome,
+          // Where the theme's own product sections sit relative to our content.
+          productSections: pageType === 'product' ? (productContentAbove ? 'below' : 'above') : null,
+        }),
       });
       const payload = (await response.json()) as {
         fragment: string;
@@ -627,7 +793,7 @@ export default function PageEditor() {
     return () => clearTimeout(timer);
     // `selected` is intentionally not a dependency: changing it must not recompile.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, data.page.id, showChrome]);
+  }, [doc, data.page.id, showChrome, pageType, productContentAbove]);
 
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
@@ -683,7 +849,12 @@ export default function PageEditor() {
   }, [selection]);
 
   const kb = (n: number) => `${(n / 1024).toFixed(1)} KB`;
-  const published = data.liveUrls.length > 0;
+  const published = data.liveStoreIds.length > 0;
+  // A live product page with no product linked yet has nowhere to be seen.
+  const liveOffReason =
+    published && data.liveUrls.length === 0
+      ? 'Vincule um produto em Configurações da página para ver no ar'
+      : 'Disponível depois de publicar';
   const width = DEVICES[device].width;
   const selectedNode = selected ? findNode(doc.root, selected) : null;
   // Display name everywhere a block is named: custom name first, type label after.
@@ -720,6 +891,7 @@ export default function PageEditor() {
       <input type="hidden" name="handle" value={handle} />
       <input type="hidden" name="pageType" value={pageType} />
       <input type="hidden" name="showChrome" value={showChrome ? 'on' : 'off'} />
+      <input type="hidden" name="productContentAbove" value={productContentAbove ? 'on' : 'off'} />
 
       {/* ---- top bar ------------------------------------------------------ */}
       <header style={topBar}>
@@ -828,14 +1000,14 @@ export default function PageEditor() {
               ))}
             </div>
           ) : null}
-          {published ? (
+          {data.liveUrls.length > 0 ? (
             <a href={data.liveUrls[0]} target="_blank" rel="noreferrer" style={liveLink}>
               Ver no ar
             </a>
           ) : (
             // Disabled, not hidden: the person learns the function exists and
             // exactly why it is unavailable right now.
-            <span style={liveLinkOff} title="Disponível depois de publicar">
+            <span style={liveLinkOff} title={liveOffReason}>
               Ver no ar
             </span>
           )}
@@ -966,7 +1138,7 @@ export default function PageEditor() {
           <div style={{ padding: '10px 12px 0' }}>
             <div style={result.ok ? bannerOk : bannerErr} data-result>
               <div style={{ fontWeight: 600 }}>{result.message}</div>
-              {result.urls?.map((url) => (
+              {('urls' in result ? result.urls : undefined)?.map((url: string) => (
                 <a
                   key={url}
                   href={url}
@@ -1251,19 +1423,6 @@ export default function PageEditor() {
             </div>
 
             <label style={fieldLabel}>
-              URL da página
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                <span style={{ color: 'var(--dv-ink-3)', fontSize: 13 }}>/pages/</span>
-                <input
-                  style={{ ...fieldInput, marginTop: 0 }}
-                  data-settings="handle"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                />
-              </span>
-            </label>
-
-            <label style={fieldLabel}>
               Tipo de página
               <select
                 style={fieldInput}
@@ -1271,12 +1430,85 @@ export default function PageEditor() {
                 value={pageType}
                 onChange={(e) => setPageType(e.target.value)}
               >
-                <option value="regular">Normal</option>
-                <option value="product" disabled>
-                  Produto — em preparação
-                </option>
+                <option value="regular">Normal — página própria em /pages/</option>
+                <option value="product">Produto — modelo aplicado a produtos</option>
               </select>
             </label>
+
+            {pageType === 'product' ? (
+              <>
+                <label style={fieldLabel}>
+                  URL da página
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                    <span style={{ color: 'var(--dv-ink-3)', fontSize: 13 }}>/products/</span>
+                    <input
+                      style={{ ...fieldInput, marginTop: 0, color: 'var(--dv-ink-3)' }}
+                      data-settings="handle"
+                      value="(handle do produto)"
+                      disabled
+                      title="Uma página de produto não tem URL própria"
+                    />
+                  </span>
+                  <span style={{ ...metaLine, display: 'block' }}>
+                    Uma página de produto é vista na URL de cada produto vinculado — a URL é
+                    a do produto, não da página.
+                  </span>
+                </label>
+
+                <div style={{ ...groupLabel, marginTop: 14 }}>Produtos vinculados</div>
+                <div style={{ ...metaLine, marginBottom: 8 }}>
+                  Os produtos vinculados passam a mostrar esta página no lugar do modelo padrão
+                  do tema. Vale por loja: produtos são diferentes em cada uma.
+                  {data.deployedStoreIds.length === 0
+                    ? ' Aplica na primeira publicação.'
+                    : ' Numa loja onde a página está no ar, vincular e desvincular vale na hora.'}
+                </div>
+                {data.stores.map((store) => (
+                  <ProductLinks
+                    key={store.id}
+                    pageId={data.page.id}
+                    store={store}
+                    links={data.productLinks.filter((l) => l.storeId === store.id)}
+                    live={data.liveStoreIds.includes(store.id)}
+                  />
+                ))}
+
+                <div style={{ ...groupLabel, marginTop: 14 }}>Posição do conteúdo</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-content-position>
+                  {[
+                    { value: false, label: 'Abaixo das seções de produto do tema (imagens, preço, comprar)' },
+                    { value: true, label: 'Acima das seções de produto do tema' },
+                  ].map((option) => (
+                    <label key={String(option.value)} style={{ ...fieldLabel, display: 'flex', gap: 8, marginBottom: 0, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="content-position"
+                        checked={productContentAbove === option.value}
+                        onChange={() => setProductContentAbove(option.value)}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+                <div style={{ ...metaLine, marginTop: 6 }}>
+                  As seções do tema continuam lá — e dá para reordenar ou esconder qualquer uma
+                  no editor de temas da Shopify depois de publicar.
+                </div>
+              </>
+            ) : (
+              <label style={fieldLabel}>
+                URL da página
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <span style={{ color: 'var(--dv-ink-3)', fontSize: 13 }}>/pages/</span>
+                  <input
+                    style={{ ...fieldInput, marginTop: 0 }}
+                    data-settings="handle"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                  />
+                </span>
+              </label>
+            )}
 
             <div style={{ ...groupLabel, marginTop: 14 }}>Seções do tema</div>
             <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -1298,9 +1530,33 @@ export default function PageEditor() {
             </label>
 
             <div style={{ ...groupLabel, marginTop: 14 }}>Nome do modelo</div>
-            <div style={{ ...metaLine, fontFamily: 'ui-monospace, Menlo, monospace' }}>
-              {showChrome ? 'padrão do tema' : `page.${SOLO_SUFFIX}`}
-            </div>
+            {pageType === 'product' ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <code style={templateName} data-template-name>
+                    product.{data.productSuffix}
+                  </code>
+                  <button
+                    type="button"
+                    style={opButton}
+                    title="Copiar o nome do modelo"
+                    aria-label="Copiar o nome do modelo"
+                    data-copy-template
+                    onClick={() => navigator.clipboard?.writeText(`product.${data.productSuffix}`).catch(() => {})}
+                  >
+                    ⧉
+                  </button>
+                </div>
+                <div style={{ ...metaLine, marginTop: 4 }}>
+                  É com este nome que o modelo aparece no editor de temas da Shopify e na
+                  configuração de cada produto, depois de publicado.
+                </div>
+              </>
+            ) : (
+              <div style={{ ...metaLine, fontFamily: 'ui-monospace, Menlo, monospace' }}>
+                {showChrome ? 'padrão do tema' : `page.${SOLO_SUFFIX}`}
+              </div>
+            )}
           </div>
         </>
       ) : null}
@@ -1316,6 +1572,145 @@ export default function PageEditor() {
  * means inside it. The same `relocateNode` the canvas uses applies the move,
  * so both gestures obey identical rules.
  */
+type ProductHit = { id: string; title: string; handle: string; templateSuffix: string | null; imageUrl: string | null };
+
+/**
+ * One store's linked products: the current list, and a search over the
+ * store's catalogue to add more. Links are their own submissions (a fetcher),
+ * independent of the page document — they never dirty the page.
+ */
+function ProductLinks({
+  pageId,
+  store,
+  links,
+  live,
+}: {
+  pageId: string;
+  store: { id: string; label: string; isProduction: boolean };
+  links: Array<{ id: string; productGid: string; productHandle: string; productTitle: string }>;
+  live: boolean;
+}) {
+  const fetcher = useFetcher<{ ok: boolean; message: string }>();
+  const [query, setQuery] = useState('');
+  const [hits, setHits] = useState<ProductHit[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/products?storeId=${encodeURIComponent(store.id)}&q=${encodeURIComponent(query)}`);
+        const payload = (await response.json()) as { products?: ProductHit[]; error?: string };
+        setHits(payload.products ?? []);
+        setSearchError(payload.error ?? null);
+      } catch {
+        setSearchError(`Não consegui buscar produtos em ${store.label}.`);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [query, open, store.id, store.label]);
+
+  const linked = new Set(links.map((l) => l.productGid));
+  const submit = (fields: Record<string, string>) => fetcher.submit(fields, { method: 'post' });
+  const busy = fetcher.state !== 'idle';
+
+  return (
+    <div style={linksBox} data-product-links={store.id}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        <strong style={{ fontSize: 13 }}>{store.label}</strong>
+        {store.isProduction ? <span style={pillDanger}>produção</span> : null}
+        <span style={{ ...metaLine, marginLeft: 'auto' }} data-link-count>
+          {links.length} produto{links.length === 1 ? '' : 's'}
+          {live ? ' · no ar' : ''}
+        </span>
+      </div>
+
+      {links.length === 0 ? (
+        <div style={{ ...metaLine, marginBottom: 6 }}>Nenhum produto vinculado nesta loja.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 6 }}>
+          {links.map((link) => (
+            <div key={link.id} style={linkRow} data-product-link={link.productGid}>
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {link.productTitle}
+                <span style={{ color: 'var(--dv-ink-3)' }}> · /products/{link.productHandle}</span>
+              </span>
+              <button
+                type="button"
+                style={{ ...opButton, color: 'var(--dv-danger)' }}
+                title="Desvincular — o produto volta ao modelo padrão do tema"
+                aria-label={`Desvincular ${link.productTitle}`}
+                disabled={busy}
+                data-unlink={link.productGid}
+                onClick={() => submit({ intent: 'unlink-product', linkId: link.id })}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open ? (
+        <>
+          <input
+            style={{ ...fieldInput, marginTop: 0 }}
+            placeholder="Buscar produto pelo nome…"
+            value={query}
+            autoFocus
+            data-product-search={store.id}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {searchError ? <div style={{ ...metaLine, color: 'var(--dv-danger)' }}>{searchError}</div> : null}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }} data-product-hits>
+            {hits.map((hit) => (
+              <div key={hit.id} style={linkRow}>
+                {hit.imageUrl ? <img src={hit.imageUrl} alt="" width={22} height={22} style={{ borderRadius: 4, objectFit: 'cover' }} /> : null}
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={hit.title}>
+                  {hit.title}
+                </span>
+                {linked.has(hit.id) ? (
+                  <span style={{ ...metaLine, whiteSpace: 'nowrap' }}>vinculado</span>
+                ) : (
+                  <button
+                    type="button"
+                    style={paletteButton}
+                    disabled={busy}
+                    data-link={hit.id}
+                    onClick={() =>
+                      submit({
+                        intent: 'link-product',
+                        storeId: store.id,
+                        productGid: hit.id,
+                        productHandle: hit.handle,
+                        productTitle: hit.title,
+                      })
+                    }
+                  >
+                    Vincular
+                  </button>
+                )}
+              </div>
+            ))}
+            {hits.length === 0 && !searchError ? <div style={metaLine}>Nenhum produto encontrado.</div> : null}
+          </div>
+        </>
+      ) : (
+        <button type="button" style={addItemButton} data-link-open={store.id} onClick={() => setOpen(true)}>
+          + Vincular produto
+        </button>
+      )}
+
+      {fetcher.data ? (
+        <div style={{ ...metaLine, color: fetcher.data.ok ? 'var(--dv-accent-text)' : 'var(--dv-danger)' }} data-link-result>
+          {fetcher.data.message}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** The eye, open or shut. Drawn inline so hovering can recolor the strokes. */
 function EyeIcon({ off }: { off: boolean }) {
   return (
@@ -2424,6 +2819,32 @@ const paletteButton: React.CSSProperties = {
 };
 
 const metaLine: React.CSSProperties = { fontSize: 12.5, color: 'var(--dv-ink-2)', padding: '2px 0' };
+
+const linksBox: React.CSSProperties = {
+  background: 'var(--dv-inset2)',
+  borderRadius: 10,
+  padding: 8,
+  marginBottom: 8,
+};
+
+const linkRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  fontSize: 12.5,
+  padding: '2px 0',
+};
+
+const templateName: React.CSSProperties = {
+  fontFamily: 'ui-monospace, Menlo, monospace',
+  fontSize: 12.5,
+  background: 'var(--dv-inset)',
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 6,
+  padding: '4px 8px',
+  color: 'var(--dv-ink)',
+  overflowWrap: 'anywhere',
+};
 
 const storeRow: React.CSSProperties = {
   display: 'flex',

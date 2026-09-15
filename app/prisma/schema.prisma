@@ -19,6 +19,7 @@ model Store {
   isProduction Boolean      @default(false)
   createdAt    DateTime     @default(now())
   deployments  Deployment[]
+  productLinks ProductLink[]
 }
 
 /// A page is authored once and deployed to many stores. It deliberately does
@@ -35,11 +36,32 @@ model Page {
   /// Show the theme's header and footer. When false, publishing binds the
   /// page to the D&VFly minimal layout (templates written into the theme).
   showChrome Boolean  @default(true)
+  /// Product pages only: place the D&VFly content above the theme's own
+  /// product sections (price, variants, buy) instead of below them.
+  productContentAbove Boolean @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   versions  Version[]
 
-  deployments Deployment[]
+  deployments  Deployment[]
+  productLinks ProductLink[]
+}
+
+/// A product page is a theme template; the products that adopt it are linked
+/// here, per store (product ids differ from store to store). Publishing sets
+/// each linked product's templateSuffix; unpublishing clears it.
+model ProductLink {
+  id            String   @id @default(cuid())
+  pageId        String
+  page          Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  productGid    String
+  productHandle String
+  productTitle  String
+  createdAt     DateTime @default(now())
+
+  @@unique([pageId, storeId, productGid])
 }
 
 /// Every save is a version. compilerVersion is invariant I2 as a column:

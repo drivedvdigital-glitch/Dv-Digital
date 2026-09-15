@@ -14,10 +14,15 @@ import type { Store } from '../../../packages/shopify/src/deploy.ts';
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
 
-export { deployPage, formatDeployResult, ProductionNotAllowedError } from '../../../packages/shopify/src/deploy.ts';
+export {
+  deployPage,
+  deployProductPage,
+  formatDeployResult,
+  ProductionNotAllowedError,
+} from '../../../packages/shopify/src/deploy.ts';
 export { ShopifyClient } from '../../../packages/shopify/src/client.ts';
 export { updatePage } from '../../../packages/shopify/src/pages.ts';
-export { SOLO_SUFFIX } from '../../../packages/shopify/src/templates.ts';
+export { productSuffix, removeProductTemplate, SOLO_SUFFIX } from '../../../packages/shopify/src/templates.ts';
 
 /** A myshopify domain and nothing else — this value ends up in URLs and a CSP. */
 export const SHOP_DOMAIN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;

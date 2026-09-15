@@ -27,6 +27,7 @@ const EDITOR_BRIDGE = `
     padding: 22px 16px; cursor: pointer; user-select: none;
   }
   [data-dvf-chrome]:hover { color: #5c5c5c; }
+  [data-dvf-chrome="product"] { padding: 40px 16px; }
   [data-dvf-empty] {
     display: flex; flex-direction: column; gap: 6px; align-items: center;
     padding: 72px 24px; text-align: center; color: #616161;
@@ -339,7 +340,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (raw.length > PREVIEW_INPUT_LIMIT) {
     return Response.json({ error: 'Documento grande demais para pré-visualizar.' }, { status: 413 });
   }
-  let body: { doc?: Doc; html?: string; chrome?: boolean };
+  let body: { doc?: Doc; html?: string; chrome?: boolean; productSections?: 'above' | 'below' | null };
   try {
     body = JSON.parse(raw);
   } catch {
@@ -369,8 +370,22 @@ export async function action({ request }: ActionFunctionArgs) {
        </div>`
     : '';
 
+  // A product page renders inside the product's own template: the theme's
+  // product sections (media, price, variants, buy) are drawn as a placeholder
+  // on the side the settings put them.
+  const productSections = body.productSections
+    ? `<div data-dvf-chrome="product" title="Abrir Configurações da página">Seções de produto do tema — imagens, preço, variantes e comprar. Posição em <u>Configurações da página</u>.</div>`
+    : '';
+  const content = toFragment(compiled) + empty;
+  const middle =
+    body.productSections === 'above'
+      ? productSections + content
+      : body.productSections === 'below'
+        ? content + productSections
+        : content;
+
   return Response.json({
-    fragment: header + toFragment(compiled) + empty + footer + EDITOR_BRIDGE,
+    fragment: header + middle + footer + EDITOR_BRIDGE,
     bytes: compiled.stats.bytes,
     stats: compiled.stats,
     findings: compiled.findings,

@@ -854,6 +854,25 @@ o bundle do Vite ("Server-only module referenced by client") — nasceu `app/lib
 Verificado: 66/66 testes, typecheck limpo, flow18 8/8 (ciclo real em massa na loja, agora
 pela id) + flow17 + flow6 13/13 + flow14 + flow16, página ao vivo conferida no fim.
 
+### ✅ Vínculo com produto (15/09) — a página de produto de ponta a ponta
+
+"Toda a configuração quando é coisa de vinculação com produto" — o pedido do dono, e o
+coração do modelo que o relatório 13 confirmou. Entregue conforme o plano de
+`docs/MODELOS_DE_TEMA.md`: tipo **Produto** nas Configurações da página (URL travada com o
+motivo — a URL é a do produto), **produtos vinculados por loja** (busca no catálogo, Vincular
+/ ✕, contagem; um produto pertence a uma página só), **posição do conteúdo** (acima/abaixo
+das seções de produto do tema — o canvas mostra o placeholder no lado certo), **nome do
+modelo copiável** (`product.dvfly-<id>`). Publicar grava no tema a seção (fragmento em
+`{% raw %}`) e o template composto com TODAS as seções do `product.json` do tema, e aponta
+cada produto vinculado via `templateSuffix`; com a página no ar, vincular/desvincular vale na
+hora; despublicar devolve só os produtos que ainda apontam para o nosso sufixo; excluir
+remove os arquivos do tema (I3). Lista, editor e exclusão passaram a usar UM interruptor
+(`publish.server.ts`). Descobertas ao construir: o `product.json` do tema tem bloco de
+comentário antes do JSON; o nome da seção no schema tem teto de 25 caracteres. Verificado
+**na loja real**: flow19 8/8 (a URL do produto `pinkjuice` renderizou nosso conteúdo + as
+seções do tema; desvincular devolveu na hora; sufixo null e zero arquivos `dvfly` no tema
+ao final) + flow18/17/6 + 73/73 testes (21 no pacote Shopify) + typecheck.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

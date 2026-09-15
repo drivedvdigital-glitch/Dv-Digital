@@ -17,7 +17,8 @@
 
 import { ShopifyClient, ShopifyError, type StoreCredentials } from './client.ts';
 import { upsertPage, type PageInput, type ShopifyPage } from './pages.ts';
-import { ensureSoloTemplate } from './templates.ts';
+import { setProductTemplate } from './products.ts';
+import { ensureProductTemplate, ensureSoloTemplate } from './templates.ts';
 
 export interface Store extends StoreCredentials {
   /** Human label for reports, e.g. "Colômbia". */
@@ -100,40 +101,91 @@ export async function deployPage(
   page: PageInput & { handle: string },
   options: DeployOptions = {},
 ): Promise<DeployResult> {
-  const { allowProduction = false, publish = false, publishDate, concurrency = 3 } = options;
-
-  const production = stores.filter((store) => store.isProduction);
-  if (production.length > 0 && !allowProduction) {
-    throw new ProductionNotAllowedError(production);
-  }
-
+  const { publish = false, publishDate } = options;
   const input: PageInput & { handle: string } = {
     ...page,
     isPublished: publish,
     ...(publishDate ? { publishDate } : {}),
   };
 
-  const targets: DeployTarget[] = [];
-  const queue = [...stores];
+  const targets = await forEachStore(stores, options, async (store, client) => {
+    if (options.bindSoloTemplate) await ensureSoloTemplate(client);
+    const { page: published, created } = await upsertPage(client, input, options.existingIds?.[store.domain]);
+    return { created, page: published };
+  });
+  return toResult(page.handle, targets);
+}
 
+export interface ProductDeployInput {
+  pageId: string;
+  title: string;
+  /** Compiled fragment: <style> + markup + optional <script>. */
+  fragment: string;
+  contentAbove?: boolean;
+  /** Product ids to point at the template, keyed by store domain. */
+  productsByDomain: Record<string, string[] | undefined>;
+}
+
+export interface ProductDeployTarget extends DeployTarget {
+  suffix?: string;
+  /** Products now rendering the page. */
+  bound?: number;
+}
+
+/**
+ * Publishes a product page to every listed store: the template and section go
+ * into the main theme, then each linked product is pointed at the template.
+ * A store with no linked products still gets the template — it is selectable
+ * by name in the theme editor from then on.
+ */
+export async function deployProductPage(
+  stores: Store[],
+  input: ProductDeployInput,
+  options: Omit<DeployOptions, 'bindSoloTemplate' | 'existingIds' | 'publish' | 'publishDate'> = {},
+): Promise<{ targets: ProductDeployTarget[]; succeeded: ProductDeployTarget[]; failed: ProductDeployTarget[] }> {
+  const targets = (await forEachStore(stores, options, async (store, client) => {
+    const { suffix } = await ensureProductTemplate(client, {
+      pageId: input.pageId,
+      title: input.title,
+      fragment: input.fragment,
+      contentAbove: input.contentAbove,
+    });
+    const products = input.productsByDomain[store.domain] ?? [];
+    for (const id of products) await setProductTemplate(client, id, suffix);
+    return { suffix, bound: products.length };
+  })) as ProductDeployTarget[];
+  return {
+    targets,
+    succeeded: targets.filter((t) => t.ok),
+    failed: targets.filter((t) => !t.ok),
+  };
+}
+
+/**
+ * The per-store engine both deploys share: production guard, bounded
+ * concurrency, one client per store, failures captured per store, results in
+ * the caller's order.
+ */
+async function forEachStore<T extends object>(
+  stores: Store[],
+  options: Pick<DeployOptions, 'allowProduction' | 'concurrency' | 'clientFor'>,
+  run: (store: Store, client: ShopifyClient) => Promise<T>,
+): Promise<Array<DeployTarget & Partial<T>>> {
+  const { allowProduction = false, concurrency = 3 } = options;
+  const production = stores.filter((store) => store.isProduction);
+  if (production.length > 0 && !allowProduction) {
+    throw new ProductionNotAllowedError(production);
+  }
+
+  const targets: Array<DeployTarget & Partial<T>> = [];
+  const queue = [...stores];
   const worker = async (): Promise<void> => {
     for (let store = queue.shift(); store; store = queue.shift()) {
       const startedAt = Date.now();
       try {
         const client = options.clientFor ? options.clientFor(store) : new ShopifyClient(store);
-        if (options.bindSoloTemplate) await ensureSoloTemplate(client);
-        const { page: published, created } = await upsertPage(
-          client,
-          input,
-          options.existingIds?.[store.domain],
-        );
-        targets.push({
-          store,
-          ok: true,
-          created,
-          page: published,
-          durationMs: Date.now() - startedAt,
-        });
+        const extra = await run(store, client);
+        targets.push({ store, ok: true, durationMs: Date.now() - startedAt, ...extra });
       } catch (error) {
         targets.push({
           store,
@@ -141,21 +193,21 @@ export async function deployPage(
           error: error instanceof Error ? error.message : String(error),
           accessDenied: error instanceof ShopifyError ? error.isAccessDenied : false,
           durationMs: Date.now() - startedAt,
-        });
+        } as DeployTarget & Partial<T>);
       }
     }
   };
-
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, stores.length) }, () => worker()),
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, stores.length) }, () => worker()));
 
   // Report in the order the caller listed the stores, not the order they finished.
   const order = new Map(stores.map((store, index) => [store.domain, index]));
   targets.sort((a, b) => (order.get(a.store.domain) ?? 0) - (order.get(b.store.domain) ?? 0));
+  return targets;
+}
 
-  const result: DeployResult = {
-    handle: page.handle,
+function toResult(handle: string, targets: DeployTarget[]): DeployResult {
+  return {
+    handle,
     targets,
     get succeeded() {
       return targets.filter((t) => t.ok);
@@ -164,7 +216,6 @@ export async function deployPage(
       return targets.filter((t) => !t.ok);
     },
   };
-  return result;
 }
 
 /** One-line-per-store summary, for a CLI or a log. */

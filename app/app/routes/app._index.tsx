@@ -5,7 +5,8 @@ import { redirect } from 'react-router';
 
 import { compile, type Doc } from '../lib/compiler.server.ts';
 import { db } from '../lib/db.server.ts';
-import { clientFor, updatePage } from '../lib/shopify.server.ts';
+import { switchPage } from '../lib/publish.server.ts';
+import { clientFor, removeProductTemplate } from '../lib/shopify.server.ts';
 import {
   bannerErr,
   bannerOk,
@@ -72,27 +73,27 @@ export async function action({ request }: ActionFunctionArgs) {
   // the app) — the store owner can still find it under Online Store → Pages.
   if (intent === 'delete') {
     const id = String(form.get('id'));
-    const live = await db.deployment.findMany({
-      where: { pageId: id, isPublished: true },
-      include: { store: true },
-    });
-    const stuck: string[] = [];
-    for (const deployment of live) {
-      try {
-        await updatePage(clientFor(deployment.store), deployment.shopifyGid, { isPublished: false });
-      } catch (error) {
-        stuck.push(`${deployment.store.label}: ${error instanceof Error ? error.message : error}`);
-      }
-    }
-    if (stuck.length > 0) {
+    const off = await switchPage(id, false, { publishedOnly: true });
+    if (!off.ok) {
+      const stuck = off.outcomes.filter((o) => o.includes(':'));
       return {
         ok: false,
         message: `A página não foi excluída: não consegui despublicá-la em ${stuck.join('; ')}. Tente de novo.`,
       };
     }
+    // A product page also leaves its template and section in each theme;
+    // deleting the page is the moment to take them out (invariant I3: we
+    // remove exactly what we wrote). Best effort — a theme that refuses does
+    // not keep the page alive here.
+    const page = await db.page.findUnique({ where: { id }, include: { deployments: { include: { store: true } } } });
+    if (page?.pageType === 'product') {
+      for (const deployment of page.deployments) {
+        await removeProductTemplate(clientFor(deployment.store), id).catch(() => {});
+      }
+    }
     await db.page.delete({ where: { id } });
-    return live.length > 0
-      ? { ok: true, message: `Página excluída e retirada do ar em ${live.length} loja(s); o rascunho continua na Shopify.` }
+    return off.touched > 0
+      ? { ok: true, message: `Página excluída e retirada do ar em ${off.touched} loja(s); o conteúdo continua na Shopify.` }
       : null;
   }
 
@@ -173,23 +174,9 @@ export async function action({ request }: ActionFunctionArgs) {
         continue;
       }
       touched++;
-      for (const deployment of page.deployments) {
-        try {
-          await updatePage(clientFor(deployment.store), deployment.shopifyGid, {
-            isPublished: wantPublished,
-          });
-          await db.deployment.update({
-            where: { id: deployment.id },
-            data: { isPublished: wantPublished },
-          });
-          outcomes.push(ids.length > 1 ? `${page.title} → ${deployment.store.label}` : deployment.store.label);
-        } catch (error) {
-          failures++;
-          outcomes.push(
-            `${page.title} → ${deployment.store.label}: ${error instanceof Error ? error.message : error}`,
-          );
-        }
-      }
+      const result = await switchPage(page.id, wantPublished);
+      if (!result.ok) failures++;
+      outcomes.push(...result.outcomes.map((o) => (ids.length > 1 ? `${page.title} → ${o}` : o)));
     }
     if (touched === 0) {
       return {
