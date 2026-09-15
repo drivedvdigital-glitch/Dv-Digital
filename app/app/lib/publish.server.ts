@@ -12,10 +12,20 @@
 import type { Deployment, ProductLink, Store as StoreRow } from '@prisma/client';
 
 import { releaseProducts, setProductTemplate } from '../../../packages/shopify/src/products.ts';
-import { productSuffix } from '../../../packages/shopify/src/templates.ts';
+import { productSuffix, removeProductTemplate } from '../../../packages/shopify/src/templates.ts';
 
 import { db } from './db.server.ts';
 import { clientFor, updatePage } from './shopify.server.ts';
+
+export type PageKind = 'regular' | 'product';
+
+/**
+ * What a deployment IS on the store — a Shopify Page or a product template —
+ * read from the id it stored, not from the page's current type. A page can
+ * change type after being published; its deployments cannot.
+ */
+export const deploymentKind = (shopifyGid: string): PageKind =>
+  shopifyGid.startsWith('template:') ? 'product' : 'regular';
 
 export interface SwitchOutcome {
   ok: boolean;
@@ -44,7 +54,7 @@ export async function switchPage(
   let failures = 0;
   for (const deployment of deployments) {
     try {
-      if (page.pageType === 'product') {
+      if (deploymentKind(deployment.shopifyGid) === 'product') {
         await switchProducts(deployment, page.productLinks, wantPublished, pageId);
       } else {
         await updatePage(clientFor(deployment.store), deployment.shopifyGid, { isPublished: wantPublished });
@@ -76,6 +86,41 @@ async function switchProducts(
 }
 
 /**
+ * Before a page publishes as one kind, whatever it left on the stores as the
+ * OTHER kind is taken down: the Shopify Page goes unpublished, or the linked
+ * products are released and the template removed. Otherwise switching a
+ * published page from "Normal" to "Produto" would leave the old /pages/ URL
+ * live forever, with nothing in the app pointing at it.
+ *
+ * Returns the stores where the retirement failed; the caller must not publish
+ * over a deployment it could not retire.
+ */
+export async function retireOtherKind(pageId: string, keep: PageKind): Promise<string[]> {
+  const page = await db.page.findUniqueOrThrow({
+    where: { id: pageId },
+    include: { deployments: { include: { store: true } }, productLinks: true },
+  });
+  const failed: string[] = [];
+  for (const deployment of page.deployments) {
+    const kind = deploymentKind(deployment.shopifyGid);
+    if (kind === keep) continue;
+    try {
+      const client = clientFor(deployment.store);
+      if (kind === 'regular') {
+        await updatePage(client, deployment.shopifyGid, { isPublished: false });
+      } else {
+        await switchProducts(deployment, page.productLinks, false, pageId);
+        await removeProductTemplate(client, pageId);
+      }
+      await db.deployment.delete({ where: { id: deployment.id } });
+    } catch (error) {
+      failed.push(`${deployment.store.label}: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+  return failed;
+}
+
+/**
  * A link added or removed while the page is live on that store takes effect
  * right away — the products a live template applies to should never lag
  * behind what the settings say.
@@ -90,7 +135,10 @@ export async function applyLinkNow(
     where: { pageId_storeId: { pageId, storeId } },
     include: { store: true },
   });
-  if (!deployment || !deployment.isPublished) return 'not-live';
+  // Only a live PRODUCT deployment has a template for the product to adopt.
+  if (!deployment || !deployment.isPublished || deploymentKind(deployment.shopifyGid) !== 'product') {
+    return 'not-live';
+  }
   const client = clientFor(deployment.store);
   const suffix = productSuffix(pageId);
   if (on) await setProductTemplate(client, productGid, suffix);

@@ -11,7 +11,17 @@ cd /d "%~dp0"
 
 echo.
 echo  == DVFly: atualizando o codigo...
-git pull
+rem Sempre a branch de trabalho, e com rebase: um merge local silencioso
+rem e o que deixa a maquina com um historico que ninguem mais tem.
+git checkout -q claude/dvfly-pagefly-research-skqx9r
+git pull --rebase origin claude/dvfly-pagefly-research-skqx9r
+if errorlevel 1 (
+  echo.
+  echo  Nao consegui atualizar o codigo (sem internet, ou mudanca local
+  echo  nao salva). Manda um print desta janela.
+  pause
+  exit /b 1
+)
 
 echo.
 echo  == DVFly: preparando dependencias e banco...

@@ -33,7 +33,7 @@ import {
   type DocTree,
 } from '../lib/doc-ops.ts';
 import { requireShop } from '../lib/auth.server.ts';
-import { applyLinkNow, switchPage } from '../lib/publish.server.ts';
+import { applyLinkNow, deploymentKind, retireOtherKind, switchPage } from '../lib/publish.server.ts';
 import {
   clientForStore,
   deployPage,
@@ -216,6 +216,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const compiled = compile(doc);
   const fragment = toFragment(compiled);
 
+  // A page that was live as the other kind (type changed after publishing)
+  // is taken down as that kind first; publishing over it would strand it.
+  const stuck = await retireOtherKind(pageId, pageType);
+  if (stuck.length > 0) {
+    return {
+      ok: false,
+      message: `Antes de publicar como ${pageType === 'product' ? 'produto' : 'página normal'}, não consegui tirar do ar a versão anterior em ${stuck.join('; ')}. Tente de novo.`,
+    };
+  }
+
   if (pageType === 'product') {
     return publishProductPage({ pageId, title, fragment, bytes: compiled.stats.bytes.total, rows, versionId: version.id, productContentAbove, allowProduction: form.get('allowProduction') === 'on' });
   }
@@ -237,7 +247,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // Each store's page from the last publish, so a renamed handle updates the
   // SAME live page (Shopify adds the redirect) instead of creating a twin.
   const previous = await db.deployment.findMany({ where: { pageId }, include: { store: true } });
-  const existingIds = Object.fromEntries(previous.map((d) => [d.store.domain, d.shopifyGid]));
+  const existingIds = Object.fromEntries(
+    previous.filter((d) => deploymentKind(d.shopifyGid) === 'regular').map((d) => [d.store.domain, d.shopifyGid]),
+  );
 
   try {
     const result = await deployPage(

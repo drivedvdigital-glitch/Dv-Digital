@@ -16,7 +16,7 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +55,15 @@ async function ensureCredentials() {
     console.log('\n  Sem credencial o app sobe mesmo assim, mas a loja não se registra sozinha.');
     return;
   }
-  appendFileSync(envPath, `\nSHOPIFY_CLIENT_ID="${clientId}"\nSHOPIFY_CLIENT_SECRET="${secret}"\n`);
+  // Replace the keys in place when the example already put them there empty;
+  // append only what is missing — never a second copy of the same key.
+  let next = content;
+  for (const [key, value] of [['SHOPIFY_CLIENT_ID', clientId], ['SHOPIFY_CLIENT_SECRET', secret]]) {
+    const line = `${key}="${value}"`;
+    const pattern = new RegExp(`^\\s*${key}\\s*=.*$`, 'm');
+    next = pattern.test(next) ? next.replace(pattern, line) : `${next.replace(/\s*$/, '')}\n${line}\n`;
+  }
+  writeFileSync(envPath, next);
   log('credencial gravada em app/.env ✓');
 }
 
