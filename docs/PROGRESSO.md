@@ -1041,11 +1041,13 @@ Feito, do zero, com identidade própria:
   selecionado) foi mantido de propósito: com clique-para-inserir, separar os dois em painéis
   obrigaria a trocar de aba a cada bloco.
 
-Verificado no commit do redesenho: typecheck; prints claro e escuro da lista, do editor
-vazio, com bloco selecionado, aba Estilo, menu de contexto, configurações e barra de seleção
-em massa; flows 6, 7 e 8 verdes contra o visual novo (um seletor de teste ajustado: o grip
-do canvas virou SVG). A bateria completa 6–22 estava rodando na hora do commit — o
-resultado está no commit seguinte, com o que tiver falhado e o conserto.
+Verificado: typecheck; prints claro e escuro da lista, do editor vazio, com bloco
+selecionado, aba Estilo, menu de contexto, configurações e barra de seleção em massa;
+**bateria completa 6–22 verde contra o visual novo** (19 e 22 na loja real). Três
+expectativas de teste estavam presas ao visual antigo e foram atualizadas, não o app: o grip
+do canvas virou SVG (flow20), a aba Estilo agora tem dois ícones — pincel + dispositivo
+(flow13), e o modo escuro é conferido por luminância em vez do rgb exato do token antigo
+(flow17).
 
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
