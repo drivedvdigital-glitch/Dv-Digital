@@ -87,6 +87,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return { ok: false, message: 'Documento ilegível — nada foi salvo.' };
   }
 
+  // Publishing has required fields (a draft can stay incomplete; a live page
+  // cannot). Checked before anything is written, and the message names the
+  // exact place to fix each one.
+  if (intent === 'publish') {
+    const missing: string[] = [];
+    if (!title.trim()) missing.push('o título (campo no topo do editor)');
+    if (!handle.trim()) missing.push('a URL (Configurações da página → URL da página)');
+    if (missing.length > 0) {
+      return { ok: false, message: `Para publicar, preencha ${missing.join(' e ')}.` };
+    }
+  }
+
   // Saving always records a version. compilerVersion travels with it, so a
   // later compiler change cannot rewrite what was already published (I2).
   await db.page.update({

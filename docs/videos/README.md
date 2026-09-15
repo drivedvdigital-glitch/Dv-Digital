@@ -23,11 +23,14 @@ Regra de ouro inalterada: **conceito e funcionalidade deles, código e visual 10
 | 10 | Product list completo / carrossel (1:27) | Be Wiser Clips | ✅ `10-bewiser-product-list.md` |
 | 11 | Produtos relacionados — fecha o Product list (1:30) | Be Wiser Clips | ✅ `11-bewiser-related-products.md` |
 | 12 | Duplicar elementos (1:26) | Be Wiser Clips | ✅ `12-bewiser-duplicar.md` |
-| 12b | Imagem full-width / vídeo de fundo | Be Wiser Clips | ⬜ um por vez |
-| 12 | Sessão real de design (54 min) | CodemanBD | ⬜ |
-| 13 | ~2 elementos Shopify cortados + painel do formulário deles | (a garimpar) | ⬜ |
+| 13 | `dvfly-pagefly-gravacao.mp4` (6:07, pt-BR, loja real em produção) | gravação própria | ✅ `13-gravacao-propria.md` ★★ **fonte nº 1** |
+| 13b | Imagem full-width / vídeo de fundo | Be Wiser Clips | ⬜ um por vez |
+| 14 | Sessão real de design (54 min) | CodemanBD | ⬜ |
+| 15 | ~2 elementos Shopify cortados + painel do formulário deles | (a garimpar) | ⬜ |
+| 16 | Telas Seções / Análise / Central de CRO / Motor de Vendas + "Ver mais" | (a garimpar) | ⬜ novas do rel. 13 |
 
-**Hierarquia de confiança:** relatório 02 (frames, produto atual) > transcrições novas >
-relatório 01 (EcomSensei — descreve a geração ANTERIOR do produto; usar só onde o 02 cala).
+**Hierarquia de confiança:** **13 (português, loja real em produção)** > 02 (frames) >
+03 > 05 > 08 > 09/10/11/12 > 04 > 01 (EcomSensei — geração ANTERIOR do produto; usar só
+onde os demais calam).
 
 Mais vídeos entram na fila conforme chegarem (meta: 20+).

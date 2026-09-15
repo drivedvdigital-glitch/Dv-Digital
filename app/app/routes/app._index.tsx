@@ -104,40 +104,68 @@ export async function action({ request }: ActionFunctionArgs) {
 
   // Publish/unpublish flip the visibility of what is ALREADY on each store —
   // no recompilation, no new content. Editing + publishing new bytes is the
-  // editor's job; the list only turns the light on and off.
-  if (intent === 'publish' || intent === 'unpublish') {
-    const page = await db.page.findUniqueOrThrow({
-      where: { id: String(form.get('id')) },
+  // editor's job; the list only turns the light on and off. Bulk is the same
+  // switch applied to every selected page.
+  if (
+    intent === 'publish' ||
+    intent === 'unpublish' ||
+    intent === 'bulk-publish' ||
+    intent === 'bulk-unpublish'
+  ) {
+    const ids = intent.startsWith('bulk-')
+      ? form.getAll('ids').map(String)
+      : [String(form.get('id'))];
+    const wantPublished = intent === 'publish' || intent === 'bulk-publish';
+
+    const rows = await db.page.findMany({
+      where: { id: { in: ids } },
       include: { deployments: { include: { store: true } } },
     });
-    if (page.deployments.length === 0) {
-      return { ok: false, message: 'Esta página nunca foi publicada — abra e use Publicar.' };
-    }
-    const wantPublished = intent === 'publish';
     const outcomes: string[] = [];
     let failures = 0;
-    for (const deployment of page.deployments) {
-      try {
-        await updatePage(clientFor(deployment.store), deployment.shopifyGid, {
-          isPublished: wantPublished,
-        });
-        await db.deployment.update({
-          where: { id: deployment.id },
-          data: { isPublished: wantPublished },
-        });
-        outcomes.push(deployment.store.label);
-      } catch (error) {
-        failures++;
-        outcomes.push(
-          `${deployment.store.label}: ${error instanceof Error ? error.message : error}`,
-        );
+    let touched = 0;
+    let skipped = 0;
+    for (const page of rows) {
+      if (page.deployments.length === 0) {
+        skipped++;
+        continue;
+      }
+      touched++;
+      for (const deployment of page.deployments) {
+        try {
+          await updatePage(clientFor(deployment.store), deployment.shopifyGid, {
+            isPublished: wantPublished,
+          });
+          await db.deployment.update({
+            where: { id: deployment.id },
+            data: { isPublished: wantPublished },
+          });
+          outcomes.push(ids.length > 1 ? `${page.title} → ${deployment.store.label}` : deployment.store.label);
+        } catch (error) {
+          failures++;
+          outcomes.push(
+            `${page.title} → ${deployment.store.label}: ${error instanceof Error ? error.message : error}`,
+          );
+        }
       }
     }
+    if (touched === 0) {
+      return {
+        ok: false,
+        message:
+          ids.length > 1
+            ? 'Nenhuma das páginas selecionadas foi publicada alguma vez — abra cada uma e use Publicar.'
+            : 'Esta página nunca foi publicada — abra e use Publicar.',
+      };
+    }
+    const skippedNote =
+      skipped > 0 ? ` (${skipped} ignorada(s): nunca foram publicadas — abra e use Publicar)` : '';
     return {
       ok: failures === 0,
-      message: wantPublished
-        ? `Publicada em: ${outcomes.join('; ')}`
-        : `Despublicada de: ${outcomes.join('; ')}`,
+      message:
+        (wantPublished
+          ? `Publicada em: ${outcomes.join('; ')}`
+          : `Despublicada de: ${outcomes.join('; ')}`) + skippedNote,
     };
   }
   return null;
@@ -156,6 +184,26 @@ export default function PagesList() {
   // `confirm()` can be silently blocked inside the admin's iframe, and a
   // swallowed dialog would make the button simply do nothing.
   const [confirming, setConfirming] = useState<string | null>(null);
+
+  // Row selection feeds the bulk bar (publish/unpublish across many pages).
+  const [sel, setSel] = useState<string[]>([]);
+  const toggleSel = (id: string) =>
+    setSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const allSelected = pages.length > 0 && sel.length === pages.length;
+  const selPages = pages.filter((p) => sel.includes(p.id));
+  // The list can only flip pages that were published at least once (same rule
+  // as the per-row action) — with none in the selection, the buttons stay
+  // visible, gray, with the reason written beside them.
+  const anyDeployed = selPages.some((p) => p.deployments.length > 0);
+  const liveCount = pages.filter((p) => p.deployments.some((d) => d.isPublished)).length;
+
+  const actBulk = (intent: 'bulk-publish' | 'bulk-unpublish') => {
+    const fd = new FormData();
+    fd.set('intent', intent);
+    for (const id of sel) fd.append('ids', id);
+    submit(fd, { method: 'post' });
+    setSel([]);
+  };
 
   const act = (intent: string, id?: string) => {
     const fd = new FormData();
@@ -183,6 +231,10 @@ export default function PagesList() {
         <header style={listHead}>
           <img src="/mark.svg" alt="" width={26} height={26} />
           <h1 style={listTitle}>Páginas</h1>
+          {/* Counted from the data on screen, never hardcoded. */}
+          <span style={countLine} data-count>
+            {pages.length} {pages.length === 1 ? 'página' : 'páginas'} · {liveCount} no ar
+          </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} style={iconButton} />
             <button
@@ -213,6 +265,42 @@ export default function PagesList() {
           </div>
         ) : null}
 
+        {sel.length > 0 ? (
+          <div style={bulkBar} data-bulk>
+            <span style={{ fontWeight: 600 }}>
+              {sel.length} selecionada{sel.length > 1 ? 's' : ''}
+            </span>
+            <button
+              type="button"
+              style={buttonGhost}
+              disabled={busy || !anyDeployed}
+              onClick={() => actBulk('bulk-publish')}
+            >
+              Publicar
+            </button>
+            <button
+              type="button"
+              style={buttonGhost}
+              disabled={busy || !anyDeployed}
+              onClick={() => actBulk('bulk-unpublish')}
+            >
+              Despublicar
+            </button>
+            {!anyDeployed ? (
+              <span style={bulkReason}>
+                Nenhuma das selecionadas foi publicada alguma vez — abra a página e use Publicar.
+              </span>
+            ) : null}
+            <button
+              type="button"
+              style={{ ...rowAction, marginLeft: 'auto' }}
+              onClick={() => setSel([])}
+            >
+              Limpar seleção
+            </button>
+          </div>
+        ) : null}
+
         <div style={card}>
           {pages.length === 0 ? (
             <div style={emptyState}>
@@ -222,6 +310,14 @@ export default function PagesList() {
             <table style={tableStyle}>
               <thead>
                 <tr>
+                  <th style={{ ...th, width: 28 }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar todas"
+                      checked={allSelected}
+                      onChange={() => setSel(allSelected ? [] : pages.map((p) => p.id))}
+                    />
+                  </th>
                   <th style={th}>Título</th>
                   <th style={th}>Handle</th>
                   <th style={th}>Publicada em</th>
@@ -232,6 +328,14 @@ export default function PagesList() {
               <tbody>
                 {pages.map((page) => (
                   <tr key={page.id}>
+                    <td style={td}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Selecionar ${page.title}`}
+                        checked={sel.includes(page.id)}
+                        onChange={() => toggleSel(page.id)}
+                      />
+                    </td>
                     <td style={td}>
                       <Link to={`/app/pages/${page.id}${search}`} style={titleLink}>
                         {page.title}
@@ -356,6 +460,30 @@ const listTitle: React.CSSProperties = {
   fontSize: 19,
   fontWeight: 650,
   margin: 0,
+};
+
+const countLine: React.CSSProperties = {
+  fontSize: 12.5,
+  color: 'var(--dv-ink-3)',
+  marginLeft: 4,
+  paddingTop: 3,
+};
+
+const bulkBar: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  background: 'var(--dv-accent-tint)',
+  border: '1px solid var(--dv-accent-edge)',
+  borderRadius: 10,
+  padding: '8px 12px',
+  fontSize: 13,
+  marginBottom: 14,
+};
+
+const bulkReason: React.CSSProperties = {
+  fontSize: 12.5,
+  color: 'var(--dv-ink-2)',
 };
 
 const iconButton: React.CSSProperties = {

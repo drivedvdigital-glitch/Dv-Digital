@@ -24,6 +24,18 @@ Esconder por CSS seria desonesto (os bytes continuariam lá). O caminho real:
 **Verificado no ar (15/09)**: com o modelo, a página em `megakciok.shop/pages/…` não tem
 header/footer e mantém o head da Shopify; removendo, o tema volta. Ida e volta, 4/4.
 
+## Confirmação externa do modelo (relatório 13, 15/09)
+
+A gravação própria do PageFly em produção (fonte nº 1, `docs/videos/13-gravacao-propria.md`)
+mostrou o mecanismo deles por dentro: **eles não criam páginas soltas — criam templates
+de tema nomeados** (`pf-4f4ffdfa`) e os **atribuem a recursos da loja** via
+`templateSuffix`. Página de produto tem a URL do próprio produto; o "Nome do modelo" é
+copiável porque é ele que aparece no seletor de templates do editor de temas
+("Atribuído a 1 produto"). É exatamente o desenho abaixo — decisão confirmada antes de
+escrever o bloco de produtos. Detalhes a adotar quando o tipo produto sair: nome do
+modelo visível e copiável nas Configurações; "Ir para o editor de temas"
+desabilitado-com-motivo até publicar; texto de ajuda explicando o vínculo.
+
 ## Página de produto — plano (provado por partes, falta montar)
 
 O que o dono descreveu: *"ao vincular, cria um modelo próprio para aquele produto, sem

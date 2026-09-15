@@ -165,6 +165,34 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - 📋 **Sync item deles = nosso Repetidor por construção** — quando um vídeo abrir o
   mecanismo deles, comparar os dois modelos (pendência mais interessante da fila).
 
+### Do relatório 13 (gravação própria, pt-BR, loja real) — implementado em 15/09
+
+- ✅ **Ações em massa na lista de páginas**: seleção por checkbox + barra "N
+  selecionada(s)" com Publicar/Despublicar em lote (o mesmo liga/desliga por loja da
+  linha, aplicado a todas as selecionadas). Publicar em massa desabilitado-com-motivo
+  quando nenhuma selecionada tem publicação anterior (regra do CLAUDE.md).
+- ✅ **Contagem real no cabeçalho da lista**: "N páginas · M no ar" — a versão honesta
+  do "Usando 40 slots" deles (não temos slots nem limite de plano; contado dos dados,
+  nunca hardcoded — regra do CLAUDE.md).
+- ✅ **Publicar valida os campos obrigatórios**: título e URL vazios não publicam — o
+  erro aponta a rota exata do conserto (o mini-formulário deles, na nossa forma: os
+  campos já estão na tela, então validamos em vez de duplicar num popover).
+- 🔑 **DECISÃO CONFIRMADA — modelo de vínculo**: página deles = template de tema
+  nomeado (`pf-xxxxxxxx`) atribuído a produtos/posts. Nosso desenho em
+  `docs/MODELOS_DE_TEMA.md` (template por página + `templateSuffix` no recurso) é
+  exatamente esse modelo — validado pela fonte mais confiável antes de escrever o
+  bloco de produtos. Adotar também: **nome do modelo copiável** nas Configurações
+  quando o tipo produto sair.
+- 🚫 Não repetir (registrados): dois modelos de layout convivendo (Legado
+  Seção/Linha/Coluna × Flex) — temos UM; dois elementos para código (Landing Page ×
+  HTML/Líquido) — temos UM; publicidade na listagem; interface meio traduzida (12
+  falhas de i18n em produção documentadas no relatório).
+- 📋 Padrões anotados para quando os recursos existirem: colunas de otimização na
+  listagem (heatmap/A-B por linha); convite pós-publicação no momento certo com
+  "Agora não"; configurações que mudam por tipo de página (blog: origem do post +
+  `/blogs/`; produto: URL travada + atribuição); "Ir para o editor de temas"
+  desabilitado até publicar; carregamento preguiçoso nas Configurações (já na fila).
+
 ### Fila (consolidada, por valor)
 
 - ⬜ **Biblioteca de mídia com upload** (melhor que a deles: upload já aplica).

@@ -814,6 +814,23 @@ injeta via innerHTML. Verificado: flow17 7/7 (toggle real por cor computada,
 persistência após reload, editor herda o tema, papel branco no escuro) + regressão
 flow6/12/14/16 verde + 52/52 compilador + typecheck limpo.
 
+### ✅ Relatório 13 aplicado (15/09) — gravação própria, a fonte nº 1
+
+A gravação de 6:07 do PageFly numa loja real em produção (pt-BR) virou o relatório mais
+importante da pesquisa (`docs/videos/13-gravacao-propria.md`) e **confirmou a decisão de
+arquitetura mais cara**: página deles = template de tema nomeado atribuído a
+produtos/posts — exatamente o desenho já provado em `docs/MODELOS_DE_TEMA.md`, agora
+validado antes de escrever o bloco de produtos. Implementado na hora: **ações em massa
+na lista** (checkbox por linha + selecionar todas + barra "N selecionadas" com
+Publicar/Despublicar em lote; desabilitado-com-motivo quando nenhuma selecionada tem
+publicação anterior), **contagem real no cabeçalho** ("N páginas · M no ar", contada
+dos dados — a versão honesta do "Usando 40 slots" deles) e **publicar com campos
+obrigatórios** (título/URL vazios não publicam; o erro aponta a rota exata, nada é
+gravado). Verificado: flow18 8/8 — incluindo despublicar+republicar EM MASSA a página
+real em megakciok.shop, com conferência do HTTP 200 e do conteúdo no ar depois — +
+flow17 7/7 + 52/52 compilador. Pendências novas registradas (telas Seções/Análise/CRO/
+Motor de Vendas, "Ver mais", Código GTM, "+" das abas de filtro).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:
