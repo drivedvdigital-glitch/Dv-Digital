@@ -61,6 +61,16 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 
 ## Regras de interface (aprendidas da referência, adotadas como nossas)
 
+- **Linguagem visual = a do admin da Shopify**, desenhada por nós: tokens `--dv-*` em
+  `app/app/ui/theme.tsx` (cinzas neutros, superfície branca com borda-fio, **um** botão
+  primário escuro por tela, secundário branco com borda, `plain` em linhas de tabela), badges
+  tintadas sem borda, rótulos em caixa normal (nunca VERSALETES), cor só onde há significado.
+- **Ícone só de `app/app/ui/icons.tsx`** (grade 16, traço 1.5) — nunca emoji nem caractere
+  tipográfico (⠿ ✕ ⧉ ↑) fazendo papel de ícone. Bloco novo ganha ícone em `BLOCK_ICONS`.
+- Editor: trilho de ícones à esquerda com um painel por vez (Construir = Estrutura +
+  Elementos; Configurações da página; Ajuda). Os dois primeiros ficam visíveis juntos de
+  propósito — a inserção é relativa ao bloco selecionado.
+
 - **Desabilitar explicando, nunca esconder**: controle indisponível fica visível, cinza,
   com o motivo escrito ao lado ("Disponível depois de publicar").
 - Estado vazio sempre aponta a rota exata do conserto ("Geral → URL da imagem").

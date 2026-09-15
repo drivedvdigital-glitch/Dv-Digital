@@ -6,6 +6,7 @@ import { redirect } from 'react-router';
 import { requireShop } from '../lib/auth.server.ts';
 import { compile, type Doc } from '../lib/compiler.server.ts';
 import { openWithToken, shopSearch } from '../ui/embedded.ts';
+import { Icon } from '../ui/icons.tsx';
 import { LocalDateTime } from '../ui/local-time.tsx';
 import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
@@ -16,9 +17,8 @@ export const headers = passHeaders;
 import {
   bannerErr,
   bannerOk,
-  buttonGhost,
-  buttonPrimary,
   FONT_STACK,
+  pillInfo,
   pillNeutral,
   pillSuccess,
   ThemeToggle,
@@ -30,12 +30,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   await requireShop(request);
   const pages = await db.page.findMany({
     orderBy: { updatedAt: 'desc' },
-    include: { deployments: { include: { store: true } } },
+    include: { deployments: { include: { store: true } }, _count: { select: { productLinks: true } } },
   });
   // Only what the list shows — never a store's token or credentials.
   return {
-    pages: pages.map((page) => ({
+    pages: pages.map(({ _count, ...page }) => ({
       ...page,
+      productCount: _count.productLinks,
       deployments: page.deployments.map((d) => ({
         id: d.id,
         isPublished: d.isPublished,
@@ -260,7 +261,23 @@ export default function PagesList() {
   const sel = rawSel.filter((id) => pages.some((p) => p.id === id));
   const toggleSel = (id: string) =>
     setSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const allSelected = pages.length > 0 && sel.length === pages.length;
+
+  // The list narrows by page kind (the tabs) and by text; counts come from
+  // the data behind each tab, never from a label.
+  const [typeTab, setTypeTab] = useState<'all' | 'regular' | 'product'>('all');
+  const [query, setQuery] = useState('');
+  const counts = {
+    all: pages.length,
+    regular: pages.filter((p) => p.pageType !== 'product').length,
+    product: pages.filter((p) => p.pageType === 'product').length,
+  };
+  const needle = fold(query.trim());
+  const visible = pages.filter(
+    (p) =>
+      (typeTab === 'all' || (typeTab === 'product') === (p.pageType === 'product')) &&
+      (!needle || fold(p.title).includes(needle) || fold(p.handle).includes(needle)),
+  );
+  const allSelected = visible.length > 0 && visible.every((p) => sel.includes(p.id));
   const selPages = pages.filter((p) => sel.includes(p.id));
   // The list can only flip pages that were published at least once (same rule
   // as the per-row action) — with none in the selection, the buttons stay
@@ -300,23 +317,27 @@ export default function PagesList() {
       <UiStyle />
       <div style={pageWrap}>
         <header style={listHead}>
-          <img src="/mark.svg" alt="" width={26} height={26} />
-          <h1 style={listTitle}>Páginas</h1>
-          {/* Counted from the data on screen, never hardcoded. */}
-          <span style={countLine} data-count>
-            {pages.length} {pages.length === 1 ? 'página' : 'páginas'} · {liveCount} no ar
-          </span>
+          <img src="/mark.svg" alt="" width={30} height={30} />
+          <div>
+            <h1 style={listTitle}>Páginas</h1>
+            {/* Counted from the data on screen, never hardcoded. */}
+            <div style={countLine} data-count>
+              {pages.length} {pages.length === 1 ? 'página' : 'páginas'} · {liveCount} no ar
+            </div>
+          </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} style={iconButton} />
+            <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="dv-btn dv-secondary dv-icon-btn" />
             <button
               type="button"
-              style={buttonGhost}
+              className="dv-btn dv-secondary"
               disabled={busy}
+              title="Recria uma página a partir de um arquivo exportado pelo D&VFly"
               onClick={() => filePicker.current?.click()}
             >
               Importar página (.json)
             </button>
-            <button type="button" style={buttonPrimary} disabled={busy} onClick={() => act('create')}>
+            <button type="button" className="dv-btn dv-primary" disabled={busy} onClick={() => act('create')}>
+              <Icon name="plus" />
               Criar página
             </button>
           </div>
@@ -336,69 +357,95 @@ export default function PagesList() {
           </div>
         ) : null}
 
-        {sel.length > 0 ? (
-          <div style={bulkBar} data-bulk>
-            <span style={{ fontWeight: 600 }}>
-              {sel.length} selecionada{sel.length > 1 ? 's' : ''}
-            </span>
-            <button
-              type="button"
-              style={buttonGhost}
-              disabled={busy || !anyDeployed}
-              onClick={() => actBulk('bulk-publish')}
-            >
-              Publicar
-            </button>
-            <button
-              type="button"
-              style={buttonGhost}
-              disabled={busy || !anyDeployed}
-              onClick={() => actBulk('bulk-unpublish')}
-            >
-              Despublicar
-            </button>
-            {!anyDeployed ? (
-              <span style={bulkReason}>
-                Nenhuma das selecionadas foi publicada alguma vez — abra a página e use Publicar.
-              </span>
-            ) : null}
-            <button
-              type="button"
-              style={{ ...rowAction, marginLeft: 'auto' }}
-              onClick={() => setSel([])}
-            >
-              Limpar seleção
-            </button>
-          </div>
-        ) : null}
-
         <div style={card}>
+          <div style={cardToolbar}>
+            {sel.length > 0 ? (
+              <div style={bulkBar} data-bulk>
+                <span style={{ fontWeight: 600 }}>
+                  {sel.length} selecionada{sel.length > 1 ? 's' : ''}
+                </span>
+                <button type="button" className="dv-btn dv-secondary" disabled={busy || !anyDeployed} onClick={() => actBulk('bulk-publish')}>
+                  Publicar
+                </button>
+                <button type="button" className="dv-btn dv-secondary" disabled={busy || !anyDeployed} onClick={() => actBulk('bulk-unpublish')}>
+                  Despublicar
+                </button>
+                {!anyDeployed ? (
+                  <span style={bulkReason}>
+                    Nenhuma das selecionadas foi publicada alguma vez — abra a página e use Publicar.
+                  </span>
+                ) : null}
+                <button type="button" className="dv-btn dv-plain" style={{ marginLeft: 'auto' }} onClick={() => setSel([])}>
+                  Limpar seleção
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={tabsRow} role="tablist">
+                  {TYPE_TABS.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      role="tab"
+                      className="dv-tab"
+                      data-type-tab={t.key}
+                      data-on={typeTab === t.key ? true : undefined}
+                      aria-selected={typeTab === t.key}
+                      onClick={() => setTypeTab(t.key)}
+                    >
+                      {t.label}
+                      <span style={tabCount}>{counts[t.key]}</span>
+                    </button>
+                  ))}
+                </div>
+                <div style={searchWrap}>
+                  <Icon name="search" style={searchIcon} />
+                  <input
+                    className="dv-input"
+                    style={searchInput}
+                    placeholder="Buscar por título ou URL"
+                    aria-label="Buscar página"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
           {pages.length === 0 ? (
             <div style={emptyState}>
-              Nenhuma página ainda. Clique em <strong>Criar página</strong> para começar.
+              <span style={emptyIcon}>
+                <Icon name="page" size={20} />
+              </span>
+              <div style={{ fontWeight: 600, color: 'var(--dv-ink)' }}>Nenhuma página ainda</div>
+              <div>
+                Clique em <strong>Criar página</strong> para começar.
+              </div>
             </div>
+          ) : visible.length === 0 ? (
+            <div style={emptyState}>Nenhuma página combina com a busca.</div>
           ) : (
             <table style={tableStyle}>
               <thead>
                 <tr>
-                  <th style={{ ...th, width: 28 }}>
+                  <th style={{ ...th, width: 36 }}>
                     <input
                       type="checkbox"
                       aria-label="Selecionar todas"
                       checked={allSelected}
-                      onChange={() => setSel(allSelected ? [] : pages.map((p) => p.id))}
+                      onChange={() => setSel(allSelected ? [] : visible.map((p) => p.id))}
                     />
                   </th>
                   <th style={th}>Título</th>
-                  <th style={th}>Handle</th>
-                  <th style={th}>Publicada em</th>
+                  <th style={th}>Tipo</th>
+                  <th style={th}>Lojas</th>
                   <th style={th}>Atualizada</th>
                   <th style={th} />
                 </tr>
               </thead>
               <tbody>
-                {pages.map((page) => (
-                  <tr key={page.id}>
+                {visible.map((page) => (
+                  <tr key={page.id} className="dv-row">
                     <td style={td}>
                       <input
                         type="checkbox"
@@ -408,11 +455,20 @@ export default function PagesList() {
                       />
                     </td>
                     <td style={td}>
-                      <Link to={`/app/pages/${page.id}${shopSearch(search)}`} style={titleLink}>
+                      <Link to={`/app/pages/${page.id}${shopSearch(search)}`} style={titleLink} title="Abrir no editor">
                         {page.title}
                       </Link>
+                      <div style={subLine}>
+                        {page.pageType === 'product'
+                          ? `${page.productCount} produto${page.productCount === 1 ? '' : 's'} vinculado${page.productCount === 1 ? '' : 's'}`
+                          : `/pages/${page.handle}`}
+                      </div>
                     </td>
-                    <td style={{ ...td, color: 'var(--dv-ink-2)' }}>/{page.handle}</td>
+                    <td style={td}>
+                      <span style={page.pageType === 'product' ? pillInfo : pillNeutral}>
+                        {page.pageType === 'product' ? 'Produto' : 'Normal'}
+                      </span>
+                    </td>
                     <td style={td}>
                       <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
                         {page.deployments.length === 0 ? (
@@ -434,66 +490,50 @@ export default function PagesList() {
                     <td style={{ ...td, color: 'var(--dv-ink-2)', whiteSpace: 'nowrap' }}>
                       <LocalDateTime iso={new Date(page.updatedAt).toISOString()} />
                     </td>
-                    <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {confirming === page.id ? (
-                        <>
-                          <button
-                            type="button"
-                            style={{ ...rowAction, color: 'var(--dv-danger)', fontWeight: 600 }}
-                            disabled={busy}
-                            onClick={() => act('delete', page.id)}
-                          >
-                            Confirmar exclusão
-                          </button>
-                          <button type="button" style={rowAction} onClick={() => setConfirming(null)}>
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button type="button" style={rowAction} onClick={() => openWithToken(`/preview/${page.id}`)}>
-                            Pré-visualizar
-                          </button>
-                          <button type="button" style={rowAction} onClick={() => openWithToken(`/api/pages/${page.id}/export`)}>
-                            Exportar
-                          </button>
-                          {page.deployments.some((d) => d.isPublished) ? (
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                      <div style={rowActions}>
+                        {confirming === page.id ? (
+                          <>
                             <button
                               type="button"
-                              style={rowAction}
+                              className="dv-btn dv-plain"
+                              data-danger
+                              style={{ ...rowAction, fontWeight: 600 }}
                               disabled={busy}
-                              onClick={() => act('unpublish', page.id)}
+                              onClick={() => act('delete', page.id)}
                             >
-                              Despublicar
+                              Confirmar exclusão
                             </button>
-                          ) : page.deployments.length > 0 ? (
-                            <button
-                              type="button"
-                              style={rowAction}
-                              disabled={busy}
-                              onClick={() => act('publish', page.id)}
-                            >
-                              Publicar
+                            <button type="button" className="dv-btn dv-plain" style={rowAction} onClick={() => setConfirming(null)}>
+                              Cancelar
                             </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            style={rowAction}
-                            disabled={busy}
-                            onClick={() => act('duplicate', page.id)}
-                          >
-                            Duplicar
-                          </button>
-                          <button
-                            type="button"
-                            style={{ ...rowAction, color: 'var(--dv-danger)' }}
-                            disabled={busy}
-                            onClick={() => setConfirming(page.id)}
-                          >
-                            Excluir
-                          </button>
-                        </>
-                      )}
+                          </>
+                        ) : (
+                          <>
+                            <button type="button" className="dv-btn dv-plain" style={rowAction} title="Abre a página compilada numa aba nova" onClick={() => openWithToken(`/preview/${page.id}`)}>
+                              Pré-visualizar
+                            </button>
+                            <button type="button" className="dv-btn dv-plain" style={rowAction} title="Baixa o documento da página em .json" onClick={() => openWithToken(`/api/pages/${page.id}/export`)}>
+                              Exportar
+                            </button>
+                            {page.deployments.some((d) => d.isPublished) ? (
+                              <button type="button" className="dv-btn dv-plain" style={rowAction} disabled={busy} title="Tira do ar em todas as lojas; o conteúdo fica" onClick={() => act('unpublish', page.id)}>
+                                Despublicar
+                              </button>
+                            ) : page.deployments.length > 0 ? (
+                              <button type="button" className="dv-btn dv-plain" style={rowAction} disabled={busy} title="Volta a mostrar o que já está nas lojas" onClick={() => act('publish', page.id)}>
+                                Publicar
+                              </button>
+                            ) : null}
+                            <button type="button" className="dv-btn dv-plain" style={rowAction} disabled={busy} onClick={() => act('duplicate', page.id)}>
+                              Duplicar
+                            </button>
+                            <button type="button" className="dv-btn dv-plain" data-danger style={rowAction} disabled={busy} onClick={() => setConfirming(page.id)}>
+                              Excluir
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -506,49 +546,89 @@ export default function PagesList() {
   );
 }
 
+const TYPE_TABS: Array<{ key: 'all' | 'regular' | 'product'; label: string }> = [
+  { key: 'all', label: 'Todas' },
+  { key: 'regular', label: 'Normais' },
+  { key: 'product', label: 'Produto' },
+];
+
+const fold = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 const pageShell: React.CSSProperties = {
   minHeight: '100vh',
-  background: 'var(--dv-sfc-sub)',
+  background: 'var(--dv-bg)',
   fontFamily: FONT_STACK,
+  fontSize: 13,
+  lineHeight: 1.45,
   color: 'var(--dv-ink)',
 };
 
 const pageWrap: React.CSSProperties = {
-  maxWidth: 1080,
+  maxWidth: 1120,
   margin: '0 auto',
-  padding: '24px 20px 48px',
+  padding: '24px 24px 48px',
 };
 
 const listHead: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 10,
-  marginBottom: 18,
+  gap: 12,
+  marginBottom: 16,
 };
 
 const listTitle: React.CSSProperties = {
-  fontSize: 19,
-  fontWeight: 650,
+  fontSize: 20,
+  fontWeight: 600,
+  lineHeight: '24px',
   margin: 0,
 };
 
 const countLine: React.CSSProperties = {
   fontSize: 12.5,
   color: 'var(--dv-ink-3)',
-  marginLeft: 4,
-  paddingTop: 3,
+  marginTop: 2,
 };
+
+const card: React.CSSProperties = {
+  background: 'var(--dv-sfc)',
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 12,
+  boxShadow: 'var(--dv-shadow-soft)',
+  overflow: 'hidden',
+};
+
+const cardToolbar: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '6px 12px 0',
+  borderBottom: '1px solid var(--dv-edge)',
+  minHeight: 44,
+};
+
+const tabsRow: React.CSSProperties = { display: 'flex', gap: 2 };
+
+const tabCount: React.CSSProperties = {
+  fontSize: 11.5,
+  color: 'var(--dv-ink-3)',
+  background: 'var(--dv-inset2)',
+  borderRadius: 999,
+  padding: '0 6px',
+  lineHeight: '16px',
+};
+
+const searchWrap: React.CSSProperties = { position: 'relative', width: 260, paddingBottom: 6 };
+const searchIcon: React.CSSProperties = { position: 'absolute', left: 9, top: 8, color: 'var(--dv-ink-3)', pointerEvents: 'none' };
+const searchInput: React.CSSProperties = { paddingLeft: 30 };
 
 const bulkBar: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 10,
-  background: 'var(--dv-accent-tint)',
-  border: '1px solid var(--dv-accent-edge)',
-  borderRadius: 10,
-  padding: '8px 12px',
+  gap: 8,
+  width: '100%',
+  padding: '4px 0 10px',
   fontSize: 13,
-  marginBottom: 14,
 };
 
 const bulkReason: React.CSSProperties = {
@@ -556,31 +636,28 @@ const bulkReason: React.CSSProperties = {
   color: 'var(--dv-ink-2)',
 };
 
-const iconButton: React.CSSProperties = {
-  border: '1px solid var(--dv-edge)',
-  background: 'var(--dv-sfc)',
-  borderRadius: 8,
-  width: 32,
-  height: 32,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  color: 'var(--dv-ink-2)',
-};
-
-const card: React.CSSProperties = {
-  background: 'var(--dv-sfc)',
-  border: '1px solid var(--dv-edge)',
-  borderRadius: 12,
-  overflow: 'hidden',
-};
-
 const emptyState: React.CSSProperties = {
-  padding: 32,
+  padding: '40px 24px',
   fontSize: 13.5,
   color: 'var(--dv-ink-2)',
   textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 4,
+};
+
+const emptyIcon: React.CSSProperties = {
+  width: 40,
+  height: 40,
+  borderRadius: 10,
+  background: 'var(--dv-inset2)',
+  border: '1px solid var(--dv-edge)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--dv-ink-2)',
+  marginBottom: 6,
 };
 
 const tableStyle: React.CSSProperties = {
@@ -591,43 +668,40 @@ const tableStyle: React.CSSProperties = {
 
 const th: React.CSSProperties = {
   textAlign: 'left',
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
-  color: 'var(--dv-ink-3)',
-  padding: '10px 14px',
+  fontSize: 12,
+  fontWeight: 500,
+  color: 'var(--dv-ink-2)',
+  padding: '8px 12px',
   borderBottom: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc-sub)',
+  whiteSpace: 'nowrap',
 };
 
 const td: React.CSSProperties = {
-  padding: '10px 14px',
+  padding: '10px 12px',
   borderBottom: '1px solid var(--dv-edge-soft)',
   verticalAlign: 'middle',
 };
 
 const titleLink: React.CSSProperties = {
-  color: 'var(--dv-link)',
+  color: 'var(--dv-ink)',
   textDecoration: 'none',
-  fontWeight: 500,
+  fontWeight: 600,
 };
 
-// Preview/export are plain anchors (new tab, download); the other actions are
-// buttons. Both wear the same clothes so the row reads as one toolbar.
-const rowLink: React.CSSProperties = {
-  color: 'var(--dv-link)',
-  textDecoration: 'none',
-  fontSize: 13,
-  padding: '4px 8px',
-  whiteSpace: 'nowrap',
+const subLine: React.CSSProperties = {
+  fontSize: 12,
+  color: 'var(--dv-ink-3)',
+  marginTop: 1,
+};
+
+const rowActions: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: 0,
 };
 
 const rowAction: React.CSSProperties = {
-  border: 0,
-  background: 'transparent',
-  color: 'var(--dv-link)',
-  fontSize: 13,
-  padding: '4px 8px',
-  cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  fontSize: 12.5,
+  padding: '3px 7px',
 };

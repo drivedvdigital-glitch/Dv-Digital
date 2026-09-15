@@ -28,7 +28,7 @@ primeira compilação, com `Cannot find module 'node-html-parser'`.
 |---|---|
 | `/` | Entrada. A Shopify abre o app aqui com `?shop=&host=`; redireciona para `/app` preservando os parâmetros |
 | `/app` | **Páginas** — lista própria (tokens `--dv-*`, claro/escuro): criar, importar, duplicar, excluir (dois cliques; despublica nas lojas antes), publicar/despublicar por linha e em massa |
-| `/app/pages/:id` | **Editor** — tela cheia: estrutura à esquerda, canvas com larguras de dispositivo no centro, inspetor (Geral/Estilo) e publicação à direita |
+| `/app/pages/:id` | **Editor** — tela cheia: trilho de ícones + painel (Estrutura e Elementos em cards; Configurações da página; Ajuda) à esquerda, canvas com larguras de dispositivo no centro, inspetor (Geral/Estilo) e publicação à direita. Ícones de `app/ui/icons.tsx`, tokens de `app/ui/theme.tsx` |
 | `/api/preview/:id` | Compila o documento para o canvas (mesmo `compile()` do publish, com ids e dicas de editor) |
 | `/api/theme-fonts?shop=` | Fontes reais do tema da loja (lidas da vitrine, cache 10 min por loja) |
 | `/api/products?storeId=&q=` | Busca de produtos de uma loja (painel "Produtos vinculados") |

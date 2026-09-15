@@ -35,25 +35,26 @@ const EDITOR_BRIDGE = `
     font: 13.5px/1.6 -apple-system, system-ui, sans-serif;
   }
   [data-dvf-empty] strong { font-size: 16px; color: #303030; }
-  [data-dvf-id]:hover { outline: 1px dashed rgba(11,224,92,.8); outline-offset: 1px; }
-  [data-dvf-selected] { outline: 2px solid #0BE05C !important; outline-offset: 2px; }
-  [data-dvf-drop="before"] { box-shadow: 0 -3px 0 0 #0BE05C !important; }
-  [data-dvf-drop="after"] { box-shadow: 0 3px 0 0 #0BE05C !important; }
+  [data-dvf-id]:hover { outline: 1px dashed rgba(10,143,74,.7); outline-offset: 1px; }
+  [data-dvf-selected] { outline: 2px solid #0a8f4a !important; outline-offset: 2px; }
+  [data-dvf-drop="before"] { box-shadow: 0 -3px 0 0 #0a8f4a !important; }
+  [data-dvf-drop="after"] { box-shadow: 0 3px 0 0 #0a8f4a !important; }
   #dvf-toolbar {
     position: absolute; z-index: 2147483647; display: none;
-    background: #1a1a1a; color: #fff; border-radius: 8px;
+    background: #202320; color: #fff; border-radius: 8px;
     padding: 3px 4px; gap: 2px; align-items: center;
-    font: 12px/1 -apple-system, system-ui, sans-serif;
-    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    font: 12px/1 Inter, -apple-system, system-ui, sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,.28);
   }
-  #dvf-toolbar span { padding: 0 6px; color: #9ef7c0; font-weight: 600; cursor: grab; display: inline-flex; align-items: center; gap: 5px; }
-  #dvf-toolbar span i { font-style: normal; color: #7fd8a4; letter-spacing: -1px; }
+  #dvf-toolbar span { padding: 0 8px 0 4px; color: #fff; font-weight: 600; cursor: grab; display: inline-flex; align-items: center; gap: 4px; }
+  #dvf-toolbar span svg { color: #8a8a8a; }
   #dvf-toolbar button {
-    background: transparent; border: 0; color: #fff; cursor: pointer;
-    border-radius: 5px; width: 24px; height: 24px; font-size: 13px; line-height: 1;
+    background: transparent; border: 0; color: #e8e8e8; cursor: pointer;
+    border-radius: 5px; width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 0;
   }
-  #dvf-toolbar button:hover { background: #333; }
-  #dvf-toolbar button[data-action="delete"]:hover { background: #7f1d1d; }
+  #dvf-toolbar button:hover { background: #3a3a3a; }
+  #dvf-toolbar button[data-action="delete"]:hover { background: #8e1f0b; }
+  #dvf-toolbar svg { pointer-events: none; }
 </style>
 <script>
 (function () {
@@ -61,17 +62,24 @@ const EDITOR_BRIDGE = `
 
   var toolbar = document.createElement('div');
   toolbar.id = 'dvf-toolbar';
+  // The same stroked icons the editor draws, so the canvas toolbar reads as
+  // part of the same tool.
+  var svg = function (body) {
+    return '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+  };
+  var grip = '<g fill="currentColor" stroke="none"><circle cx="5.5" cy="3.5" r="1.1"/><circle cx="10.5" cy="3.5" r="1.1"/><circle cx="5.5" cy="8" r="1.1"/><circle cx="10.5" cy="8" r="1.1"/><circle cx="5.5" cy="12.5" r="1.1"/><circle cx="10.5" cy="12.5" r="1.1"/></g>';
   toolbar.innerHTML =
-    '<span id="dvf-label" draggable="true" title="Arraste pelo nome para mover o bloco"><i>\\u283f</i><b></b></span>' +
-    '<button type="button" data-action="moveUp" title="Subir uma posi\\u00e7\\u00e3o">\\u2191</button>' +
-    '<button type="button" data-action="moveDown" title="Descer uma posi\\u00e7\\u00e3o">\\u2193</button>' +
-    '<button type="button" data-action="duplicate" title="Duplicar (Ctrl+D)">\\u29c9</button>' +
-    '<button type="button" data-action="delete" title="Excluir (Delete) \\u2014 Ctrl+Z desfaz">\\u2715</button>';
+    '<span id="dvf-label" draggable="true" title="Arraste pelo nome para mover o bloco">' + svg(grip) + '<b></b></span>' +
+    '<button type="button" data-action="moveUp" title="Subir uma posi\\u00e7\\u00e3o">' + svg('<path d="M8 13V3M4 7l4-4 4 4"/>') + '</button>' +
+    '<button type="button" data-action="moveDown" title="Descer uma posi\\u00e7\\u00e3o">' + svg('<path d="M8 3v10M4 9l4 4 4-4"/>') + '</button>' +
+    '<button type="button" data-action="duplicate" title="Duplicar (Ctrl+D)">' + svg('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/>') + '</button>' +
+    '<button type="button" data-action="delete" title="Excluir (Delete) \\u2014 Ctrl+Z desfaz">' + svg('<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"/>') + '</button>';
   document.body.appendChild(toolbar);
   toolbar.style.display = 'none';
 
   toolbar.addEventListener('click', function (event) {
-    var action = event.target.getAttribute && event.target.getAttribute('data-action');
+    var btn = event.target.closest && event.target.closest('button[data-action]');
+    var action = btn && btn.getAttribute('data-action');
     if (action && selectedId) {
       parent.postMessage({ type: 'dvf:action', action: action, id: selectedId }, '*');
     }

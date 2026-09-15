@@ -42,7 +42,8 @@ import {
   retireOtherKind,
   switchPage,
 } from '../lib/publish.server.ts';
-import { shopSearch } from '../ui/embedded.ts';
+import { openWithToken, shopSearch } from '../ui/embedded.ts';
+import { BLOCK_ICONS, Icon, type IconName } from '../ui/icons.tsx';
 import {
   clientForStore,
   deployPage,
@@ -57,6 +58,8 @@ export const headers = passHeaders;
 import {
   bannerErr,
   bannerOk,
+  buttonGhost,
+  FONT_STACK,
   pillDanger,
   pillNeutral,
   pillSuccess,
@@ -544,6 +547,14 @@ const PALETTE_GROUPS: Array<{ name: string; types: string[] }> = [
 ];
 const PALETTE_COUNT = PALETTE_GROUPS.reduce((n, g) => n + g.types.length, 0);
 
+/** Blocks in the document, containers included. */
+const countBlocks = (nodes: DocNode[]): number =>
+  nodes.reduce((n, node) => n + 1 + (node.children ? countBlocks(node.children) : 0), 0);
+
+/** Accent-insensitive "contains", for the element search. */
+const fold = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const matchesQuery = (label: string, query: string) => !query.trim() || fold(label).includes(fold(query.trim()));
+
 interface PreviewStats {
   bytes: { html: number; css: number; js: number; total: number };
   htmlOptimization: { inlineStylesHoisted: number };
@@ -643,6 +654,7 @@ export default function PageEditor() {
     };
   }, [menu]);
   const [showSettings, setShowSettings] = useState(false);
+  const [paletteQuery, setPaletteQuery] = useState('');
   const [uiTheme, toggleUiTheme] = useUiTheme();
 
   // What the theme's font tokens resolve to TODAY, read from the storefront.
@@ -1051,22 +1063,24 @@ export default function PageEditor() {
 
   /** Everything the right-click menu can do with one block. */
   const menuNode = menu ? findNode(doc.root, menu.id) : null;
-  const menuActions = menuNode
+  const menuActions: Array<{ key: string; label: string; icon: IconName; hint?: string; danger?: boolean; run: () => void }> = menuNode
     ? [
-        { key: 'up', label: '↑ Subir', run: () => setRoot(moveNode(doc.root, menuNode.id, -1)) },
-        { key: 'down', label: '↓ Descer', run: () => setRoot(moveNode(doc.root, menuNode.id, 1)) },
-        { key: 'duplicate', label: '⧉ Duplicar', hint: 'Ctrl+D', run: () => setRoot(duplicateNode(doc.root, menuNode.id)) },
+        { key: 'up', label: 'Subir', icon: 'arrowUp', run: () => setRoot(moveNode(doc.root, menuNode.id, -1)) },
+        { key: 'down', label: 'Descer', icon: 'arrowDown', run: () => setRoot(moveNode(doc.root, menuNode.id, 1)) },
+        { key: 'duplicate', label: 'Duplicar', icon: 'duplicate', hint: 'Ctrl+D', run: () => setRoot(duplicateNode(doc.root, menuNode.id)) },
         {
           key: 'hide',
-          label: menuNode.hidden ? '👁 Mostrar na página' : '👁 Esconder da página',
+          label: menuNode.hidden ? 'Mostrar na página' : 'Esconder da página',
+          icon: menuNode.hidden ? 'eye' : 'eyeOff',
           hint: 'não publica',
           run: () => setRoot(toggleHidden(doc.root, menuNode.id)),
         },
-        { key: 'edit', label: '✎ Editar conteúdo', run: () => setTab('geral') },
-        { key: 'style', label: '◐ Editar estilo', run: () => setTab('estilo') },
+        { key: 'edit', label: 'Editar conteúdo', icon: 'edit', run: () => setTab('geral') },
+        { key: 'style', label: 'Editar estilo', icon: 'brush', run: () => setTab('estilo') },
         {
           key: 'delete',
-          label: '✕ Excluir',
+          label: 'Excluir',
+          icon: 'trash',
           hint: 'Delete',
           danger: true,
           run: () => {
@@ -1098,127 +1112,188 @@ export default function PageEditor() {
 
       {/* ---- top bar ------------------------------------------------------ */}
       <header style={topBar}>
-        <Link to={`/app${shopSearch(location.search)}`} style={backLink} aria-label="Voltar para páginas">
-          ←
-        </Link>
-        <img src="/mark.svg" alt="" width={20} height={20} />
-        <input name="title" defaultValue={data.page.title} style={titleInput} aria-label="Título da página" />
-        <span style={published ? pillSuccess : pillNeutral} data-status>
-          {published ? 'publicada' : 'rascunho'}
-        </span>
-        {published && !busy ? (
-          <button
-            type="button"
-            data-unpublish
-            title="Tira a página do ar em todas as lojas; o conteúdo fica guardado"
-            onClick={() => act('unpublish')}
-            style={unpublishLink}
+        <div style={topLeft}>
+          <Link
+            to={`/app${shopSearch(location.search)}`}
+            className="dv-btn dv-plain dv-icon-btn"
+            aria-label="Voltar para páginas"
+            title="Voltar para a lista de páginas"
           >
-            Despublicar
-          </button>
-        ) : null}
-        <button
-          type="button"
-          title="Configurações da página: URL, tipo, produtos vinculados, cabeçalho e rodapé"
-          aria-label="Configurações da página"
-          onClick={() => setShowSettings(true)}
-          style={labeledIconButton}
-        >
-          {/* Sliders, not a gear: a stroked gear reads as a sun next to the
-              theme toggle's actual sun. */}
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
-            <path d="M2 4.5h6.7M12.3 4.5H14M2 11.5h3.2M8.8 11.5H14" />
-            <circle cx="10.5" cy="4.5" r="1.8" />
-            <circle cx="7" cy="11.5" r="1.8" />
-          </svg>
-          Configurações
-        </button>
-        <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} style={historyOn} />
+            <Icon name="back" />
+          </Link>
+          <img src="/mark.svg" alt="" width={22} height={22} style={{ marginLeft: 2 }} />
+          <input name="title" defaultValue={data.page.title} style={titleInput} aria-label="Título da página" />
+          <span style={published ? pillSuccess : pillNeutral} data-status>
+            {published ? 'publicada' : 'rascunho'}
+          </span>
+        </div>
 
-        <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
+        <div style={topCenter}>
+          <div style={deviceGroup} role="group" aria-label="Largura da pré-visualização">
+            {DEVICES.map((d, i) => (
+              <button
+                key={d.label}
+                type="button"
+                title={d.label}
+                aria-label={d.label}
+                aria-pressed={i === device}
+                data-device={d.icon}
+                onClick={() => setDevice(i)}
+                style={i === device ? deviceActive : deviceIdle}
+              >
+                {deviceIcon(d.icon)}
+              </button>
+            ))}
+          </div>
+          <span style={widthReadout} title="Largura da pré-visualização">
+            {width === 0 ? 'largura total' : `${width} px`}
+          </span>
+        </div>
+
+        <div style={topRight}>
           <button
             type="button"
+            className="dv-btn dv-plain dv-icon-btn"
             title="Desfazer (Ctrl+Z)"
             aria-label="Desfazer"
             disabled={history.current.past.length === 0}
             onClick={undo}
-            style={history.current.past.length === 0 ? historyOff : historyOn}
           >
-            ↶
+            <Icon name="undo" />
           </button>
           <button
             type="button"
+            className="dv-btn dv-plain dv-icon-btn"
             title="Refazer (Ctrl+Shift+Z)"
             aria-label="Refazer"
             disabled={history.current.future.length === 0}
             onClick={redo}
-            style={history.current.future.length === 0 ? historyOff : historyOn}
           >
-            ↷
+            <Icon name="redo" />
           </button>
-        </div>
-
-        <div style={deviceGroup}>
-          {DEVICES.map((d, i) => (
-            <button
-              key={d.label}
-              type="button"
-              title={d.label}
-              aria-label={d.label}
-              data-device={d.icon}
-              onClick={() => setDevice(i)}
-              style={i === device ? deviceActive : deviceIdle}
-            >
-              {deviceIcon(d.icon)}
+          <span style={topDivider} aria-hidden="true" />
+          <button
+            type="button"
+            className="dv-btn dv-plain"
+            title="Abre a página compilada numa aba nova, sem o editor"
+            onClick={() => openWithToken(`/preview/${data.page.id}`)}
+          >
+            <Icon name="eye" />
+            Pré-visualizar
+          </button>
+          {data.liveUrls.length > 0 ? (
+            <a href={data.liveUrls[0]} target="_blank" rel="noreferrer" className="dv-btn dv-plain" title="Abre a página publicada na loja">
+              <Icon name="external" />
+              Ver no ar
+            </a>
+          ) : (
+            // Disabled, not hidden: the person learns the function exists and
+            // exactly why it is unavailable right now.
+            <span className="dv-btn dv-plain" aria-disabled="true" title={liveOffReason}>
+              <Icon name="external" />
+              Ver no ar
+            </span>
+          )}
+          <span style={topDivider} aria-hidden="true" />
+          {busy ? (
+            <button type="button" disabled className="dv-btn dv-primary">
+              {navigation.formData?.get('intent') === 'publish'
+                ? 'Publicando…'
+                : navigation.formData?.get('intent') === 'unpublish'
+                  ? 'Despublicando…'
+                  : 'Salvando…'}
             </button>
-          ))}
+          ) : dirty ? (
+            // While there are pending changes, publishing steps aside: the
+            // choice on screen is keep (Salvar) or throw away (Descartar).
+            <>
+              <span style={unsavedNote}>
+                <span style={unsavedDot} aria-hidden="true" />
+                Alterações não salvas
+              </span>
+              <button
+                type="button"
+                className="dv-btn dv-secondary"
+                onClick={() => {
+                  if (confirmingDiscard) window.location.reload();
+                  else setConfirmingDiscard(true);
+                }}
+                onBlur={() => setConfirmingDiscard(false)}
+              >
+                {confirmingDiscard ? 'Descartar mesmo?' : 'Descartar'}
+              </button>
+              <button type="button" className="dv-btn dv-primary" onClick={() => act('save')}>
+                Salvar
+              </button>
+            </>
+          ) : (
+            <button type="button" onClick={() => act('publish')} className="dv-btn dv-primary">
+              Publicar
+            </button>
+          )}
         </div>
+      </header>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
+      {/* ---- rail: one panel at a time on the left ------------------------ */}
+      <nav style={rail} aria-label="Painéis do editor">
+        <button
+          type="button"
+          className="dv-rail-btn"
+          data-on={!showSettings && !showHelp ? true : undefined}
+          title="Elementos e estrutura da página"
+          aria-label="Construir"
+          onClick={() => {
+            setShowSettings(false);
+            setShowHelp(false);
+          }}
+        >
+          <Icon name="elements" size={18} />
+          <span className="dv-sr">Construir</span>
+        </button>
+        <button
+          type="button"
+          className="dv-rail-btn"
+          data-on={showSettings ? true : undefined}
+          title="Configurações da página: URL, tipo, produtos vinculados, cabeçalho e rodapé"
+          aria-label="Configurações da página"
+          onClick={() => {
+            setShowSettings(true);
+            setShowHelp(false);
+          }}
+        >
+          <Icon name="settings" size={18} />
+          <span className="dv-sr">Configurações</span>
+        </button>
+        <button
+          type="button"
+          className="dv-rail-btn"
+          data-on={showHelp ? true : undefined}
+          data-help-toggle
+          title="Como usar o editor"
+          aria-label="Como usar o editor"
+          onClick={() => {
+            setShowHelp((v) => !v);
+            setShowSettings(false);
+          }}
+        >
+          <Icon name="help" size={18} />
+          <span className="dv-sr">Ajuda</span>
+        </button>
+        <div style={{ flex: 1 }} />
+        <div style={{ position: 'relative' }}>
           <button
             type="button"
-            title="Como usar o editor"
-            aria-label="Como usar o editor"
-            data-help-toggle
-            onClick={() => setShowHelp((v) => !v)}
-            style={showHelp ? { ...historyOn, background: 'var(--dv-inset)' } : historyOn}
-          >
-            ?
-          </button>
-          {showHelp ? (
-            <div style={helpPanel} data-help-panel>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ ...panelLabel, marginBottom: 0 }}>Como usar o editor</div>
-                <button type="button" aria-label="Fechar" onClick={() => setShowHelp(false)} style={historyOn}>
-                  ✕
-                </button>
-              </div>
-              {HELP.map((item) => (
-                <div key={item.title} style={helpRow}>
-                  <strong>{item.title}</strong>
-                  <span style={{ color: 'var(--dv-ink-2)' }}>{item.text}</span>
-                </div>
-              ))}
-              <div style={{ ...metaLine, marginTop: 8 }}>
-                Dúvida num botão? Deixe o mouse em cima: todos explicam o que fazem.
-              </div>
-            </div>
-          ) : null}
-          <button
-            type="button"
+            className="dv-rail-btn"
+            data-on={showKeys ? true : undefined}
             title="Atalhos de teclado"
             aria-label="Atalhos de teclado"
             onClick={() => setShowKeys((v) => !v)}
-            style={showKeys ? { ...historyOn, background: 'var(--dv-inset)' } : historyOn}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
-              <rect x="1.5" y="4" width="13" height="8" rx="1.5" />
-              <path d="M4 6.8h.01M6.7 6.8h.01M9.4 6.8h.01M12.1 6.8h.01M4.5 9.5h7" />
-            </svg>
+            <Icon name="keyboard" size={18} />
           </button>
           {showKeys ? (
             <div style={keysPanel}>
-              <div style={{ ...panelLabel, marginBottom: 10 }}>Atalhos de teclado</div>
+              <div style={{ ...panelTitle, marginBottom: 8 }}>Atalhos de teclado</div>
               {SHORTCUTS.map((s) => (
                 <div key={s.what} style={keysRow}>
                   <span style={{ display: 'flex', gap: 4 }}>
@@ -1233,114 +1308,124 @@ export default function PageEditor() {
               ))}
             </div>
           ) : null}
-          {data.liveUrls.length > 0 ? (
-            <a href={data.liveUrls[0]} target="_blank" rel="noreferrer" style={liveLink}>
-              Ver no ar
-            </a>
-          ) : (
-            // Disabled, not hidden: the person learns the function exists and
-            // exactly why it is unavailable right now.
-            <span style={liveLinkOff} title={liveOffReason}>
-              Ver no ar
-            </span>
-          )}
-          {busy ? (
-            <button type="button" disabled style={publishButton}>
-              {navigation.formData?.get('intent') === 'publish'
-                ? 'Publicando…'
-                : navigation.formData?.get('intent') === 'unpublish'
-                  ? 'Despublicando…'
-                  : 'Salvando…'}
-            </button>
-          ) : dirty ? (
-            // While there are pending changes, publishing steps aside: the
-            // choice on screen is keep (Salvar) or throw away (Descartar).
-            <>
-              <span style={unsavedNote}>● Alterações não salvas</span>
-              <button
-                type="button"
-                style={discardButton}
-                onClick={() => {
-                  if (confirmingDiscard) window.location.reload();
-                  else setConfirmingDiscard(true);
-                }}
-                onBlur={() => setConfirmingDiscard(false)}
-              >
-                {confirmingDiscard ? 'Descartar mesmo?' : 'Descartar'}
-              </button>
-              <button type="button" style={publishButton} onClick={() => act('save')}>
-                Salvar
-              </button>
-            </>
-          ) : (
-            <button type="button" onClick={() => act('publish')} style={publishButton}>
-              Publicar
-            </button>
-          )}
         </div>
-      </header>
+        <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="dv-rail-btn" />
+      </nav>
 
-      {/* ---- left: structure + add + page -------------------------------- */}
-      <aside style={leftPanel}>
-        <section style={panelSection}>
-          <div style={panelLabel}>Estrutura</div>
-          {doc.root.length === 0 ? (
-            <div style={metaLine}>Página vazia. Adicione um bloco abaixo.</div>
-          ) : (
-            <Tree
-              nodes={doc.root}
-              depth={0}
-              selectedIds={selection}
-              onSelect={select}
-              onRelocate={(id, targetId, position) =>
-                setRoot(relocateNode(doc.root, id, targetId, position))
-              }
-              onToggleHidden={(id) => setRoot(toggleHidden(doc.root, id))}
-              onContext={(id, x, y) => {
-                select(id);
-                setMenu({ id, x, y });
-              }}
-            />
-          )}
-        </section>
-
-        <section style={panelSection}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={panelLabel}>Adicionar</div>
-            <span style={countPill} title="Blocos disponíveis">
-              D&VFly {PALETTE_COUNT}
-            </span>
-          </div>
-          {PALETTE_GROUPS.map((group) => (
-            <div key={group.name} style={{ marginBottom: 8 }}>
-              <div style={paletteGroupLabel}>{group.name}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {group.types.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    data-palette={type}
-                    style={paletteButton}
-                    onClick={() => addBlock(type)}
-                  >
-                    {BLOCK_LABELS[type]}
-                  </button>
+      {/* ---- left: structure + elements, or the guide -------------------- */}
+      {!showSettings ? (
+        <aside style={leftPanel}>
+          {showHelp ? (
+            <div style={panelScroll} data-help-panel>
+              <div style={panelHead}>
+                <div style={panelTitle}>Como usar o editor</div>
+                <button type="button" className="dv-btn dv-plain dv-icon-btn" aria-label="Fechar" title="Fechar o guia" onClick={() => setShowHelp(false)}>
+                  <Icon name="close" />
+                </button>
+              </div>
+              <div style={panelBody}>
+                {HELP.map((item) => (
+                  <div key={item.title} style={helpRow}>
+                    <strong>{item.title}</strong>
+                    <span style={{ color: 'var(--dv-ink-2)' }}>{item.text}</span>
+                  </div>
                 ))}
+                <div style={{ ...metaLine, marginTop: 8 }}>
+                  Dúvida num botão? Deixe o mouse em cima: todos explicam o que fazem.
+                </div>
               </div>
             </div>
-          ))}
-          <div style={{ ...metaLine, marginTop: 6 }} data-insertion-note>
-            {insertionNote}
-          </div>
-        </section>
+          ) : (
+            <>
+              <section style={treeSection}>
+                <div style={panelHead}>
+                  <div style={panelTitle}>Estrutura</div>
+                  <span style={panelCount}>{countBlocks(doc.root)} {countBlocks(doc.root) === 1 ? 'bloco' : 'blocos'}</span>
+                </div>
+                <div style={treeScroll}>
+                  {doc.root.length === 0 ? (
+                    <div style={{ ...metaLine, padding: '4px 8px' }}>Página vazia. Adicione um elemento abaixo.</div>
+                  ) : (
+                    <Tree
+                      nodes={doc.root}
+                      depth={0}
+                      selectedIds={selection}
+                      onSelect={select}
+                      onRelocate={(id, targetId, position) =>
+                        setRoot(relocateNode(doc.root, id, targetId, position))
+                      }
+                      onToggleHidden={(id) => setRoot(toggleHidden(doc.root, id))}
+                      onContext={(id, x, y) => {
+                        select(id);
+                        setMenu({ id, x, y });
+                      }}
+                    />
+                  )}
+                </div>
+              </section>
 
-      </aside>
+              <section style={paletteSection}>
+                <div style={panelHead}>
+                  <div style={panelTitle}>Elementos</div>
+                  <span style={countPill} title="Blocos disponíveis">
+                    D&VFly {PALETTE_COUNT}
+                  </span>
+                </div>
+                <div style={searchWrap}>
+                  <Icon name="search" style={searchIcon} />
+                  <input
+                    className="dv-input"
+                    style={searchInput}
+                    placeholder="Buscar elemento"
+                    aria-label="Buscar elemento"
+                    value={paletteQuery}
+                    onChange={(e) => setPaletteQuery(e.target.value)}
+                    data-palette-search
+                  />
+                </div>
+                <div style={paletteScroll}>
+                  {PALETTE_GROUPS.map((group) => {
+                    const types = group.types.filter((type) => matchesQuery(BLOCK_LABELS[type] ?? type, paletteQuery));
+                    if (types.length === 0) return null;
+                    return (
+                      <div key={group.name} style={{ marginBottom: 10 }}>
+                        <div style={paletteGroupLabel}>{group.name}</div>
+                        <div style={paletteGrid}>
+                          {types.map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              className="dv-card-btn"
+                              data-palette={type}
+                              title={`Adicionar ${BLOCK_LABELS[type] ?? type}`}
+                              onClick={() => addBlock(type)}
+                            >
+                              <Icon name={BLOCK_ICONS[type] ?? 'section'} size={18} />
+                              <span>{BLOCK_LABELS[type]}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {PALETTE_GROUPS.every((g) => g.types.every((t) => !matchesQuery(BLOCK_LABELS[t] ?? t, paletteQuery))) ? (
+                    <div style={metaLine}>Nenhum elemento com esse nome.</div>
+                  ) : null}
+                  <div style={{ ...metaLine, marginTop: 2 }} data-insertion-note>
+                    {insertionNote}
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
+        </aside>
+      ) : null}
 
       {/* ---- center: canvas ----------------------------------------------- */}
       <main style={canvas}>
         <div style={crumbBar}>
           {crumbs.length === 0 ? (
-            <span style={{ color: 'var(--dv-ink-3)' }}>Clique num elemento para selecionar</span>
+            <span style={{ color: 'var(--dv-ink-3)' }}>Nenhum elemento selecionado — clique num bloco para editar</span>
           ) : (
             crumbs.map((node, i) => (
               <span key={node.id}>
@@ -1384,6 +1469,7 @@ export default function PageEditor() {
                   setMenu(null);
                 }}
               >
+                <Icon name={action.icon} />
                 <span>{action.label}</span>
                 {action.hint ? <span style={contextHint}>{action.hint}</span> : null}
               </button>
@@ -1402,7 +1488,7 @@ export default function PageEditor() {
       {/* ---- right: inspector + publish ----------------------------------- */}
       <aside style={rightPanel}>
         {result && result.message !== 'Salvo.' ? (
-          <div style={{ padding: '10px 12px 0' }}>
+          <div style={{ padding: '12px 12px 0' }}>
             <div style={result.ok ? bannerOk : bannerErr} data-result>
               <div style={{ fontWeight: 600 }}>{result.message}</div>
               {('urls' in result ? result.urls : undefined)?.map((url: string) => (
@@ -1420,7 +1506,7 @@ export default function PageEditor() {
           </div>
         ) : null}
 
-        <section style={{ ...panelSection, flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <section style={inspectorSection}>
           {selectedNode ? (
             <>
               {selection.length > 1 ? (
@@ -1430,57 +1516,76 @@ export default function PageEditor() {
                 </div>
               ) : null}
               <div style={inspectorHead}>
-                <div style={panelLabel}>{BLOCK_LABELS[selectedNode.type] ?? selectedNode.type}</div>
+                <span style={inspectorIcon}>
+                  <Icon name={BLOCK_ICONS[selectedNode.type] ?? 'section'} />
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={panelTitle}>{BLOCK_LABELS[selectedNode.type] ?? selectedNode.type}</div>
+                  {String(selectedNode.props?.name ?? '') ? (
+                    <div style={{ ...metaLine, padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {String(selectedNode.props?.name)}
+                    </div>
+                  ) : null}
+                </div>
               </div>
               {/* Every action, named. Icons alone were the first thing people
                   could not decode; the shortcut rides in the tooltip. */}
               <div style={actionBar} data-actions>
-                <button type="button" style={actionButton} title="Subir uma posição" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, -1))}>
-                  ↑ Subir
+                <button type="button" className="dv-btn dv-plain" style={actionButton} title="Subir uma posição" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, -1))}>
+                  <Icon name="arrowUp" />
+                  Subir
                 </button>
-                <button type="button" style={actionButton} title="Descer uma posição" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, 1))}>
-                  ↓ Descer
+                <button type="button" className="dv-btn dv-plain" style={actionButton} title="Descer uma posição" onClick={() => setRoot(moveNode(doc.root, selectedNode.id, 1))}>
+                  <Icon name="arrowDown" />
+                  Descer
                 </button>
-                <button type="button" style={actionButton} title="Duplicar (Ctrl+D) — vale para todos os selecionados" onClick={() => shortcutAction('duplicate')}>
-                  ⧉ Duplicar
+                <button type="button" className="dv-btn dv-plain" style={actionButton} title="Duplicar (Ctrl+D) — vale para todos os selecionados" onClick={() => shortcutAction('duplicate')}>
+                  <Icon name="duplicate" />
+                  Duplicar
                 </button>
                 <button
                   type="button"
+                  className="dv-btn dv-plain"
                   style={actionButton}
                   title={selectedNode.hidden ? 'Voltar a mostrar este bloco na página' : 'Esconder da página publicada sem apagar'}
                   data-action-hide
                   onClick={() => setRoot(toggleHidden(doc.root, selectedNode.id))}
                 >
-                  {selectedNode.hidden ? '👁 Mostrar' : '👁 Esconder'}
+                  <Icon name={selectedNode.hidden ? 'eye' : 'eyeOff'} />
+                  {selectedNode.hidden ? 'Mostrar' : 'Esconder'}
                 </button>
                 <button
                   type="button"
-                  style={{ ...actionButton, color: 'var(--dv-danger)' }}
+                  className="dv-btn dv-plain"
+                  data-danger
+                  style={actionButton}
                   title="Excluir (Delete) — Ctrl+Z desfaz"
                   data-action-delete
                   onClick={() => shortcutAction('delete')}
                 >
-                  ✕ Excluir
+                  <Icon name="trash" />
+                  Excluir
                 </button>
               </div>
-              <div style={{ ...metaLine, marginBottom: 8 }}>
+              <div style={{ ...metaLine, marginBottom: 6 }}>
                 Para mover, arraste na Estrutura ou pelo nome na barra do canvas. Botão direito
                 num bloco abre este menu.
               </div>
-              <div style={tabRow}>
-                <button
-                  type="button"
-                  style={tab === 'geral' ? tabOn : tabOff}
-                  onClick={() => setTab('geral')}
-                >
+              <div style={tabRow} role="tablist">
+                <button type="button" className="dv-tab" role="tab" data-on={tab === 'geral' ? true : undefined} aria-selected={tab === 'geral'} onClick={() => setTab('geral')}>
+                  <Icon name="edit" />
                   Geral
                 </button>
                 <button
                   type="button"
-                  style={{ ...(tab === 'estilo' ? tabOn : tabOff), display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  className="dv-tab"
+                  role="tab"
+                  data-on={tab === 'estilo' ? true : undefined}
+                  aria-selected={tab === 'estilo'}
                   title="O Estilo é por dispositivo — o ícone mostra qual está sendo editado"
                   onClick={() => setTab('estilo')}
                 >
+                  <Icon name="brush" />
                   Estilo {deviceIcon(BP_DEVICES.find((d) => d.bp === breakpoint)!.icon)}
                 </button>
               </div>
@@ -1504,21 +1609,23 @@ export default function PageEditor() {
                               <button
                                 type="button"
                                 title="Duplicar aba"
+                                aria-label="Duplicar aba"
                                 style={{ ...tabItemOp, color: active ? 'var(--dv-invert-ink)' : 'var(--dv-ink-2)' }}
                                 onClick={() => setRoot(duplicateNode(doc.root, child.id))}
                               >
-                                ⧉
+                                <Icon name="duplicate" size={14} />
                               </button>
                               <button
                                 type="button"
                                 title="Excluir aba"
+                                aria-label="Excluir aba"
                                 style={{ ...tabItemOp, color: active ? 'var(--dv-invert-ink)' : 'var(--dv-danger)' }}
                                 onClick={() => {
                                   setRoot(removeNode(doc.root, child.id));
                                   if (active) select(tabsNode.id);
                                 }}
                               >
-                                ✕
+                                <Icon name="trash" size={14} />
                               </button>
                             </div>
                           );
@@ -1650,36 +1757,51 @@ export default function PageEditor() {
             </>
           ) : (
             <>
-              <div style={panelLabel}>Nada selecionado</div>
-              <div style={metaLine}>
-                Clique num bloco no canvas ou na Estrutura para editar o conteúdo e o estilo
-                dele aqui. Para começar uma página, use <strong>Adicionar</strong>, à esquerda.
+              <div style={emptyInspector}>
+                <span style={emptyIcon}>
+                  <Icon name="elements" size={20} />
+                </span>
+                <div style={panelTitle}>Nenhum elemento selecionado</div>
+                <div style={metaLine}>
+                  Clique num bloco no canvas ou na Estrutura para editar o conteúdo e o estilo
+                  dele aqui. Para começar uma página, use <strong>Elementos</strong>, à esquerda.
+                </div>
               </div>
               {firstVisit ? (
-                <div style={{ marginTop: 12 }} data-help-inline>
-                  <div style={{ ...panelLabel, marginBottom: 4 }}>Como usar o editor</div>
+                <div style={{ marginTop: 14 }} data-help-inline>
+                  <div style={{ ...panelTitle, marginBottom: 4 }}>Como usar o editor</div>
                   {HELP.map((item) => (
                     <div key={item.title} style={helpRow}>
                       <strong>{item.title}</strong>
                       <span style={{ color: 'var(--dv-ink-2)' }}>{item.text}</span>
                     </div>
                   ))}
-                  <button type="button" style={{ ...addItemButton, marginTop: 10 }} onClick={dismissGuide} data-help-dismiss>
+                  <button type="button" className="dv-btn dv-secondary" style={{ marginTop: 10, width: '100%' }} onClick={dismissGuide} data-help-dismiss>
                     Entendi — não mostrar de novo
                   </button>
-                  <div style={{ ...metaLine, marginTop: 4 }}>O botão ? no topo traz este guia de volta.</div>
+                  <div style={{ ...metaLine, marginTop: 4 }}>O botão de ajuda, no trilho à esquerda, traz este guia de volta.</div>
                 </div>
               ) : (
-                <button type="button" style={{ ...addItemButton, marginTop: 10 }} onClick={() => setShowHelp(true)} data-help-open>
-                  ? Como usar o editor
+                <button
+                  type="button"
+                  className="dv-btn dv-secondary"
+                  style={{ marginTop: 12 }}
+                  onClick={() => {
+                    setShowHelp(true);
+                    setShowSettings(false);
+                  }}
+                  data-help-open
+                >
+                  <Icon name="help" />
+                  Como usar o editor
                 </button>
               )}
             </>
           )}
         </section>
 
-        <section style={{ ...panelSection, borderBottom: 'none' }}>
-          <div style={panelLabel}>Publicar em</div>
+        <section style={publishSection}>
+          <div style={{ ...panelTitle, marginBottom: 8 }}>Publicar em</div>
           {data.stores.length === 0 ? (
             <div style={metaLine}>
               Nenhuma loja registrada ainda. Abra o app pelo admin da Shopify da loja — ela se
@@ -1698,6 +1820,7 @@ export default function PageEditor() {
                   />
                   {store.label}
                   {store.isProduction ? <span style={pillDanger}>produção</span> : null}
+                  {data.liveStoreIds.includes(store.id) ? <span style={pillSuccess}>no ar</span> : null}
                   {store.unusable ? <span style={metaLine}>— {store.unusable}</span> : null}
                 </label>
               ))}
@@ -1709,11 +1832,24 @@ export default function PageEditor() {
               ) : null}
             </div>
           )}
+          {published && !busy ? (
+            <button
+              type="button"
+              className="dv-btn dv-secondary"
+              data-unpublish
+              style={{ marginTop: 10, width: '100%' }}
+              title="Tira a página do ar em todas as lojas; o conteúdo fica guardado"
+              onClick={() => act('unpublish')}
+            >
+              Despublicar
+            </button>
+          ) : null}
           {live.findings.length > 0 ? (
             <div style={{ marginTop: 10 }}>
               {live.findings.map((finding, index) => (
                 <div key={index} style={findingLine}>
-                  {finding.message}
+                  <Icon name="alert" size={14} style={{ marginTop: 2 }} />
+                  <span>{finding.message}</span>
                 </div>
               ))}
             </div>
@@ -1721,17 +1857,22 @@ export default function PageEditor() {
         </section>
       </aside>
 
-      {/* ---- page settings drawer ---------------------------------------- */}
+      {/* ---- page settings: the left panel, in place of the builder ------- */}
       {showSettings ? (
-        <>
-          <div style={drawerBackdrop} onClick={() => setShowSettings(false)} />
-          <div style={drawer} data-settings-drawer>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ ...panelLabel, marginBottom: 0 }}>Configurações da página</div>
-              <button type="button" aria-label="Fechar configurações" onClick={() => setShowSettings(false)} style={historyOn}>
-                ✕
-              </button>
-            </div>
+        <div style={settingsPanel} data-settings-drawer>
+          <div style={panelHead}>
+            <div style={panelTitle}>Configurações da página</div>
+            <button
+              type="button"
+              className="dv-btn dv-plain dv-icon-btn"
+              aria-label="Fechar configurações"
+              title="Voltar para elementos e estrutura"
+              onClick={() => setShowSettings(false)}
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+          <div style={panelBody}>
 
             <div style={{ ...metaLine, margin: '10px 0 14px' }}>
               O título no topo do editor é o <strong>título da página</strong>: aparece na aba do
@@ -1863,7 +2004,7 @@ export default function PageEditor() {
                     data-copy-template
                     onClick={() => navigator.clipboard?.writeText(`product.${data.productSuffix}`).catch(() => {})}
                   >
-                    ⧉
+                    <Icon name="copy" size={14} />
                   </button>
                 </div>
                 <div style={{ ...metaLine, marginTop: 4 }}>
@@ -1877,7 +2018,7 @@ export default function PageEditor() {
               </div>
             )}
           </div>
-        </>
+        </div>
       ) : null}
     </form>
   );
@@ -1971,7 +2112,7 @@ function ProductLinks({
                 data-unlink={link.productGid}
                 onClick={() => submit({ intent: 'unlink-product', linkId: link.id })}
               >
-                ✕
+                <Icon name="close" size={14} />
               </button>
             </div>
           ))}
@@ -2101,89 +2242,99 @@ function Tree({
 
   return (
     <>
-      {nodes.map((node) => (
-        <div key={node.id}>
-          <button
-            type="button"
-            data-tree-id={node.id}
-            data-tree-selected={selectedIds.includes(node.id) || undefined}
-            draggable
-            title="Clique: selecionar · Ctrl+clique: somar à seleção · Arraste: mover · Botão direito: ações"
-            onClick={(event) => onSelect(node.id, event.ctrlKey || event.metaKey)}
-            onContextMenu={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onContext(node.id, event.clientX, event.clientY);
-            }}
-            onDragStart={(event) => {
-              event.dataTransfer.setData('text/dvf-node', node.id);
-              event.dataTransfer.effectAllowed = 'move';
-            }}
-            onDragOver={(event) => {
-              if (!event.dataTransfer.types.includes('text/dvf-node')) return;
-              event.preventDefault();
-              setHint({ id: node.id, position: positionFor(event, node) });
-            }}
-            onDragLeave={() => setHint((h) => (h?.id === node.id ? null : h))}
-            onDrop={(event) => {
-              const dragged = event.dataTransfer.getData('text/dvf-node');
-              event.preventDefault();
-              setHint(null);
-              if (dragged && dragged !== node.id) {
-                onRelocate(dragged, node.id, positionFor(event, node));
-              }
-            }}
-            style={{
-              ...treeRow,
-              paddingLeft: 8 + depth * 14,
-              ...(selectedIds.includes(node.id) ? treeRowSelected : {}),
-              ...(node.hidden || parentHidden ? treeRowHidden : {}),
-              ...hintStyle(node),
-            }}
-          >
-            <span style={treeGrip} aria-hidden="true">⠿</span>
-            <span style={treeIcon}>{CONTAINER_TYPES.has(node.type) ? '▸' : '·'}</span>
-            <span data-tree-label style={node.hidden || parentHidden ? { textDecoration: 'line-through' } : undefined}>
-              {String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type)}
-            </span>
-            {node.type === 'heading' || node.type === 'text' ? (
-              <span style={treeHint}> {String(node.props?.text ?? '').slice(0, 18)}</span>
-            ) : null}
-            <span
-              role="button"
-              tabIndex={0}
-              data-eye={node.id}
-              title={node.hidden ? 'Mostrar este bloco' : 'Esconder este bloco (não sai na página)'}
-              onClick={(event) => {
+      {nodes.map((node) => {
+        const off = Boolean(node.hidden) || parentHidden;
+        return (
+          <div key={node.id}>
+            <button
+              type="button"
+              className="dv-tree-row"
+              data-tree-id={node.id}
+              data-tree-selected={selectedIds.includes(node.id) || undefined}
+              data-tree-hidden={off || undefined}
+              draggable
+              title="Clique: selecionar · Ctrl+clique: somar à seleção · Arraste: mover · Botão direito: ações"
+              onClick={(event) => onSelect(node.id, event.ctrlKey || event.metaKey)}
+              onContextMenu={(event) => {
+                event.preventDefault();
                 event.stopPropagation();
-                onToggleHidden(node.id);
+                onContext(node.id, event.clientX, event.clientY);
               }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  onToggleHidden(node.id);
+              onDragStart={(event) => {
+                event.dataTransfer.setData('text/dvf-node', node.id);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(event) => {
+                if (!event.dataTransfer.types.includes('text/dvf-node')) return;
+                event.preventDefault();
+                setHint({ id: node.id, position: positionFor(event, node) });
+              }}
+              onDragLeave={() => setHint((h) => (h?.id === node.id ? null : h))}
+              onDrop={(event) => {
+                const dragged = event.dataTransfer.getData('text/dvf-node');
+                event.preventDefault();
+                setHint(null);
+                if (dragged && dragged !== node.id) {
+                  onRelocate(dragged, node.id, positionFor(event, node));
                 }
               }}
-              style={{ ...eyeButton, ...(node.hidden ? eyeOff : {}) }}
+              style={{
+                ...treeRow,
+                paddingLeft: 6 + depth * 14,
+                ...(off ? treeRowHidden : {}),
+                ...hintStyle(node),
+              }}
             >
-              <EyeIcon off={Boolean(node.hidden)} />
-            </span>
-          </button>
-          {node.children ? (
-            <Tree
-              nodes={node.children}
-              depth={depth + 1}
-              selectedIds={selectedIds}
-              onSelect={onSelect}
-              onRelocate={onRelocate}
-              onToggleHidden={onToggleHidden}
-              onContext={onContext}
-              parentHidden={parentHidden || Boolean(node.hidden)}
-            />
-          ) : null}
-        </div>
-      ))}
+              <span className="dv-tree-tools" style={treeGrip} aria-hidden="true">
+                <Icon name="drag" size={12} />
+              </span>
+              <span style={treeIcon}>
+                <Icon name={BLOCK_ICONS[node.type] ?? 'section'} size={14} />
+              </span>
+              <span data-tree-label style={{ ...treeLabel, ...(off ? { textDecoration: 'line-through' } : {}) }}>
+                {String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type)}
+              </span>
+              {node.type === 'heading' || node.type === 'text' ? (
+                <span style={treeHint}>{String(node.props?.text ?? '').slice(0, 18)}</span>
+              ) : null}
+              <span
+                role="button"
+                tabIndex={0}
+                className="dv-tree-tools"
+                data-eye={node.id}
+                title={node.hidden ? 'Mostrar este bloco' : 'Esconder este bloco (não sai na página)'}
+                aria-label={node.hidden ? 'Mostrar este bloco' : 'Esconder este bloco'}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleHidden(node.id);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onToggleHidden(node.id);
+                  }
+                }}
+                style={{ ...eyeButton, ...(node.hidden ? eyeOff : {}) }}
+              >
+                <Icon name={node.hidden ? 'eyeOff' : 'eye'} size={14} />
+              </span>
+            </button>
+            {node.children ? (
+              <Tree
+                nodes={node.children}
+                depth={depth + 1}
+                selectedIds={selectedIds}
+                onSelect={onSelect}
+                onRelocate={onRelocate}
+                onToggleHidden={onToggleHidden}
+                onContext={onContext}
+                parentHidden={off}
+              />
+            ) : null}
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -2623,9 +2774,10 @@ function StylePanel({
   const box = (label: string, key: 'padding' | 'margin') => {
     const value = (own[key] ?? {}) as Record<string, unknown>;
     const base = (inherited(key) ?? {}) as Record<string, unknown>;
+    const SIDE_NAMES = { top: 'Cima', right: 'Direita', bottom: 'Baixo', left: 'Esquerda' };
     const side = (name: 'top' | 'right' | 'bottom' | 'left', short: string) => (
-      <label key={name} style={{ ...fieldLabel, flex: 1, marginBottom: 0 }}>
-        {short}
+      <label key={name} style={{ ...fieldLabel, flex: 1, marginBottom: 0 }} title={SIDE_NAMES[name]}>
+        <span style={{ fontSize: 11.5, color: 'var(--dv-ink-3)' }}>{short}</span>
         <input
           style={fieldInput}
           value={value[name] === undefined ? '' : String(value[name])}
@@ -2644,10 +2796,10 @@ function StylePanel({
       <div style={{ marginBottom: 8 }}>
         <div style={{ ...fieldLabel, marginBottom: 2 }}>{label}</div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {side('top', '↑')}
-          {side('right', '→')}
-          {side('bottom', '↓')}
-          {side('left', '←')}
+          {side('top', 'Cima')}
+          {side('right', 'Dir.')}
+          {side('bottom', 'Baixo')}
+          {side('left', 'Esq.')}
         </div>
       </div>
     );
@@ -2780,315 +2932,341 @@ function StylePanel({
 // not a form-over-data page, and its layout (fixed viewport grid) is not what
 // Polaris pages are built for.
 
+// ---- layout ----------------------------------------------------------------
+//
+// Top bar over everything; below it, left to right: the icon rail, one panel
+// (structure + elements, the guide, or the page settings), the canvas, the
+// inspector. The arrangement follows what page builders taught their users;
+// every pixel is drawn here, from scratch, in the D&VFly skin.
+
 const shell: React.CSSProperties = {
   position: 'fixed',
   inset: 0,
   display: 'grid',
-  gridTemplateRows: '52px 1fr',
-  gridTemplateColumns: '260px 1fr 340px',
-  gridTemplateAreas: `"top top top" "left canvas right"`,
+  gridTemplateRows: '56px 1fr',
+  gridTemplateColumns: '52px 300px 1fr 340px',
+  gridTemplateAreas: `"top top top top" "rail left canvas right"`,
   background: 'var(--dv-sfc)',
-  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  fontFamily: FONT_STACK,
+  fontSize: 13,
+  lineHeight: 1.45,
   color: 'var(--dv-ink)',
   zIndex: 10,
 };
 
 const topBar: React.CSSProperties = {
   gridArea: 'top',
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: '1fr auto 1fr',
   alignItems: 'center',
-  gap: 10,
+  gap: 12,
   padding: '0 12px',
   borderBottom: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
+  minWidth: 0,
 };
 
-const backLink: React.CSSProperties = {
-  fontSize: 18,
-  textDecoration: 'none',
-  color: 'var(--dv-ink-2)',
-  padding: '2px 8px',
-  borderRadius: 8,
+const topLeft: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 };
+const topCenter: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, justifySelf: 'center' };
+const topRight: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 4, justifySelf: 'end' };
+
+const topDivider: React.CSSProperties = {
+  width: 1,
+  height: 22,
+  background: 'var(--dv-edge)',
+  margin: '0 4px',
 };
+
+const backLink: React.CSSProperties = {};
 
 const titleInput: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 600,
   border: '1px solid transparent',
   borderRadius: 8,
-  padding: '6px 8px',
-  width: 260,
+  padding: '5px 8px',
+  fontSize: 14,
+  fontWeight: 600,
+  minWidth: 120,
+  maxWidth: 360,
+  width: '100%',
   background: 'transparent',
+  color: 'var(--dv-ink)',
 };
 
 const deviceGroup: React.CSSProperties = {
-  marginLeft: 'auto',
-  marginRight: 12,
-  display: 'flex',
-  background: 'var(--dv-inset)',
+  display: 'inline-flex',
+  gap: 2,
+  background: 'var(--dv-inset2)',
+  border: '1px solid var(--dv-edge)',
   borderRadius: 8,
   padding: 2,
-  gap: 2,
 };
 
 const deviceBase: React.CSSProperties = {
+  width: 32,
+  height: 28,
   border: 0,
-  borderRadius: 6,
-  padding: '5px 9px',
-  fontSize: 12,
-  cursor: 'pointer',
   background: 'transparent',
+  borderRadius: 6,
   color: 'var(--dv-ink-2)',
-  display: 'flex',
+  cursor: 'pointer',
+  display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
 };
-const deviceIdle = deviceBase;
+
 const deviceActive: React.CSSProperties = {
   ...deviceBase,
   background: 'var(--dv-sfc)',
   color: 'var(--dv-ink)',
-  fontWeight: 600,
   boxShadow: 'var(--dv-shadow-soft)',
+};
+const deviceIdle = deviceBase;
+
+const widthReadout: React.CSSProperties = {
+  fontSize: 12,
+  color: 'var(--dv-ink-3)',
+  fontVariantNumeric: 'tabular-nums',
+  minWidth: 84,
 };
 
 const historyBase: React.CSSProperties = {
+  width: 32,
+  height: 32,
   border: 0,
   background: 'transparent',
-  borderRadius: 6,
-  width: 28,
-  height: 28,
-  fontSize: 15,
-  lineHeight: 1,
+  borderRadius: 8,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 const historyOn: React.CSSProperties = { ...historyBase, color: 'var(--dv-ink)', cursor: 'pointer' };
 const historyOff: React.CSSProperties = { ...historyBase, color: 'var(--dv-ink-4)', cursor: 'default' };
 
-const liveLink: React.CSSProperties = {
-  fontSize: 13,
-  color: 'var(--dv-link)',
-  textDecoration: 'none',
-  marginRight: 4,
-};
-
-const liveLinkOff: React.CSSProperties = {
-  ...liveLink,
-  color: 'var(--dv-ink-4)',
-  cursor: 'default',
-};
-
-const unpublishLink: React.CSSProperties = {
-  border: 0,
-  background: 'transparent',
-  color: 'var(--dv-warn-text)',
-  fontSize: 12.5,
-  cursor: 'pointer',
-  padding: '2px 4px',
-  textDecoration: 'underline',
-};
+const liveLink: React.CSSProperties = { color: 'var(--dv-link)', textDecoration: 'none', fontSize: 13 };
+const liveLinkOff: React.CSSProperties = { color: 'var(--dv-ink-4)', fontSize: 13, cursor: 'default' };
+const unpublishLink: React.CSSProperties = {};
+const labeledIconButton: React.CSSProperties = {};
 
 const unsavedNote: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
   fontSize: 12.5,
   color: 'var(--dv-warn-text)',
+  marginRight: 4,
   whiteSpace: 'nowrap',
 };
 
-const discardButton: React.CSSProperties = {
-  border: '1px solid var(--dv-edge)',
-  background: 'var(--dv-sfc)',
-  borderRadius: 8,
-  padding: '7px 12px',
-  fontSize: 13,
-  cursor: 'pointer',
-  color: 'var(--dv-ink-2)',
+const unsavedDot: React.CSSProperties = {
+  width: 7,
+  height: 7,
+  borderRadius: 999,
+  background: 'var(--dv-warn-edge)',
+  boxShadow: '0 0 0 2px var(--dv-warn-tint)',
 };
 
-const publishButton: React.CSSProperties = {
-  background: 'var(--dv-accent)',
-  color: 'var(--dv-accent-ink)',
-  border: 0,
-  borderRadius: 8,
-  padding: '8px 16px',
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: 'pointer',
+const discardButton: React.CSSProperties = {};
+const publishButton: React.CSSProperties = {};
+
+// ---- rail + panels -----------------------------------------------------------
+
+const rail: React.CSSProperties = {
+  gridArea: 'rail',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 4,
+  padding: '8px 0',
+  borderRight: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
 };
 
 const leftPanel: React.CSSProperties = {
   gridArea: 'left',
   borderRight: '1px solid var(--dv-edge)',
-  overflowY: 'auto',
+  background: 'var(--dv-sfc)',
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
 };
 
 const rightPanel: React.CSSProperties = {
   gridArea: 'right',
   borderLeft: '1px solid var(--dv-edge)',
-  overflowY: 'auto',
+  background: 'var(--dv-sfc)',
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'auto',
+  minHeight: 0,
+};
+
+const settingsPanel: React.CSSProperties = {
+  gridArea: 'left',
+  borderRight: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
+  overflow: 'auto',
+};
+
+const panelHead: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  padding: '10px 12px 6px',
+  flexShrink: 0,
+};
+
+const panelTitle: React.CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: 'var(--dv-ink)',
+  lineHeight: '20px',
+};
+
+const panelCount: React.CSSProperties = { fontSize: 12, color: 'var(--dv-ink-3)' };
+
+const panelBody: React.CSSProperties = { padding: '0 12px 12px' };
+const panelScroll: React.CSSProperties = { overflow: 'auto', minHeight: 0, flex: 1 };
+
+const treeSection: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  flex: '1 1 40%',
+  minHeight: 120,
+  borderBottom: '1px solid var(--dv-edge)',
+};
+
+const treeScroll: React.CSSProperties = { overflow: 'auto', padding: '0 8px 8px', flex: 1, minHeight: 0 };
+
+const paletteSection: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  flex: '1 1 60%',
+  minHeight: 0,
+};
+
+const paletteScroll: React.CSSProperties = { overflow: 'auto', padding: '4px 12px 12px', flex: 1, minHeight: 0 };
+
+const paletteGrid: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, 1fr)',
+  gap: 6,
+};
+
+const searchWrap: React.CSSProperties = { position: 'relative', padding: '0 12px 8px', flexShrink: 0 };
+const searchIcon: React.CSSProperties = {
+  position: 'absolute',
+  left: 21,
+  top: 8,
+  color: 'var(--dv-ink-3)',
+  pointerEvents: 'none',
+};
+const searchInput: React.CSSProperties = { paddingLeft: 30 };
+
+const panelSection: React.CSSProperties = {
+  padding: '12px',
+  borderBottom: '1px solid var(--dv-edge)',
+};
+
+const panelLabel: React.CSSProperties = { ...panelTitle, marginBottom: 8 };
+
+const inspectorSection: React.CSSProperties = {
+  padding: 12,
+  borderBottom: '1px solid var(--dv-edge)',
+  flex: 1,
   display: 'flex',
   flexDirection: 'column',
 };
 
-const panelSection: React.CSSProperties = {
-  padding: 12,
-  borderBottom: '1px solid var(--dv-edge-soft)',
-};
-
-const panelLabel: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
-  color: 'var(--dv-ink-3)',
-  marginBottom: 8,
-};
+const publishSection: React.CSSProperties = { padding: 12 };
 
 const inspectorHead: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
+  gap: 8,
+  marginBottom: 8,
+  minWidth: 0,
+};
+
+const inspectorIcon: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 8,
+  background: 'var(--dv-inset2)',
+  border: '1px solid var(--dv-edge)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--dv-ink-2)',
+  flexShrink: 0,
+};
+
+const emptyInspector: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 6,
+  padding: '8px 0',
+};
+
+const emptyIcon: React.CSSProperties = {
+  width: 36,
+  height: 36,
+  borderRadius: 10,
+  background: 'var(--dv-inset2)',
+  border: '1px solid var(--dv-edge)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--dv-ink-2)',
+  marginBottom: 4,
 };
 
 const opButton: React.CSSProperties = {
-  border: '1px solid var(--dv-edge)',
-  background: 'var(--dv-sfc)',
-  borderRadius: 6,
   width: 26,
   height: 26,
-  fontSize: 13,
+  border: '1px solid var(--dv-edge)',
+  background: 'var(--dv-sfc)',
+  borderRadius: 6,
   cursor: 'pointer',
   color: 'var(--dv-ink-2)',
-  lineHeight: 1,
-};
-
-const treeRow: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  width: '100%',
-  textAlign: 'left',
-  border: 0,
-  background: 'transparent',
-  fontSize: 13,
-  padding: '5px 8px',
-  borderRadius: 6,
-  cursor: 'pointer',
-  color: 'var(--dv-ink)',
-};
-
-const treeRowSelected: React.CSSProperties = {
-  background: 'var(--dv-accent-tint)',
-  outline: '1px solid var(--dv-accent-edge)',
-  fontWeight: 600,
-};
-
-const treeIcon: React.CSSProperties = { fontSize: 10, color: 'var(--dv-accent-text)', width: 10 };
-/** The drag grip: dim, always there, so "this row moves" is visible before any drag. */
-const treeGrip: React.CSSProperties = { color: 'var(--dv-ink-4)', fontSize: 11, cursor: 'grab', marginRight: -2 };
-
-const labeledIconButton: React.CSSProperties = {
-  border: 0,
-  background: 'transparent',
-  borderRadius: 6,
-  height: 28,
-  padding: '0 8px',
-  fontSize: 12.5,
-  color: 'var(--dv-ink)',
-  cursor: 'pointer',
   display: 'inline-flex',
   alignItems: 'center',
-  gap: 6,
+  justifyContent: 'center',
+  flexShrink: 0,
 };
 
-const actionBar: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 4,
-  marginBottom: 6,
-};
+// ---- tree --------------------------------------------------------------------
 
-const actionButton: React.CSSProperties = {
-  border: '1px solid var(--dv-edge)',
-  background: 'var(--dv-sfc)',
-  borderRadius: 7,
-  padding: '5px 8px',
-  fontSize: 12,
-  cursor: 'pointer',
-  color: 'var(--dv-ink)',
-  whiteSpace: 'nowrap',
-};
-
-const contextMenu: React.CSSProperties = {
-  position: 'fixed',
-  zIndex: 60,
-  width: 250,
-  background: 'var(--dv-sfc)',
-  border: '1px solid var(--dv-edge)',
-  borderRadius: 10,
-  boxShadow: 'var(--dv-shadow-pop)',
-  padding: 4,
-  display: 'flex',
-  flexDirection: 'column',
-};
-
-const contextTitle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
+const treeRow: React.CSSProperties = {};
+const treeRowSelected: React.CSSProperties = {};
+const treeIcon: React.CSSProperties = {
+  display: 'inline-flex',
   color: 'var(--dv-ink-3)',
-  padding: '6px 10px 4px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
+  width: 16,
+  justifyContent: 'center',
+  flexShrink: 0,
+};
+const treeGrip: React.CSSProperties = {
+  display: 'inline-flex',
+  color: 'var(--dv-ink-4)',
+  cursor: 'grab',
+  width: 12,
+  flexShrink: 0,
+};
+const treeLabel: React.CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+const treeHint: React.CSSProperties = {
+  color: 'var(--dv-ink-3)',
+  fontWeight: 400,
+  fontSize: 12,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+  flexShrink: 1,
+  minWidth: 0,
 };
-
-const contextItem: React.CSSProperties = {
-  border: 0,
-  background: 'transparent',
-  borderRadius: 6,
-  padding: '7px 10px',
-  fontSize: 13,
-  cursor: 'pointer',
-  color: 'var(--dv-ink)',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 10,
-  textAlign: 'left',
-};
-
-const contextHint: React.CSSProperties = { fontSize: 11, color: 'var(--dv-ink-3)' };
-
-const helpPanel: React.CSSProperties = {
-  position: 'absolute',
-  top: 40,
-  right: 0,
-  zIndex: 30,
-  background: 'var(--dv-sfc)',
-  border: '1px solid var(--dv-edge)',
-  borderRadius: 12,
-  boxShadow: 'var(--dv-shadow-pop)',
-  padding: 14,
-  width: 340,
-};
-
-const helpRow: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 2,
-  fontSize: 12.5,
-  padding: '6px 0',
-  borderBottom: '1px solid var(--dv-edge-soft)',
-};
-
-/** The six gestures the editor is made of, in the order people need them. */
-const HELP = [
-  { title: 'Adicionar um bloco', text: 'Clique num bloco em Adicionar. Ele entra dentro do bloco selecionado (se for Seção ou Pilha) ou logo depois dele; sem seleção, no fim da página.' },
-  { title: 'Selecionar', text: 'Clique no bloco, no canvas ou na Estrutura. Ctrl+clique soma à seleção para agir em vários de uma vez.' },
-  { title: 'Mover', text: 'Arraste a linha na Estrutura (solte em cima de uma Seção para entrar nela) ou arraste pelo nome na barra do canvas. Ou use ↑ Subir / ↓ Descer.' },
-  { title: 'Duplicar e excluir', text: '⧉ Duplicar (Ctrl+D) e ✕ Excluir (Delete) ficam no inspetor, na barra do canvas e no menu do botão direito. Ctrl+Z desfaz qualquer coisa.' },
-  { title: 'Esconder sem apagar', text: 'O olhinho na Estrutura tira o bloco da página publicada e o mantém aqui para depois.' },
-  { title: 'Salvar e publicar', text: 'Salvar guarda uma versão. Publicar coloca a página no ar nas lojas marcadas em "Publicar em". Configurações da página define URL, tipo e produtos vinculados.' },
-];
-const treeHint: React.CSSProperties = { color: 'var(--dv-ink-3)', fontWeight: 400, fontSize: 12 };
 
 /** A hidden row reads as switched off: gray all over, label struck through. */
 const treeRowHidden: React.CSSProperties = { color: 'var(--dv-ink-4)' };
@@ -3101,20 +3279,95 @@ const eyeButton: React.CSSProperties = {
   borderRadius: 4,
   color: 'var(--dv-ink-3)',
   cursor: 'pointer',
+  flexShrink: 0,
 };
 const eyeOff: React.CSSProperties = { color: 'var(--dv-ink-4)' };
 
+// ---- inspector pieces ----------------------------------------------------------
+
+const actionBar: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 2,
+  marginBottom: 8,
+  padding: 4,
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 8,
+  background: 'var(--dv-sfc-sub)',
+};
+
+const actionButton: React.CSSProperties = { fontSize: 12.5, padding: '3px 7px' };
+
+const contextMenu: React.CSSProperties = {
+  position: 'fixed',
+  zIndex: 40,
+  minWidth: 220,
+  background: 'var(--dv-sfc)',
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 10,
+  boxShadow: 'var(--dv-shadow-pop)',
+  padding: 4,
+  fontSize: 13,
+};
+
+const contextTitle: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  color: 'var(--dv-ink-3)',
+  padding: '6px 10px 4px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const contextItem: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  width: '100%',
+  border: 0,
+  background: 'transparent',
+  textAlign: 'left',
+  padding: '6px 10px',
+  borderRadius: 6,
+  cursor: 'pointer',
+  color: 'var(--dv-ink)',
+  fontSize: 13,
+};
+const contextHint: React.CSSProperties = { fontSize: 11.5, color: 'var(--dv-ink-3)', marginLeft: 'auto' };
+
+const helpPanel: React.CSSProperties = {};
+
+const helpRow: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+  fontSize: 12.5,
+  padding: '7px 0',
+  borderBottom: '1px solid var(--dv-edge-soft)',
+};
+
+/** The six gestures the editor is made of, in the order people need them. */
+const HELP = [
+  { title: 'Adicionar um bloco', text: 'Clique num card em Elementos. Ele entra dentro do bloco selecionado (se for Seção ou Pilha) ou logo depois dele; sem seleção, no fim da página.' },
+  { title: 'Selecionar', text: 'Clique no bloco, no canvas ou na Estrutura. Ctrl+clique soma à seleção para agir em vários de uma vez.' },
+  { title: 'Mover', text: 'Arraste a linha na Estrutura (solte em cima de uma Seção para entrar nela) ou arraste pelo nome na barra do canvas. Ou use Subir / Descer no inspetor.' },
+  { title: 'Duplicar e excluir', text: 'Duplicar (Ctrl+D) e Excluir (Delete) ficam no inspetor, na barra do canvas e no menu do botão direito. Ctrl+Z desfaz qualquer coisa.' },
+  { title: 'Esconder sem apagar', text: 'O olho na Estrutura tira o bloco da página publicada e o mantém aqui para depois.' },
+  { title: 'Salvar e publicar', text: 'Salvar guarda uma versão. Publicar coloca a página no ar nas lojas marcadas em "Publicar em". Configurações da página (no trilho à esquerda) define URL, tipo e produtos vinculados.' },
+];
+
 const keysPanel: React.CSSProperties = {
   position: 'absolute',
-  top: 40,
-  right: 0,
+  left: 48,
+  bottom: 0,
   zIndex: 30,
   background: 'var(--dv-sfc)',
   border: '1px solid var(--dv-edge)',
-  borderRadius: 12,
+  borderRadius: 10,
   boxShadow: 'var(--dv-shadow-pop)',
-  padding: 14,
-  width: 250,
+  padding: 12,
+  width: 260,
 };
 
 const keysRow: React.CSSProperties = {
@@ -3137,6 +3390,7 @@ const visBase: React.CSSProperties = {
   justifyContent: 'center',
   cursor: 'pointer',
 };
+
 const visOn: React.CSSProperties = {
   ...visBase,
   background: 'var(--dv-accent-tint)',
@@ -3149,37 +3403,34 @@ const animOff: React.CSSProperties = {
   border: '1px solid var(--dv-edge)',
   background: 'var(--dv-sfc)',
   borderRadius: 8,
-  padding: '6px 10px',
+  padding: '4px 10px',
   fontSize: 12.5,
   cursor: 'pointer',
-  color: 'var(--dv-ink)',
+  color: 'var(--dv-ink-2)',
 };
 const animOn: React.CSSProperties = {
   ...animOff,
-  background: 'var(--dv-accent-tint)',
-  borderColor: 'var(--dv-accent-edge)',
-  color: 'var(--dv-accent-text)',
-  fontWeight: 600,
+  background: 'var(--dv-invert-bg)',
+  borderColor: 'var(--dv-invert-bg)',
+  color: 'var(--dv-invert-ink)',
 };
 
-// The tab items list: the container owns its add button, and the active row
-// is a FULL color inversion — instantly readable.
 const tabItemsBox: React.CSSProperties = {
-  background: 'var(--dv-inset2)',
-  borderRadius: 10,
-  padding: 6,
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 8,
+  padding: 4,
+  marginBottom: 6,
   display: 'flex',
   flexDirection: 'column',
-  gap: 4,
+  gap: 2,
 };
 
 const tabItemRow: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 2,
-  background: 'transparent',
-  borderRadius: 8,
-  padding: '2px 4px',
+  borderRadius: 6,
+  padding: '2px 2px 2px 6px',
 };
 
 const tabItemRowOn: React.CSSProperties = {
@@ -3192,109 +3443,88 @@ const tabItemLabel: React.CSSProperties = {
   textAlign: 'left',
   border: 0,
   background: 'transparent',
+  padding: '4px 4px',
   fontSize: 13,
-  padding: '6px 6px',
   cursor: 'pointer',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 };
 
 const tabItemOp: React.CSSProperties = {
-  border: 0,
-  background: 'transparent',
   width: 26,
   height: 26,
-  fontSize: 13,
+  border: 0,
+  background: 'transparent',
+  borderRadius: 6,
   cursor: 'pointer',
-  lineHeight: 1,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 
 const addItemButton: React.CSSProperties = {
-  border: '1px solid var(--dv-edge)',
-  background: 'var(--dv-sfc)',
-  borderRadius: 8,
-  padding: '8px 0',
-  fontSize: 12.5,
-  cursor: 'pointer',
-  color: 'var(--dv-ink)',
+  ...buttonGhost,
   width: '100%',
   marginTop: 2,
 };
 
 const multiNote: React.CSSProperties = {
-  fontSize: 12.5,
-  color: 'var(--dv-accent-text)',
-  background: 'var(--dv-accent-tint)',
-  border: '1px solid var(--dv-accent-edge)',
+  background: 'var(--dv-info-bg)',
+  color: 'var(--dv-info-ink)',
   borderRadius: 8,
   padding: '8px 10px',
+  fontSize: 12.5,
   marginBottom: 10,
 };
 
-const drawerBackdrop: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  background: 'var(--dv-backdrop)',
-  zIndex: 40,
-};
-
-const drawer: React.CSSProperties = {
-  position: 'fixed',
-  top: 0,
-  right: 0,
-  bottom: 0,
-  width: 360,
-  background: 'var(--dv-sfc)',
-  zIndex: 41,
-  padding: 16,
-  overflowY: 'auto',
-  boxShadow: 'var(--dv-shadow-drawer)',
-};
+const drawerBackdrop: React.CSSProperties = {};
+const drawer: React.CSSProperties = {};
 
 const kbdChip: React.CSSProperties = {
-  background: 'var(--dv-inset)',
-  border: '1px solid var(--dv-edge)',
-  borderRadius: 5,
-  padding: '2px 6px',
-  fontSize: 11,
   fontFamily: 'inherit',
-  color: 'var(--dv-ink)',
+  fontSize: 11,
+  border: '1px solid var(--dv-edge-strong)',
+  borderBottomWidth: 2,
+  borderRadius: 5,
+  padding: '1px 6px',
+  background: 'var(--dv-sfc-sub)',
+  color: 'var(--dv-ink-2)',
 };
 
 const paletteButton: React.CSSProperties = {
-  border: '1px solid var(--dv-edge)',
-  background: 'var(--dv-sfc)',
-  borderRadius: 8,
-  padding: '6px 10px',
+  ...buttonGhost,
+  padding: '3px 10px',
   fontSize: 12.5,
-  cursor: 'pointer',
-  color: 'var(--dv-ink)',
 };
 
-const metaLine: React.CSSProperties = { fontSize: 12.5, color: 'var(--dv-ink-2)', padding: '2px 0' };
+const metaLine: React.CSSProperties = { fontSize: 12.5, color: 'var(--dv-ink-2)', padding: '2px 0', lineHeight: 1.45 };
 
 const linksBox: React.CSSProperties = {
-  background: 'var(--dv-inset2)',
-  borderRadius: 10,
-  padding: 8,
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 8,
+  padding: 10,
   marginBottom: 8,
 };
 
 const linkRow: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 6,
+  gap: 8,
   fontSize: 12.5,
-  padding: '2px 0',
+  padding: '3px 0',
 };
 
 const templateName: React.CSSProperties = {
-  fontFamily: 'ui-monospace, Menlo, monospace',
+  fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
   fontSize: 12.5,
-  background: 'var(--dv-inset)',
+  background: 'var(--dv-sfc-sub)',
   border: '1px solid var(--dv-edge)',
   borderRadius: 6,
-  padding: '4px 8px',
-  color: 'var(--dv-ink)',
-  overflowWrap: 'anywhere',
+  padding: '3px 8px',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 };
 
 const storeRow: React.CSSProperties = {
@@ -3303,76 +3533,76 @@ const storeRow: React.CSSProperties = {
   gap: 8,
   fontSize: 13,
   cursor: 'pointer',
+  flexWrap: 'wrap',
 };
+
 const findingLine: React.CSSProperties = {
+  display: 'flex',
+  gap: 6,
   fontSize: 12.5,
   color: 'var(--dv-warn-text)',
   background: 'var(--dv-warn-tint)',
   border: '1px solid var(--dv-warn-edge)',
-  borderRadius: 6,
+  borderRadius: 8,
   padding: '6px 8px',
-  marginTop: 6,
+  marginBottom: 4,
 };
 
 const tabRow: React.CSSProperties = {
   display: 'flex',
   gap: 2,
-  background: 'var(--dv-inset)',
-  borderRadius: 8,
-  padding: 2,
-  marginBottom: 10,
+  borderBottom: '1px solid var(--dv-edge)',
+  marginBottom: 12,
 };
+
 const tabBase2: React.CSSProperties = {
   flex: 1,
   border: 0,
-  borderRadius: 6,
-  padding: '6px 0',
-  fontSize: 12.5,
-  cursor: 'pointer',
   background: 'transparent',
+  padding: '8px 10px',
+  fontSize: 13,
+  fontWeight: 500,
   color: 'var(--dv-ink-2)',
+  cursor: 'pointer',
 };
+const tabOn: React.CSSProperties = { ...tabBase2, color: 'var(--dv-ink)', boxShadow: 'inset 0 -2px 0 var(--dv-ink)' };
 const tabOff = tabBase2;
-const tabOn: React.CSSProperties = {
-  ...tabBase2,
-  background: 'var(--dv-sfc)',
-  color: 'var(--dv-ink)',
-  fontWeight: 600,
-  boxShadow: 'var(--dv-shadow-soft)',
-};
 
 const bpRow: React.CSSProperties = { display: 'flex', gap: 4, marginBottom: 4 };
 const bpBase: React.CSSProperties = {
+  flex: 1,
   border: '1px solid var(--dv-edge)',
   background: 'var(--dv-sfc)',
-  borderRadius: 999,
-  padding: '3px 10px',
-  fontSize: 12,
+  borderRadius: 6,
+  height: 30,
   cursor: 'pointer',
   color: 'var(--dv-ink-2)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 4,
+  fontSize: 12,
 };
-const bpOff = bpBase;
 const bpOn: React.CSSProperties = {
   ...bpBase,
-  background: 'var(--dv-accent-tint)',
-  borderColor: 'var(--dv-accent-edge)',
-  color: 'var(--dv-accent-text)',
-  fontWeight: 600,
+  background: 'var(--dv-invert-bg)',
+  borderColor: 'var(--dv-invert-bg)',
+  color: 'var(--dv-invert-ink)',
 };
+const bpOff = bpBase;
 
 const groupLabel: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 600,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
-  color: 'var(--dv-ink-3)',
-  margin: '10px 0 6px',
+  color: 'var(--dv-ink-2)',
+  margin: '14px 0 6px',
 };
 
 const fieldLabel: React.CSSProperties = {
   display: 'block',
-  fontSize: 12,
-  color: 'var(--dv-ink-2)',
+  fontSize: 12.5,
+  fontWeight: 500,
+  color: 'var(--dv-ink)',
   marginBottom: 10,
 };
 
@@ -3380,114 +3610,129 @@ const fieldInput: React.CSSProperties = {
   display: 'block',
   width: '100%',
   marginTop: 4,
+  fontSize: 13,
+  lineHeight: '20px',
+  padding: '5px 10px',
   border: '1px solid var(--dv-edge-input)',
   borderRadius: 8,
-  padding: '7px 9px',
-  fontSize: 13,
-  boxSizing: 'border-box',
   background: 'var(--dv-sfc)',
+  color: 'var(--dv-ink)',
+  fontFamily: 'inherit',
+  fontWeight: 400,
 };
 
 const fieldArea: React.CSSProperties = {
   ...fieldInput,
+  minHeight: 90,
   resize: 'vertical',
-  minHeight: 64,
-  lineHeight: 1.5,
 };
+
+// ---- canvas --------------------------------------------------------------------
 
 const canvas: React.CSSProperties = {
   gridArea: 'canvas',
   background: 'var(--dv-canvas-bg)',
-  display: 'grid',
-  gridTemplateRows: 'auto 1fr auto',
+  display: 'flex',
+  flexDirection: 'column',
+  minWidth: 0,
   minHeight: 0,
   position: 'relative',
 };
 
-/** Confirmation toast, floating over the canvas near the bottom. */
 const toastStyle: React.CSSProperties = {
   position: 'absolute',
-  bottom: 44,
   left: '50%',
+  bottom: 44,
   transform: 'translateX(-50%)',
   background: 'var(--dv-toast-bg)',
   color: 'var(--dv-toast-ink)',
   borderRadius: 8,
-  padding: '8px 16px',
+  padding: '8px 14px',
   fontSize: 13,
   boxShadow: 'var(--dv-shadow-pop)',
   zIndex: 20,
+  whiteSpace: 'nowrap',
 };
 
 const countPill: React.CSSProperties = {
-  background: 'var(--dv-accent-tint)',
-  border: '1px solid var(--dv-accent-edge)',
-  color: 'var(--dv-accent-text)',
-  borderRadius: 999,
-  padding: '1px 8px',
-  fontSize: 11,
-  fontWeight: 600,
-  marginBottom: 8,
+  ...pillNeutral,
+  fontSize: 11.5,
 };
 
 const paletteGroupLabel: React.CSSProperties = {
-  fontSize: 10.5,
+  fontSize: 11.5,
   fontWeight: 600,
-  letterSpacing: '0.03em',
-  textTransform: 'uppercase',
-  color: 'var(--dv-ink-4)',
-  margin: '4px 0',
+  color: 'var(--dv-ink-3)',
+  margin: '6px 0 6px',
 };
 
 const crumbBar: React.CSSProperties = {
-  padding: '8px 16px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 2,
+  padding: '0 14px',
+  height: 36,
   fontSize: 12.5,
-  borderBottom: '1px solid var(--dv-edge-soft)',
-  background: 'var(--dv-sfc-sub)',
+  color: 'var(--dv-ink-2)',
+  background: 'var(--dv-sfc)',
+  borderBottom: '1px solid var(--dv-edge)',
+  overflow: 'hidden',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
 };
 
 const crumbButton: React.CSSProperties = {
   border: 0,
   background: 'transparent',
-  color: 'var(--dv-link)',
+  padding: '2px 4px',
+  borderRadius: 4,
   fontSize: 12.5,
+  color: 'var(--dv-ink)',
   cursor: 'pointer',
-  padding: 0,
 };
 
 const canvasScroll: React.CSSProperties = {
+  flex: 1,
   overflow: 'auto',
+  padding: '24px 24px 60px',
   display: 'flex',
   justifyContent: 'center',
-  padding: 20,
+  alignItems: 'flex-start',
   minHeight: 0,
 };
 
 const canvasPage: React.CSSProperties = {
-  // Literal white on purpose: this is the storefront page's paper, not editor
-  // chrome — it does not follow the dark skin.
-  background: '#ffffff',
-  borderRadius: 8,
+  background: '#fff',
+  borderRadius: 4,
   boxShadow: 'var(--dv-shadow-page)',
-  overflow: 'hidden',
-  height: 'fit-content',
-  minHeight: '100%',
-  transition: 'width .15s ease',
+  minHeight: 600,
+  height: '100%',
+  display: 'flex',
+  transition: 'width .18s ease',
 };
 
 const previewFrame: React.CSSProperties = {
   width: '100%',
-  height: '100%',
   minHeight: 600,
+  height: '100%',
   border: 0,
+  borderRadius: 4,
+  background: '#fff',
   display: 'block',
-  background: '#ffffff',
 };
 
 const statusBar: React.CSSProperties = {
-  padding: '6px 16px',
-  fontSize: 12,
-  color: 'var(--dv-ink-2)',
-  borderTop: '1px solid var(--dv-edge-soft)',
-  background: 'var(--dv-sfc-sub)',
+  height: 30,
+  display: 'flex',
+  alignItems: 'center',
+  padding: '0 14px',
+  fontSize: 11.5,
+  color: 'var(--dv-ink-3)',
+  background: 'var(--dv-sfc)',
+  borderTop: '1px solid var(--dv-edge)',
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  flexShrink: 0,
 };

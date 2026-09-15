@@ -1004,6 +1004,49 @@ P2); arrastar `<button draggable>` no Firefox (não testado; só há Chromium aq
 access token em repouso; inventário dos três arquivos `dvfly-solo`; webhook `themes/publish`;
 renovação de token expirável sem ninguém abrir o app.
 
+### ✅ Redesenho no padrão do admin (15/09, noite) — "sem cara de IA, igual à referência"
+
+Pedido: tirar da interface o ar de coisa montada por IA e aproximá-la da referência.
+Diagnóstico com prints: pílulas de texto no lugar de um catálogo, glifos tipográficos
+(⠿ ✕ ⧉ ↑ ↓ 👁) fazendo papel de ícone, verde neon no botão principal, rótulos em
+VERSALETES, um painel esquerdo só, ações da lista em azul de link. O que a pesquisa registra
+da referência (relatórios 02 e 13): trilho vertical de ícones à esquerda com um painel por
+vez, catálogo de elementos em cards com ícone e contagem, barra superior com nome + status
+à esquerda, dispositivos com a largura em px no centro e Pré-visualizar / Ver ao vivo /
+Salvar-Publicar à direita, inspetor com abas Geral | Estilo, listagem com abas por tipo,
+busca e badges — tudo no tom neutro do admin da Shopify.
+
+Feito, do zero, com identidade própria:
+- **Tokens novos** (`app/app/ui/theme.tsx`): cinzas do admin, superfícies brancas com
+  borda-fio, **um botão primário escuro** por tela, secundário branco com borda, `plain` nas
+  linhas; badges tintadas sem borda (sucesso/neutro/info/crítico); foco azul; fonte Inter
+  carregada; escuro recalibrado. Cor só onde tem significado.
+- **Conjunto de ícones próprio** (`app/app/ui/icons.tsx`): 50 glifos traçados na mesma grade
+  (16, traço 1.5), um por ação e um por bloco. Nenhum emoji ou caractere tipográfico sobrou
+  como ícone — inclusive na barra flutuante do canvas (agora SVG) e nos lados do espaçamento.
+- **Editor**: trilho de ícones (Construir · Configurações da página · Ajuda; atalhos e tema
+  embaixo) com indicador de painel ativo; painel esquerdo com **Estrutura** (árvore com ícone
+  por bloco, contagem de blocos, grip e olho no hover) e **Elementos** (busca, grade de cards
+  3 colunas com ícone, contagem "D&VFly 15"); **Configurações da página abre no painel
+  esquerdo** (como a referência), não mais numa gaveta sobre tudo; barra superior
+  reorganizada (voltar · título · badge | dispositivos + "largura total"/"390 px" |
+  desfazer/refazer · Pré-visualizar · Ver no ar · Salvar/Publicar); inspetor com cabeçalho
+  (ícone + tipo + nome), barra de ações com ícones e nomes, abas sublinhadas Geral/Estilo;
+  "Despublicar" mora em "Publicar em"; menu de contexto com ícones; canvas em cinza do admin.
+- **Lista**: cabeçalho de página do admin, card com abas por tipo (Todas/Normais/Produto com
+  contagem dos dados), busca por título ou URL, tabela com título em negrito + URL ou
+  contagem de produtos embaixo, badge de tipo, badges por loja, barra de seleção em massa
+  dentro do card, ações discretas na linha.
+- O modelo de trabalho (Estrutura e Elementos visíveis juntos, inserção relativa ao bloco
+  selecionado) foi mantido de propósito: com clique-para-inserir, separar os dois em painéis
+  obrigaria a trocar de aba a cada bloco.
+
+Verificado no commit do redesenho: typecheck; prints claro e escuro da lista, do editor
+vazio, com bloco selecionado, aba Estilo, menu de contexto, configurações e barra de seleção
+em massa; flows 6, 7 e 8 verdes contra o visual novo (um seletor de teste ajustado: o grip
+do canvas virou SVG). A bateria completa 6–22 estava rodando na hora do commit — o
+resultado está no commit seguinte, com o que tiver falhado e o conserto.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
