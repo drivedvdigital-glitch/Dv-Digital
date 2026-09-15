@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { COMPILER_VERSION, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
+import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 
 /**
@@ -10,7 +11,8 @@ import { db } from '../lib/db.server.ts';
  * stamps, no bridge — wrapped in a minimal document so it can be opened in a
  * plain browser tab straight from the pages list.
  */
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireShop(request);
   const page = await db.page.findUnique({ where: { id: params.id } });
   if (!page) throw new Response('Página não encontrada', { status: 404 });
 

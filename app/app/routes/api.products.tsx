@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
 import { searchProducts } from '../../../packages/shopify/src/products.ts';
+import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 import { clientFor } from '../lib/shopify.server.ts';
 
@@ -10,6 +11,7 @@ import { clientFor } from '../lib/shopify.server.ts';
  * the store it runs against.
  */
 export async function loader({ request }: LoaderFunctionArgs) {
+  await requireShop(request);
   const url = new URL(request.url);
   const storeId = url.searchParams.get('storeId') ?? '';
   const q = (url.searchParams.get('q') ?? '').slice(0, 80);

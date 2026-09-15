@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
 import { Link, useActionData, useLoaderData, useLocation, useNavigation, useSubmit } from 'react-router';
-import type { ActionFunctionArgs } from 'react-router';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 
+import { requireShop } from '../lib/auth.server.ts';
 import { compile, type Doc } from '../lib/compiler.server.ts';
+import { openWithToken } from '../ui/embedded.ts';
 import { db } from '../lib/db.server.ts';
 import { switchPage } from '../lib/publish.server.ts';
 import { clientFor, removeProductTemplate } from '../lib/shopify.server.ts';
@@ -20,7 +22,8 @@ import {
   useUiTheme,
 } from '../ui/theme.tsx';
 
-export async function loader() {
+export async function loader({ request }: LoaderFunctionArgs) {
+  await requireShop(request);
   const pages = await db.page.findMany({
     orderBy: { updatedAt: 'desc' },
     include: { deployments: { include: { store: true } } },
@@ -35,6 +38,7 @@ async function freeHandle(wanted: string): Promise<string> {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  await requireShop(request);
   const form = await request.formData();
   const intent = form.get('intent');
 
@@ -410,12 +414,12 @@ export default function PagesList() {
                         </>
                       ) : (
                         <>
-                          <a href={`/preview/${page.id}`} target="_blank" rel="noreferrer" style={rowLink}>
+                          <button type="button" style={rowAction} onClick={() => openWithToken(`/preview/${page.id}`)}>
                             Pré-visualizar
-                          </a>
-                          <a href={`/api/pages/${page.id}/export`} style={rowLink} download>
+                          </button>
+                          <button type="button" style={rowAction} onClick={() => openWithToken(`/api/pages/${page.id}/export`)}>
                             Exportar
-                          </a>
+                          </button>
                           {page.deployments.some((d) => d.isPublished) ? (
                             <button
                               type="button"

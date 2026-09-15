@@ -12,4 +12,7 @@ export default [
   route('api/theme-fonts', 'routes/api.theme-fonts.tsx'),
   route('api/products', 'routes/api.products.tsx'),
   route('preview/:id', 'routes/preview.$id.tsx'),
+  // Session-token bounce and Shopify webhooks (see auth.server.ts / webhooks.$topic.tsx).
+  route('bounce', 'routes/bounce.tsx'),
+  route('webhooks/:topic', 'routes/webhooks.$topic.tsx'),
 ] satisfies RouteConfig;

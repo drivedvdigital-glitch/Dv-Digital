@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs } from 'react-router';
 
+import { requireShop } from '../lib/auth.server.ts';
 import { ANIMATION_CSS, compile, TEMPLATE_LIMIT_BYTES, toFragment, type Doc } from '../lib/compiler.server.ts';
 
 /** A block document is far smaller than its output; 8× the output ceiling is generous. */
@@ -350,6 +351,7 @@ const EDITOR_BRIDGE = `
  * bridge, neither of which exists in published output.
  */
 export async function action({ request }: ActionFunctionArgs) {
+  await requireShop(request);
   // A document several times the size of anything publishable is not a
   // preview request; the parser must not be handed unbounded input.
   const raw = await request.text();

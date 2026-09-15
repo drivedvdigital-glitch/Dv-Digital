@@ -1,7 +1,8 @@
 import { data, Outlet, useLoaderData } from 'react-router';
 import type { HeadersFunction, LoaderFunctionArgs } from 'react-router';
 
-import { ensureStore, SHOP_DOMAIN } from '../lib/shopify.server.ts';
+import { installStore, requireShop } from '../lib/auth.server.ts';
+import { SHOP_DOMAIN } from '../lib/shopify.server.ts';
 
 /**
  * Lets the Shopify admin put this app in an iframe, and nobody else.
@@ -19,12 +20,22 @@ function frameAncestors(shop: string | null): string {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const url = new URL(request.url);
-  const shop = url.searchParams.get('shop');
-
-  // A store that opens the app registers itself — install, open, use.
-  // There is no store settings screen to fill in first.
-  if (shop) await ensureStore(shop);
+  // Who is asking (verified ID token; or the dev bypass), and the store it
+  // acts on — installed on first contact: install, open, use. There is no
+  // store settings screen to fill in first.
+  const who = await requireShop(request);
+  let store;
+  try {
+    store = await installStore(who);
+  } catch (error) {
+    // The token was genuine but Shopify would not trade it (app not installed
+    // on this shop, scopes changed, secret rotated). Say exactly that.
+    throw new Response(
+      `Não foi possível instalar o D&VFly em ${who.shop}: ${error instanceof Error ? error.message : error}`,
+      { status: 502 },
+    );
+  }
+  const shop = store?.domain ?? (who.shop || null);
 
   return data(
     { shop },

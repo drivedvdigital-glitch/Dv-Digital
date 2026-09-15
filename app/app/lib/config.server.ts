@@ -70,6 +70,14 @@ export const config = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
+
+  /**
+   * Every request must carry a Shopify ID token (the app opened from the
+   * admin). `DVFLY_AUTH=off` switches that off for local development only —
+   * opening the app straight from localhost, or driving it with Playwright.
+   * Production ignores the switch.
+   */
+  authRequired: isProduction || process.env.DVFLY_AUTH?.trim().toLowerCase() !== 'off',
 };
 
 if (config.isProduction && (!config.shopifyClientId || !config.shopifyClientSecret)) {

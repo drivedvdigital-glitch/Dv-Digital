@@ -18,6 +18,12 @@ export const DEFAULT_API_VERSION = '2026-07';
 export interface StoreCredentials {
   /** Full myshopify domain, e.g. `my-store.myshopify.com`. */
   domain: string;
+  /**
+   * An offline access token obtained when the store installed the app (token
+   * exchange). When present it is used as is; the client credentials below
+   * are then only needed for stores of the app's own organization.
+   */
+  accessToken?: string | null;
   clientId: string;
   clientSecret: string;
   apiVersion?: string;
@@ -120,7 +126,14 @@ export class ShopifyClient {
    * token.
    */
   async accessToken(): Promise<string> {
+    // An installed store's offline token never expires on its own.
+    if (this.credentials.accessToken) return this.credentials.accessToken;
     if (this.token && Date.now() < this.token.expiresAt) return this.token.value;
+    if (!this.credentials.clientId || !this.credentials.clientSecret) {
+      throw new ShopifyError(
+        `Sem credencial para ${this.domain}: a loja não instalou o app e o ambiente não tem client id/secret.`,
+      );
+    }
     if (this.inFlight) return this.inFlight;
 
     this.inFlight = this.requestToken().finally(() => {

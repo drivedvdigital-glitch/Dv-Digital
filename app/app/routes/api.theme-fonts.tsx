@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
+import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 import { SHOP_DOMAIN } from '../lib/shopify.server.ts';
 
@@ -26,6 +27,7 @@ const SCAN_LIMIT = 512 * 1024;
 const cache = new Map<string, { at: number; data: Fonts }>();
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  await requireShop(request);
   const wanted = new URL(request.url).searchParams.get('shop')?.toLowerCase() ?? '';
   const store = SHOP_DOMAIN.test(wanted)
     ? await db.store.findUnique({ where: { domain: wanted } })

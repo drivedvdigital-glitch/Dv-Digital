@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
+import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 
 /**
@@ -8,7 +9,8 @@ import { db } from '../lib/db.server.ts';
  * the "move a page between accounts" flow, without any proprietary opacity:
  * the file is the same document the editor edits, readable by anyone.
  */
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireShop(request);
   const page = await db.page.findUnique({ where: { id: params.id } });
   if (!page) throw new Response('Página não encontrada', { status: 404 });
 

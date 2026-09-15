@@ -32,6 +32,7 @@ import {
   type DocNode,
   type DocTree,
 } from '../lib/doc-ops.ts';
+import { requireShop } from '../lib/auth.server.ts';
 import { applyLinkNow, switchPage } from '../lib/publish.server.ts';
 import {
   clientForStore,
@@ -52,7 +53,8 @@ import {
   useUiTheme,
 } from '../ui/theme.tsx';
 
-export async function loader({ params }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireShop(request);
   const page = await db.page.findUniqueOrThrow({
     where: { id: params.id },
     include: { deployments: { include: { store: true } }, productLinks: { orderBy: { createdAt: 'asc' } } },
@@ -102,6 +104,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  await requireShop(request);
   const form = await request.formData();
   const intent = String(form.get('intent'));
   const pageId = String(params.id);

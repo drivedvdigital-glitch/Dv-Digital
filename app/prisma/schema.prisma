@@ -8,18 +8,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// A Shopify store this installation can publish to. Credentials are per store
-/// because the client credentials grant is per store; see ARQUITETURA.md 2.5.
+/// A Shopify store this installation can publish to.
+///
+/// Two ways a store gets here: it INSTALLED the app (Shopify-managed
+/// installation → token exchange → `accessToken`, the normal path for any
+/// store), or it belongs to the app's own organization and is reached with
+/// the app's client credentials (`clientId`/`clientSecret`, legacy per-row
+/// copies kept for the stores registered that way).
 model Store {
-  id           String       @id @default(cuid())
-  domain       String       @unique
-  label        String
-  clientId     String
-  clientSecret String
-  isProduction Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  deployments  Deployment[]
-  productLinks ProductLink[]
+  id            String       @id @default(cuid())
+  domain        String       @unique
+  label         String
+  clientId      String?
+  clientSecret  String?
+  /// Offline access token from the token exchange; null until installed.
+  accessToken   String?
+  /// Scopes granted at install, comma-separated, as Shopify reported them.
+  scopes        String?
+  installedAt   DateTime?
+  /// Set by the app/uninstalled webhook; the row stays so pages keep history.
+  uninstalledAt DateTime?
+  isProduction  Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  deployments   Deployment[]
+  productLinks  ProductLink[]
 }
 
 /// A page is authored once and deployed to many stores. It deliberately does
