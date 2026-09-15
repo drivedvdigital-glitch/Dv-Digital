@@ -78,6 +78,39 @@ comprar — a seção é Liquid, então `{{ product.title }}` está ao alcance),
 (sobrescrever o `product.json` padrão, como a referência faz), coleções (`collectionUpdate`)
 e o webhook `themes/publish` para reescrever o template quando o tema muda.
 
+### Pesquisa adicional sobre vínculo (15/09) — o que ficou confirmado e o que mudou
+
+Fontes: as 241 páginas do PageFly (`help.pagefly.io`) + `shopify.dev` + Dawn/Horizon.
+
+- **Referência (Page Assignment)**: ícone próprio no trilho, só em páginas de produto/coleção;
+  modos "Todos os produtos" × "Custom" (busca exige o **título completo** do produto);
+  contagem no dashboard com link; erro documentado **"A página precisa de ao menos 1 produto"**
+  antes de salvar/pré-visualizar com fonte Auto; o editor deles renderiza o **primeiro**
+  produto vinculado; "Custom product" num elemento não altera o vínculo. Nada documentado
+  sobre um produto em duas páginas — a Shopify guarda UM sufixo por produto, então "a última
+  publicada ganha" em silêncio. **Nós recusamos nomeando a página** (já implementado).
+- **Composição deles**: por padrão o produto do tema fica **acima** do conteúdo deles; no OS 2.0
+  o lojista esconde/reordena no editor de temas (o "produto em dobro" é conhecido). Nosso
+  padrão é o mesmo (abaixo das seções do tema) com a opção "acima" — e a mesma liberdade no
+  editor de temas.
+- **Shopify — confirmado**: `templateSuffix` `null`/`""` = padrão; **template ausente cai no
+  padrão, não dá 404** (404 só se o `product.json` padrão sumir); alternativos só existem no
+  **tema publicado** (por isso escrevemos no MAIN); ids de seção no JSON só alfanuméricos e
+  únicos **dentro** do template (`dvfly` ✓); `{% schema %}` fora do `{% raw %}` ✓; **sem
+  `presets`** a seção não pode ser adicionada nem removida pelo editor de temas (só escondida)
+  — é o que queremos; `enabled_on.templates:["product"]` + `limit:1` **aplicados agora**;
+  JSON do tema pode ter **vírgula sobrando** (tolerado desde 2024-10) — parse ajustado.
+- **Seção principal não é sempre `main-product`** (Horizon usa `product-information`) — por
+  isso copiamos TODAS as seções em vez de procurar uma; grupos de header/footer moram no
+  layout, não no `product.json` — vêm de graça.
+- **SEO**: título, description e canonical saem do layout a partir do recurso — um template
+  alternativo **não muda a URL nem o canonical** do produto.
+- **Pré-visualizar sem vincular**: `/products/<qualquer>?view=<sufixo>` renderiza o template
+  alternativo — candidato a "Pré-visualizar no tema" (fila).
+- Sem confirmação oficial: teto de 25 caracteres do nome da seção (fonte terceira; mantido
+  por segurança), comprimento máximo do sufixo (usamos o cuid minúsculo, sem pontos —
+  pontos são reservados para templates contextuais).
+
 ## Página de produto — plano original (mantido como registro)
 
 O que o dono descreveu: *"ao vincular, cria um modelo próprio para aquele produto, sem

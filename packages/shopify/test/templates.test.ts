@@ -26,6 +26,11 @@ describe('stripJsonComments', () => {
     const parsed = JSON.parse(stripJsonComments(THEME_PRODUCT_JSON));
     assert.deepEqual(parsed.order, ['main', 'related']);
   });
+
+  it('tolerates the trailing commas Shopify allows in theme JSON', () => {
+    const parsed = JSON.parse(stripJsonComments('{ "sections": { "main": { "type": "main-product", }, }, "order": ["main",], }'));
+    assert.deepEqual(parsed.order, ['main']);
+  });
 });
 
 describe('composeProductTemplate', () => {
@@ -68,6 +73,9 @@ describe('productSectionLiquid', () => {
     const schema = JSON.parse(/\{% schema %\}\n([\s\S]*?)\n\{% endschema %\}/.exec(liquid)![1]);
     assert.ok(schema.name.length <= 25, schema.name);
     assert.ok(schema.name.startsWith('D&VFly'));
+    assert.deepEqual(schema.enabled_on, { templates: ['product'] });
+    assert.equal(schema.limit, 1);
+    assert.equal(schema.presets, undefined);
   });
 
   it('refuses a fragment that would close the raw block', () => {
