@@ -256,7 +256,7 @@ export function effectiveStyle(
   key: string,
 ): unknown {
   if (!style) return undefined;
-  const order = ['base', 'md', 'lg'];
+  const order = ['base', 'md', 'lg', 'xl'];
   const upto = order.indexOf(breakpoint);
   let value: unknown;
   for (let i = 0; i < upto; i++) {

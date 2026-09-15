@@ -716,6 +716,18 @@ Engrenagem na barra do editor abre o painel **Configurações da página**:
 - Pesquisa a fundo pedida sobre páginas de produto/blog: experimentos + plano registrados
   em `docs/MODELOS_DE_TEMA.md` (escopos de tema e produto confirmados na API).
 
+### ✅ Pesquisa por vídeo (15/09) — relatório 1 aplicado
+
+Nasceu o fluxo de pesquisa por vídeo: o Claude no Chrome assiste os tutoriais do PageFly e
+gera relatórios estruturados (`docs/videos/`), e as lacunas viram implementação. Do
+relatório 1 (EcomSensei 2026) já entraram: **breakpoint ≥1440** (4 dispositivos
+consistentes em estilo/visibilidade/preview), **visibilidade por dispositivo na aba
+Geral** com semântica de faixa exata no compilador (esconder no celular não vaza mais
+para o desktop — media queries de faixa), **animações de entrada com preview no hover**
+(progressive enhancement, reduced-motion, CSS/JS só quando usadas, assentadas no canvas)
+e **tipos de ação do botão** (link/âncora/e-mail/telefone). Verificado: 46/46 compilador +
+10/10 fluxo novo + 13/13 regressão. Fila do que sobrou: `docs/videos/MAPA_DE_LACUNAS.md`.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

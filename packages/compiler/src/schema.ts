@@ -27,11 +27,24 @@ export const BREAKPOINTS = {
   base: null,
   md: 768,
   lg: 1200,
+  xl: 1440,
 } as const;
 
 export type Breakpoint = keyof typeof BREAKPOINTS;
 
-export const BREAKPOINT_ORDER: Breakpoint[] = ['base', 'md', 'lg'];
+export const BREAKPOINT_ORDER: Breakpoint[] = ['base', 'md', 'lg', 'xl'];
+
+/**
+ * The device each breakpoint's RANGE corresponds to, mirrored by the editor's
+ * preview widths and per-device visibility — one consistent 4-device system
+ * (phone, tablet, laptop, desktop) across styling, hiding and previewing.
+ */
+export const BREAKPOINT_DEVICE: Record<Breakpoint, string> = {
+  base: 'celular',
+  md: 'tablet',
+  lg: 'notebook',
+  xl: 'computador',
+};
 
 /** A CSS length. Numbers are pixels; strings must carry their own unit. */
 export type Length = number | string;
@@ -80,7 +93,9 @@ export interface StyleProps {
   letterSpacing?: Length;
   textAlign?: 'left' | 'center' | 'right';
 
-  // Visibility. Per-breakpoint, which is how a block hides on mobile only.
+  // Visibility. Unlike every other property, `hidden` applies to the
+  // breakpoint's EXACT RANGE (e.g. `base` = up to 767px only) instead of
+  // cascading upward: "hide on phone" must not also hide the desktop.
   hidden?: boolean;
 }
 

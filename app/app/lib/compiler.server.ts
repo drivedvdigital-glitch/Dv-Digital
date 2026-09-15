@@ -6,6 +6,7 @@
  * I1 — one compiler — expressed as a module boundary.
  */
 export { compile, toFragment } from '../../../packages/compiler/src/compile.ts';
+export { ANIMATION_CSS } from '../../../packages/compiler/src/blocks.ts';
 export { audit, score } from '../../../packages/compiler/src/audit.ts';
 export type { Doc, Node } from '../../../packages/compiler/src/schema.ts';
 export type { Finding } from '../../../packages/compiler/src/audit.ts';

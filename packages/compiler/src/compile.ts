@@ -12,7 +12,14 @@
  */
 
 import type { Finding } from './audit.ts';
-import { BLOCKS, RUNTIME, type RenderContext, type RuntimeModule } from './blocks.ts';
+import {
+  ANIMATION_CSS,
+  ANIMATIONS,
+  BLOCKS,
+  RUNTIME,
+  type RenderContext,
+  type RuntimeModule,
+} from './blocks.ts';
 import { CLASS_PREFIX, StyleSheet } from './css.ts';
 import { tag } from './html.ts';
 import { optimizeHtml } from './html-optimize.ts';
@@ -82,10 +89,18 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       if (extra) names.push(extra);
       return names.length > 0 ? names.join(' ') : undefined;
     },
-    baseAttrs: (node) => ({
-      class: ctx.classAttr(node),
-      ...(options.nodeIds ? { 'data-dvf-id': node.id } : {}),
-    }),
+    baseAttrs: (node) => {
+      // Entrance animation is available to every block, so it lives here
+      // rather than in each renderer. Unknown names compile to nothing.
+      const animation = String(node.props?.animation ?? '');
+      const animated = (ANIMATIONS as readonly string[]).includes(animation);
+      if (animated) runtimes.add('reveal');
+      return {
+        class: ctx.classAttr(node),
+        ...(animated ? { 'data-dvf-anim': animation } : {}),
+        ...(options.nodeIds ? { 'data-dvf-id': node.id } : {}),
+      };
+    },
     requireRuntime: (name) => {
       runtimes.add(name);
     },
@@ -169,7 +184,8 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     });
   }
   const html = tag('div', { class: `${CLASS_PREFIX}-page` }, body);
-  const css = sheet.toCss(doc.tokens);
+  // Animation CSS ships only when at least one block animates.
+  const css = sheet.toCss(doc.tokens) + (runtimes.has('reveal') ? '\n' + ANIMATION_CSS : '');
 
   const modules = [...runtimes].sort();
   const js = modules.map((name) => RUNTIME[name]).join('\n');

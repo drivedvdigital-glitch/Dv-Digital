@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from 'react-router';
 
-import { compile, toFragment, type Doc } from '../lib/compiler.server.ts';
+import { ANIMATION_CSS, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
 
 /**
  * The canvas side of the editor: click-to-select, drag-to-reorder, and the
@@ -14,6 +14,9 @@ import { compile, toFragment, type Doc } from '../lib/compiler.server.ts';
  */
 const EDITOR_BRIDGE = `
 <style>
+  /* The animation vocabulary again, so hover-preview works even when no block
+     on the page animates yet (the compiled CSS only ships it when used). */
+  ${ANIMATION_CSS}
   [data-dvf-id] { cursor: default; }
   [data-dvf-id]:hover { outline: 1px dashed rgba(11,224,92,.8); outline-offset: 1px; }
   [data-dvf-selected] { outline: 2px solid #0BE05C !important; outline-offset: 2px; }
@@ -158,8 +161,44 @@ const EDITOR_BRIDGE = `
     else if (key === 'v') parent.postMessage({ type: 'dvf:key', key: 'pasteStyle' }, '*');
   });
 
+  // ---- entrance animations, editor behavior -------------------------------
+  // In the canvas they arrive settled (recompiling on every keystroke must not
+  // replay them); hovering an option in the inspector replays one on demand.
+  document.querySelectorAll('[data-dvf-anim]').forEach(function (el) {
+    el.classList.add('dvf-anim', 'dvf-in');
+  });
+
+  var animEl = null;
+  var animOrig = null;
+  function animPreview(id, name) {
+    var el = id && document.querySelector('[data-dvf-id="' + id + '"]');
+    if (name && el) {
+      if (animEl && animEl !== el) animPreview(null, '');
+      if (animEl !== el) {
+        animOrig = el.getAttribute('data-dvf-anim');
+        animEl = el;
+      }
+      el.setAttribute('data-dvf-anim', name);
+      el.classList.add('dvf-anim');
+      el.classList.remove('dvf-in');
+      void el.offsetWidth; // reflow: the pre-state must paint before the reveal
+      el.classList.add('dvf-in');
+    } else if (animEl) {
+      if (animOrig === null) {
+        animEl.removeAttribute('data-dvf-anim');
+        animEl.classList.remove('dvf-anim');
+      } else {
+        animEl.setAttribute('data-dvf-anim', animOrig);
+      }
+      animEl.classList.add('dvf-in');
+      animEl = null;
+      animOrig = null;
+    }
+  }
+
   window.addEventListener('message', function (event) {
     if (event.data && event.data.type === 'dvf:selected') apply(event.data.id, event.data.label);
+    if (event.data && event.data.type === 'dvf:animPreview') animPreview(event.data.id, event.data.name);
   });
 })();
 </script>`;

@@ -260,3 +260,65 @@ test('a hidden node ships nothing — no markup, no display:none, no audit weigh
   // The hidden H1 must not count as a second H1 on the page.
   assert.deepEqual(out.findings.filter((f) => f.code === 'page/multiple-h1'), []);
 });
+
+test('hidden applies to the exact device range, never cascading upward', () => {
+  const doc: Doc = {
+    version: 1,
+    root: [
+      {
+        id: 'h1',
+        type: 'heading',
+        props: { level: 1, text: 'Oi' },
+        style: { base: { hidden: true }, md: { hidden: true } },
+      },
+    ],
+  };
+  const { css, html } = compile(doc);
+  assert.ok(html.includes('dvf-hide-base'), 'node carries the base hide class');
+  assert.ok(html.includes('dvf-hide-md'), 'node carries the md hide class');
+  assert.ok(css.includes('@media (max-width:767px){.dvf-hide-base{display:none!important}}'));
+  assert.ok(
+    css.includes('@media (min-width:768px) and (max-width:1199px){.dvf-hide-md{display:none!important}}'),
+  );
+  // Hidden on phone+tablet must NOT touch 1200px and up.
+  assert.ok(!/min-width:1200px\)[^}]*display:none/.test(css));
+});
+
+test('the xl breakpoint (1440) emits a min-width media query', () => {
+  const doc: Doc = {
+    version: 1,
+    root: [
+      { id: 'h1', type: 'heading', props: { level: 1, text: 'Oi' }, style: { xl: { fontSize: 64 } } },
+    ],
+  };
+  const { css } = compile(doc);
+  assert.ok(css.includes('@media(min-width:1440px)'), css);
+});
+
+test('entrance animations: opt-in runtime, CSS only when used, content visible without JS', () => {
+  const plain = compile({
+    version: 1,
+    root: [{ id: 'h1', type: 'heading', props: { level: 1, text: 'Oi' } }],
+  });
+  assert.ok(!plain.css.includes('dvf-anim'), 'no animation CSS without animated blocks');
+  assert.equal(plain.js, '');
+
+  const animated = compile({
+    version: 1,
+    root: [
+      { id: 'h1', type: 'heading', props: { level: 1, text: 'Oi', animation: 'rise' } },
+      { id: 'b1', type: 'button', props: { label: 'Ir', href: '/x' } },
+    ],
+  });
+  assert.ok(animated.html.includes('data-dvf-anim="rise"'));
+  assert.ok(animated.css.includes('.dvf-anim'), 'animation CSS shipped');
+  assert.ok(animated.js.includes('IntersectionObserver'), 'reveal runtime shipped');
+  // The pre-state (opacity 0) is applied by JS, so no-JS visitors still see content.
+  assert.ok(!animated.html.includes('dvf-anim '), 'markup ships without the pre-state class');
+
+  const bogus = compile({
+    version: 1,
+    root: [{ id: 'h1', type: 'heading', props: { level: 1, text: 'Oi', animation: 'explode' } }],
+  });
+  assert.ok(!bogus.html.includes('data-dvf-anim'), 'unknown animation compiles to nothing');
+});

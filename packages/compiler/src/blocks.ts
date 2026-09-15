@@ -33,7 +33,23 @@ export interface RenderContext {
   optimizeHtml: (source: string) => string;
 }
 
-export type RuntimeModule = 'countdown';
+export type RuntimeModule = 'countdown' | 'reveal';
+
+/**
+ * Entrance animations. A closed set, like the style vocabulary: each name maps
+ * to a known pre-state, and anything outside the set compiles to nothing.
+ *
+ * They are progressive enhancement by construction: the markup ships visible,
+ * and the `reveal` runtime applies the pre-state and reveals on intersection.
+ * No JavaScript → no animation → content still readable.
+ */
+export const ANIMATIONS = ['fade', 'rise', 'zoom'] as const;
+
+export const ANIMATION_CSS = `.dvf-anim{opacity:0;transition:opacity .6s ease,transform .6s ease}
+.dvf-anim[data-dvf-anim="rise"]{transform:translateY(24px)}
+.dvf-anim[data-dvf-anim="zoom"]{transform:scale(.94)}
+.dvf-anim.dvf-in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.dvf-anim{opacity:1;transform:none;transition:none}}`;
 
 type Renderer = (node: Node, ctx: RenderContext) => string;
 
@@ -231,4 +247,12 @@ var s=Math.floor(d/1e3),m=Math.floor(s/60),h=Math.floor(m/60),y=Math.floor(h/24)
 el.textContent=y+"d "+(h%24)+"h "+(m%60)+"m "+(s%60)+"s";
 if(d>0)setTimeout(t,1e3);}
 t();});`,
+  // Applies the animation pre-state only once JS is known to run, then reveals
+  // each element the first time it enters the viewport.
+  reveal: `(function(){var els=document.querySelectorAll("[data-dvf-anim]");
+els.forEach(function(el){el.classList.add("dvf-anim")});
+if(!("IntersectionObserver" in window)){els.forEach(function(el){el.classList.add("dvf-in")});return;}
+var io=new IntersectionObserver(function(es){es.forEach(function(e){
+if(e.isIntersecting){e.target.classList.add("dvf-in");io.unobserve(e.target);}})},{threshold:.15});
+els.forEach(function(el){io.observe(el)});})();`,
 };

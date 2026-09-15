@@ -67,11 +67,10 @@ export function declarations(style: StyleProps): string[] {
     if (value !== undefined) out.push(`${prop}:${value}`);
   };
 
-  if (style.hidden === true) push('display', 'none');
-  else if (style.hidden === false) push('display', 'flex');
-
+  // `hidden` is handled by the sheet as an exact-range rule, never here: a
+  // cascading display:none would leak "hide on phone" into every wider screen.
   if (style.direction || style.gap !== undefined || style.align || style.justify || style.wrap) {
-    if (style.hidden !== true) push('display', 'flex');
+    push('display', 'flex');
   }
   push('flex-direction', style.direction);
   push('gap', len(style.gap));
@@ -129,6 +128,11 @@ export class StyleSheet {
   /** declaration-block -> class name, per breakpoint. */
   private classes = new Map<string, string>();
   private rules = new Map<Breakpoint, Rule[]>();
+  /**
+   * Exact-range visibility rules, kept apart from the cascade: `hidden` at a
+   * breakpoint means "hidden in that breakpoint's device range", full stop.
+   */
+  private hiddenAt = new Set<Breakpoint>();
   /** How many nodes asked for each class. Only used for the dedupe report. */
   private uses = new Map<string, number>();
 
@@ -163,6 +167,12 @@ export class StyleSheet {
     for (const bp of BREAKPOINT_ORDER) {
       const props = style[bp];
       if (!props) continue;
+      if (props.hidden === true) {
+        // One shared class per breakpoint: every node hidden on "tablet"
+        // rides the same rule.
+        this.hiddenAt.add(bp);
+        names.push(`${CLASS_PREFIX}-hide-${bp}`);
+      }
       const decls = declarations(props);
       if (decls.length === 0) continue;
       names.push(this.intern(bp, decls));
@@ -208,6 +218,22 @@ export class StyleSheet {
         .join('');
       const min = BREAKPOINTS[bp];
       chunks.push(min === null ? body : `@media(min-width:${min}px){${body}}`);
+    }
+
+    // Visibility rules last, each fenced to its breakpoint's exact device
+    // range, so "hide on phone" ends at 767px instead of cascading upward.
+    for (const bp of BREAKPOINT_ORDER) {
+      if (!this.hiddenAt.has(bp)) continue;
+      const index = BREAKPOINT_ORDER.indexOf(bp);
+      const min = BREAKPOINTS[bp];
+      const next = BREAKPOINT_ORDER[index + 1];
+      const max = next ? (BREAKPOINTS[next] as number) - 1 : null;
+      const conditions = [
+        min === null ? null : `(min-width:${min}px)`,
+        max === null ? null : `(max-width:${max}px)`,
+      ].filter(Boolean);
+      const rule = `.${CLASS_PREFIX}-hide-${bp}{display:none!important}`;
+      chunks.push(`@media ${conditions.join(' and ')}{${rule}}`);
     }
 
     return chunks.join('\n');

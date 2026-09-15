@@ -182,10 +182,30 @@ const deviceIcon = (kind: 'monitor' | 'laptop' | 'tablet' | 'phone') => {
 };
 
 const DEVICES = [
-  { label: 'Tela cheia', width: 0, icon: 'monitor' as const },
+  { label: 'Computador (tela cheia)', width: 0, icon: 'monitor' as const },
   { label: 'Notebook (1200px)', width: 1200, icon: 'laptop' as const },
   { label: 'Tablet (768px)', width: 768, icon: 'tablet' as const },
   { label: 'Celular (390px)', width: 390, icon: 'phone' as const },
+];
+
+/**
+ * The 4-device system, one entry per breakpoint: the SAME four targets drive
+ * the style breakpoints, the per-device visibility toggles and the preview
+ * widths — one mental model everywhere.
+ */
+const BP_DEVICES = [
+  { bp: 'base' as const, icon: 'phone' as const, name: 'Celular', device: 3 },
+  { bp: 'md' as const, icon: 'tablet' as const, name: 'Tablet', device: 2 },
+  { bp: 'lg' as const, icon: 'laptop' as const, name: 'Notebook', device: 1 },
+  { bp: 'xl' as const, icon: 'monitor' as const, name: 'Computador', device: 0 },
+];
+
+/** Entrance animations — mirrors the compiler's closed set. */
+const ANIMATION_OPTIONS = [
+  { value: '', label: 'Nenhuma' },
+  { value: 'fade', label: 'Aparecer' },
+  { value: 'rise', label: 'Subir' },
+  { value: 'zoom', label: 'Aproximar' },
 ];
 
 /** What the "Atalhos de teclado" panel lists. One row per gesture. */
@@ -233,7 +253,7 @@ export default function PageEditor() {
   const [selected, setSelected] = useState<string | null>(null);
   const [device, setDevice] = useState(0);
   const [tab, setTab] = useState<'geral' | 'estilo'>('geral');
-  const [breakpoint, setBreakpoint] = useState<'base' | 'md' | 'lg'>('base');
+  const [breakpoint, setBreakpoint] = useState<'base' | 'md' | 'lg' | 'xl'>('base');
   const [live, setLive] = useState<{ stats: PreviewStats; findings: { message: string }[] }>({
     stats: data.stats,
     findings: data.findings,
@@ -752,10 +772,84 @@ export default function PageEditor() {
                 </button>
               </div>
               {tab === 'geral' ? (
-                <Inspector
-                  node={selectedNode}
-                  onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
-                />
+                <>
+                  <Inspector
+                    node={selectedNode}
+                    onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
+                  />
+
+                  <div style={groupLabel}>Visibilidade</div>
+                  <div style={{ ...metaLine, marginBottom: 6 }}>Mostrar este bloco em:</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {BP_DEVICES.map(({ bp, icon, name }) => {
+                      const style = (selectedNode.style ?? {}) as Record<string, Record<string, unknown>>;
+                      const hiddenHere = style[bp]?.hidden === true;
+                      return (
+                        <button
+                          key={bp}
+                          type="button"
+                          data-visibility={bp}
+                          title={hiddenHere ? `Escondido em ${name} — clique para mostrar` : `Visível em ${name} — clique para esconder`}
+                          aria-pressed={!hiddenHere}
+                          onClick={() =>
+                            setRoot(
+                              updateStyle(doc.root, selectedNode.id, bp, {
+                                hidden: hiddenHere ? undefined : true,
+                              }),
+                            )
+                          }
+                          style={hiddenHere ? visOff : visOn}
+                        >
+                          {deviceIcon(icon)}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={groupLabel}>Animação de entrada</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {ANIMATION_OPTIONS.map((option) => {
+                      const current = String(selectedNode.props?.animation ?? '');
+                      const active = current === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          data-animation={option.value}
+                          style={active ? animOn : animOff}
+                          // Hovering previews the animation on the canvas before
+                          // choosing — the microinteraction worth copying.
+                          onMouseEnter={() => {
+                            if (option.value) {
+                              frame.current?.contentWindow?.postMessage(
+                                { type: 'dvf:animPreview', id: selectedNode.id, name: option.value },
+                                '*',
+                              );
+                            }
+                          }}
+                          onMouseLeave={() =>
+                            frame.current?.contentWindow?.postMessage(
+                              { type: 'dvf:animPreview', id: selectedNode.id, name: '' },
+                              '*',
+                            )
+                          }
+                          onClick={() =>
+                            setRoot(
+                              updateProps(doc.root, selectedNode.id, {
+                                animation: option.value || undefined,
+                              }),
+                            )
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ ...metaLine, marginTop: 6 }}>
+                    Passe o mouse para ver; o bloco anima quando entra na tela do visitante.
+                  </div>
+                </>
               ) : (
                 <StylePanel
                   node={selectedNode}
@@ -764,7 +858,7 @@ export default function PageEditor() {
                     setBreakpoint(bp);
                     // Show the width the chosen breakpoint actually governs, so
                     // what is being edited is what is being looked at.
-                    setDevice(bp === 'base' ? 3 : bp === 'md' ? 2 : 1);
+                    setDevice(BP_DEVICES.find((d) => d.bp === bp)!.device);
                   }}
                   onChange={(patch) =>
                     setRoot(updateStyle(doc.root, selectedNode.id, breakpoint, patch))
@@ -1092,7 +1186,24 @@ function Inspector({
           />
         </label>
       );
-    case 'button':
+    case 'button': {
+      // The action kind is derived from the href's shape, not stored twice:
+      // mailto: is e-mail, tel: is phone, # is an on-page anchor, else a link.
+      const href = String(p.href ?? '');
+      const kind = href.startsWith('mailto:')
+        ? 'email'
+        : href.startsWith('tel:')
+          ? 'tel'
+          : href.startsWith('#')
+            ? 'anchor'
+            : 'url';
+      const KINDS = [
+        { value: 'url', label: 'Abrir um link', prefix: '', placeholder: '/products/meu-produto' },
+        { value: 'anchor', label: 'Rolar até uma âncora', prefix: '#', placeholder: 'ofertas' },
+        { value: 'email', label: 'Enviar e-mail', prefix: 'mailto:', placeholder: 'contato@loja.com' },
+        { value: 'tel', label: 'Ligar para um número', prefix: 'tel:', placeholder: '+5511999999999' },
+      ];
+      const active = KINDS.find((k) => k.value === kind)!;
       return (
         <>
           <label style={fieldLabel}>
@@ -1104,16 +1215,40 @@ function Inspector({
             />
           </label>
           <label style={fieldLabel}>
-            Link (href)
+            Ação ao clicar
+            <select
+              style={fieldInput}
+              data-cta-kind
+              value={kind}
+              onChange={(e) => {
+                const next = KINDS.find((k) => k.value === e.target.value)!;
+                const bare = href.replace(/^(mailto:|tel:|#)/, '');
+                onChange({ href: bare ? next.prefix + bare : next.prefix });
+              }}
+            >
+              {KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={fieldLabel}>
+            {kind === 'url' ? 'Endereço' : kind === 'anchor' ? 'Âncora (id da seção)' : kind === 'email' ? 'E-mail' : 'Telefone'}
             <input
               style={fieldInput}
-              value={String(p.href ?? '')}
-              placeholder="/products/meu-produto"
-              onChange={(e) => onChange({ href: e.target.value })}
+              data-cta-value
+              value={href.replace(/^(mailto:|tel:|#)/, '')}
+              placeholder={active.placeholder}
+              onChange={(e) => {
+                const value = e.target.value.trim();
+                onChange({ href: value ? active.prefix + value : undefined });
+              }}
             />
           </label>
         </>
       );
+    }
     case 'image':
       return (
         <>
@@ -1208,9 +1343,10 @@ function parseLength(raw: string): number | string | undefined {
 }
 
 const BP_LABELS: Record<string, string> = {
-  base: 'Base — vale em toda largura',
-  md: '≥ 768px — sobrepõe a base',
-  lg: '≥ 1200px — sobrepõe as duas',
+  base: 'Celular — a base: vale em toda largura',
+  md: 'Tablet (≥ 768px) — sobrepõe a base',
+  lg: 'Notebook (≥ 1200px) — sobrepõe as anteriores',
+  xl: 'Computador (≥ 1440px) — sobrepõe todas',
 };
 
 /**
@@ -1229,8 +1365,8 @@ function StylePanel({
   onChange,
 }: {
   node: DocNode;
-  breakpoint: 'base' | 'md' | 'lg';
-  onBreakpoint: (bp: 'base' | 'md' | 'lg') => void;
+  breakpoint: 'base' | 'md' | 'lg' | 'xl';
+  onBreakpoint: (bp: 'base' | 'md' | 'lg' | 'xl') => void;
   onChange: (patch: Record<string, unknown>) => void;
 }) {
   const style = (node.style ?? {}) as Record<string, Record<string, unknown>>;
@@ -1348,15 +1484,17 @@ function StylePanel({
   return (
     <div style={{ overflowY: 'auto' }}>
       <div style={bpRow}>
-        {(['base', 'md', 'lg'] as const).map((bp) => (
+        {BP_DEVICES.map(({ bp, icon, name }) => (
           <button
             key={bp}
             type="button"
             data-breakpoint={bp}
+            title={BP_LABELS[bp]}
+            aria-label={name}
             style={bp === breakpoint ? bpOn : bpOff}
             onClick={() => onBreakpoint(bp)}
           >
-            {bp === 'base' ? 'Base' : bp === 'md' ? '≥768' : '≥1200'}
+            {deviceIcon(icon)}
           </button>
         ))}
       </div>
@@ -1420,7 +1558,7 @@ function StylePanel({
           checked={own.hidden === true}
           onChange={(e) => onChange({ hidden: e.target.checked ? true : undefined })}
         />
-        Esconder neste tamanho de tela
+        Esconder neste dispositivo (só nesta faixa de tela)
       </label>
     </div>
   );
@@ -1635,6 +1773,42 @@ const keysRow: React.CSSProperties = {
   gap: 12,
   fontSize: 12.5,
   padding: '4px 0',
+};
+
+const visBase: React.CSSProperties = {
+  border: '1px solid #e3e3e3',
+  background: '#fff',
+  borderRadius: 8,
+  width: 34,
+  height: 30,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+};
+const visOn: React.CSSProperties = {
+  ...visBase,
+  background: '#eafaf0',
+  borderColor: '#b6ecd0',
+  color: '#0a6b38',
+};
+const visOff: React.CSSProperties = { ...visBase, color: '#c0c0c0' };
+
+const animOff: React.CSSProperties = {
+  border: '1px solid #e3e3e3',
+  background: '#fff',
+  borderRadius: 8,
+  padding: '6px 10px',
+  fontSize: 12.5,
+  cursor: 'pointer',
+  color: '#303030',
+};
+const animOn: React.CSSProperties = {
+  ...animOff,
+  background: '#eafaf0',
+  borderColor: '#b6ecd0',
+  color: '#0a6b38',
+  fontWeight: 600,
 };
 
 const drawerBackdrop: React.CSSProperties = {
