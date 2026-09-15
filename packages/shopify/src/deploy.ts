@@ -16,6 +16,7 @@
 
 import { ShopifyClient, ShopifyError, type StoreCredentials } from './client.ts';
 import { upsertPage, type PageInput, type ShopifyPage } from './pages.ts';
+import { ensureSoloTemplate } from './templates.ts';
 
 export interface Store extends StoreCredentials {
   /** Human label for reports, e.g. "Colômbia". */
@@ -54,6 +55,12 @@ export interface DeployOptions {
   publishDate?: string;
   /** Requests in flight at once. Small on purpose; these are write operations. */
   concurrency?: number;
+  /**
+   * Write the D&VFly chrome-less template into each store's main theme before
+   * upserting. Set when the page's templateSuffix points at it — the suffix
+   * without the files would 404 the storefront.
+   */
+  bindSoloTemplate?: boolean;
 }
 
 export class ProductionNotAllowedError extends Error {
@@ -101,6 +108,7 @@ export async function deployPage(
       const startedAt = Date.now();
       try {
         const client = new ShopifyClient(store);
+        if (options.bindSoloTemplate) await ensureSoloTemplate(client);
         const { page: published, created } = await upsertPage(client, input);
         targets.push({
           store,

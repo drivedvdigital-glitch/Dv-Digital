@@ -696,6 +696,26 @@ próprio React, não um listener nativo. Verificado dirigindo o app: 13/13.
 Verificado dirigindo o app: 6/6 (a limpeza revelou 7 páginas-fantasma de rodadas de debug,
 removidas direto no banco).
 
+### ✅ Rodada de paridade (15/09) — parte 3: Configurações da página
+
+Engrenagem na barra do editor abre o painel **Configurações da página**:
+
+- Explicação honesta do título (é o que aparece na aba e no Google), **URL da página**
+  (saiu do painel esquerdo para cá, com saneamento de handle), **Tipo de página**
+  (Normal hoje; Produto listado como "em preparação" — plano completo em
+  `docs/MODELOS_DE_TEMA.md`), **Seções do tema → Mostrar cabeçalho e rodapé**, e o
+  **Nome do modelo** (padrão do tema ou `page.dvfly-solo`).
+- Desligar cabeçalho/rodapé é real, não CSS: a publicação grava um layout mínimo + seção +
+  modelo `page.dvfly-solo` no tema principal (`themeFilesUpsert`, idempotente) e aponta a
+  página para ele via `templateSuffix`. Religar devolve ao modelo padrão.
+- **Provado na loja real, ida e volta (4/4)**: página publicada em megakciok.shop sem
+  header/footer do tema (com o head da Shopify preservado), depois republicada com o tema
+  de volta. Página de teste removida da loja e do app ao final.
+- Banco: `Page.pageType` e `Page.showChrome` (armadilha operacional: `prisma generate` com
+  o dev server de pé deixa o servidor com client velho → 500 até reiniciar).
+- Pesquisa a fundo pedida sobre páginas de produto/blog: experimentos + plano registrados
+  em `docs/MODELOS_DE_TEMA.md` (escopos de tema e produto confirmados na API).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

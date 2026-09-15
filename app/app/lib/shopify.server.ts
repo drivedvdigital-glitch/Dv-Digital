@@ -15,6 +15,7 @@ import { db } from './db.server.ts';
 export { deployPage, formatDeployResult, ProductionNotAllowedError } from '../../../packages/shopify/src/deploy.ts';
 export { ShopifyClient } from '../../../packages/shopify/src/client.ts';
 export { updatePage } from '../../../packages/shopify/src/pages.ts';
+export { SOLO_SUFFIX } from '../../../packages/shopify/src/templates.ts';
 
 /** A myshopify domain and nothing else. */
 const SHOP_DOMAIN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;

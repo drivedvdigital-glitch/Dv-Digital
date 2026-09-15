@@ -17,7 +17,8 @@ export interface PageInput {
   isPublished?: boolean;
   /** ISO 8601. Shopify makes the page visible at this moment. */
   publishDate?: string;
-  templateSuffix?: string;
+  /** Explicit null clears the suffix, returning the page to the theme default. */
+  templateSuffix?: string | null;
 }
 
 export interface ShopifyPage {

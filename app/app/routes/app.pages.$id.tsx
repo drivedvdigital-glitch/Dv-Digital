@@ -23,7 +23,7 @@ import {
   type DocNode,
   type DocTree,
 } from '../lib/doc-ops.ts';
-import { deployPage, ProductionNotAllowedError, toStore } from '../lib/shopify.server.ts';
+import { deployPage, ProductionNotAllowedError, SOLO_SUFFIX, toStore } from '../lib/shopify.server.ts';
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const page = await db.page.findUniqueOrThrow({
@@ -35,7 +35,13 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const compiled = compile(doc);
 
   return {
-    page: { id: page.id, title: page.title, handle: page.handle },
+    page: {
+      id: page.id,
+      title: page.title,
+      handle: page.handle,
+      pageType: page.pageType,
+      showChrome: page.showChrome,
+    },
     doc: doc as unknown as DocTree,
     stores,
     deployedStoreIds: page.deployments.map((d) => d.storeId),
@@ -54,6 +60,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const title = String(form.get('title') ?? '');
   const handle = String(form.get('handle') ?? '');
+  const pageType = form.get('pageType') === 'product' ? 'product' : 'regular';
+  const showChrome = form.get('showChrome') !== 'off';
 
   let doc: Doc;
   try {
@@ -66,7 +74,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // later compiler change cannot rewrite what was already published (I2).
   await db.page.update({
     where: { id: pageId },
-    data: { title, handle, doc: JSON.stringify(doc) },
+    data: { title, handle, doc: JSON.stringify(doc), pageType, showChrome },
   });
   const version = await db.version.create({
     data: { pageId, doc: JSON.stringify(doc), compilerVersion: COMPILER_VERSION },
@@ -85,8 +93,19 @@ export async function action({ request, params }: ActionFunctionArgs) {
   try {
     const result = await deployPage(
       rows.map(toStore),
-      { title, handle, body: toFragment(compiled) },
-      { publish: true, allowProduction: form.get('allowProduction') === 'on' },
+      {
+        title,
+        handle,
+        body: toFragment(compiled),
+        // "Mostrar cabeçalho e rodapé" off binds the page to the D&VFly
+        // chrome-less template; on returns it to the theme's default.
+        templateSuffix: showChrome ? null : SOLO_SUFFIX,
+      },
+      {
+        publish: true,
+        allowProduction: form.get('allowProduction') === 'on',
+        bindSoloTemplate: !showChrome,
+      },
     );
 
     for (const target of result.succeeded) {
@@ -222,6 +241,14 @@ export default function PageEditor() {
   const frame = useRef<HTMLIFrameElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const [showKeys, setShowKeys] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Page settings travel as controlled state + hidden inputs, so they reach
+  // every save even while the settings drawer is closed (an unmounted field
+  // would silently drop its value from the FormData).
+  const [handle, setHandle] = useState(data.page.handle);
+  const [pageType, setPageType] = useState(data.page.pageType);
+  const [showChrome, setShowChrome] = useState(data.page.showChrome);
 
   // "Salvar" only exists while there is something to save — the reference
   // behavior. Dirty is: the document differs from the last saved snapshot, or
@@ -486,6 +513,9 @@ export default function PageEditor() {
   return (
     <form ref={form} onSubmit={(e) => e.preventDefault()} onInput={onFormInput} style={shell}>
       <input type="hidden" name="doc" value={JSON.stringify(doc)} />
+      <input type="hidden" name="handle" value={handle} />
+      <input type="hidden" name="pageType" value={pageType} />
+      <input type="hidden" name="showChrome" value={showChrome ? 'on' : 'off'} />
 
       {/* ---- top bar ------------------------------------------------------ */}
       <header style={topBar}>
@@ -497,6 +527,18 @@ export default function PageEditor() {
         <s-badge tone={published ? 'success' : 'neutral'}>
           {published ? 'publicada' : 'rascunho'}
         </s-badge>
+        <button
+          type="button"
+          title="Configurações da página"
+          aria-label="Configurações da página"
+          onClick={() => setShowSettings(true)}
+          style={historyOn}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="2.2" />
+            <path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4" />
+          </svg>
+        </button>
 
         <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
           <button
@@ -623,10 +665,6 @@ export default function PageEditor() {
           </div>
         </section>
 
-        <section style={{ ...panelSection, borderBottom: 'none' }}>
-          <div style={panelLabel}>Endereço</div>
-          <s-text-field label="Handle" prefix="/pages/" name="handle" value={data.page.handle} />
-        </section>
       </aside>
 
       {/* ---- center: canvas ----------------------------------------------- */}
@@ -782,6 +820,78 @@ export default function PageEditor() {
           ) : null}
         </section>
       </aside>
+
+      {/* ---- page settings drawer ---------------------------------------- */}
+      {showSettings ? (
+        <>
+          <div style={drawerBackdrop} onClick={() => setShowSettings(false)} />
+          <div style={drawer} data-settings-drawer>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ ...panelLabel, marginBottom: 0 }}>Configurações da página</div>
+              <button type="button" aria-label="Fechar configurações" onClick={() => setShowSettings(false)} style={historyOn}>
+                ✕
+              </button>
+            </div>
+
+            <div style={{ ...metaLine, margin: '10px 0 14px' }}>
+              O título no topo do editor é o <strong>título da página</strong>: aparece na aba do
+              navegador e no Google quando ela é publicada.
+            </div>
+
+            <label style={fieldLabel}>
+              URL da página
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                <span style={{ color: '#8a8a8a', fontSize: 13 }}>/pages/</span>
+                <input
+                  style={{ ...fieldInput, marginTop: 0 }}
+                  data-settings="handle"
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                />
+              </span>
+            </label>
+
+            <label style={fieldLabel}>
+              Tipo de página
+              <select
+                style={fieldInput}
+                data-settings="pageType"
+                value={pageType}
+                onChange={(e) => setPageType(e.target.value)}
+              >
+                <option value="regular">Normal</option>
+                <option value="product" disabled>
+                  Produto — em preparação
+                </option>
+              </select>
+            </label>
+
+            <div style={{ ...groupLabel, marginTop: 14 }}>Seções do tema</div>
+            <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <input
+                type="checkbox"
+                data-settings="showChrome"
+                checked={showChrome}
+                onChange={(e) => setShowChrome(e.target.checked)}
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                Mostrar cabeçalho e rodapé do tema
+                <span style={{ ...metaLine, display: 'block' }}>
+                  Desligado, a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e
+                  o rodapé da loja — bom para landing pages. A mudança vale a partir da próxima
+                  publicação.
+                </span>
+              </span>
+            </label>
+
+            <div style={{ ...groupLabel, marginTop: 14 }}>Nome do modelo</div>
+            <div style={{ ...metaLine, fontFamily: 'ui-monospace, Menlo, monospace' }}>
+              {showChrome ? 'padrão do tema' : `page.${'dvfly-solo'}`}
+            </div>
+          </div>
+        </>
+      ) : null}
     </form>
   );
 }
@@ -1525,6 +1635,26 @@ const keysRow: React.CSSProperties = {
   gap: 12,
   fontSize: 12.5,
   padding: '4px 0',
+};
+
+const drawerBackdrop: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,.28)',
+  zIndex: 40,
+};
+
+const drawer: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  width: 360,
+  background: '#fff',
+  zIndex: 41,
+  padding: 16,
+  overflowY: 'auto',
+  boxShadow: '-8px 0 24px rgba(0,0,0,.15)',
 };
 
 const kbdChip: React.CSSProperties = {

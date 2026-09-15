@@ -30,6 +30,11 @@ model Page {
   handle    String
   /// Block document as JSON. For now usually a single html block.
   doc       String
+  /// "regular" | "product" — what kind of storefront page this becomes.
+  pageType  String    @default("regular")
+  /// Show the theme's header and footer. When false, publishing binds the
+  /// page to the D&VFly minimal layout (templates written into the theme).
+  showChrome Boolean  @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   versions  Version[]
