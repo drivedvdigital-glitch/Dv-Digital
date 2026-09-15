@@ -4,6 +4,14 @@
 > publicação. Cada decisão vem com o motivo; onde há dúvida real, está dito que há.
 >
 > Base: `docs/PESQUISA_PAGEFLY.md` (Fase 1) e o spike em `prototype/`.
+>
+> ⚠️ **Deriva registrada em 15/09/2026** (auditoria em `CONFIGURACAO_E_MECANISMOS.md` §3):
+> o código construído difere deste documento em pontos que ainda não foram reescritos aqui —
+> não há `@shopify/shopify-app-react-router` nem sessões (é client credentials puro), não há
+> `dnd-kit` (arrasto nativo HTML5), o banco é SQLite fixo (Postgres exige trocar o provider),
+> o modelo de dados real é `Store / Page / Version / Deployment` (sem `Publish`, `Variant`,
+> `Asset`, `ThemeMark`), o breakpoint `xl` existe, e a trilha A já usa `write_themes` quando a
+> página desliga o cabeçalho/rodapé. Os invariantes I1–I7 continuam valendo como estão.
 
 ---
 

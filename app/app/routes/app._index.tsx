@@ -66,9 +66,34 @@ export async function action({ request }: ActionFunctionArgs) {
     return null;
   }
 
+  // Deleting here forgets the page; the copies on the stores are taken off the
+  // air first so nothing keeps selling from a page the app no longer knows.
+  // The content itself stays in Shopify as a draft (invariant I4: it survives
+  // the app) — the store owner can still find it under Online Store → Pages.
   if (intent === 'delete') {
-    await db.page.delete({ where: { id: String(form.get('id')) } });
-    return null;
+    const id = String(form.get('id'));
+    const live = await db.deployment.findMany({
+      where: { pageId: id, isPublished: true },
+      include: { store: true },
+    });
+    const stuck: string[] = [];
+    for (const deployment of live) {
+      try {
+        await updatePage(clientFor(deployment.store), deployment.shopifyGid, { isPublished: false });
+      } catch (error) {
+        stuck.push(`${deployment.store.label}: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    if (stuck.length > 0) {
+      return {
+        ok: false,
+        message: `A página não foi excluída: não consegui despublicá-la em ${stuck.join('; ')}. Tente de novo.`,
+      };
+    }
+    await db.page.delete({ where: { id } });
+    return live.length > 0
+      ? { ok: true, message: `Página excluída e retirada do ar em ${live.length} loja(s); o rascunho continua na Shopify.` }
+      : null;
   }
 
   // A .json produced by "Exportar" — possibly on another installation. The
@@ -121,6 +146,23 @@ export async function action({ request }: ActionFunctionArgs) {
       where: { id: { in: ids } },
       include: { deployments: { include: { store: true } } },
     });
+    // Turning a page ON in a production store is the same act as publishing
+    // there, and the editor asks for an explicit confirmation before it. The
+    // list has no such gesture, so it refuses — with the way to do it.
+    if (wantPublished) {
+      const production = rows.flatMap((p) =>
+        p.deployments.filter((d) => d.store.isProduction).map((d) => `${p.title} → ${d.store.label}`),
+      );
+      if (production.length > 0) {
+        return {
+          ok: false,
+          message:
+            `Loja de produção na seleção (${production.join('; ')}). Publique pelo editor da página, ` +
+            'que pede a confirmação de produção.',
+        };
+      }
+    }
+
     const outcomes: string[] = [];
     let failures = 0;
     let touched = 0;

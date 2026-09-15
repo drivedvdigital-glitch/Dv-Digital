@@ -14,19 +14,11 @@ import { fileURLToPath } from 'node:url';
 
 import { audit, score } from '../src/audit.ts';
 import { compile, toFragment } from '../src/compile.ts';
+import { BUDGET_BYTES, TEMPLATE_LIMIT_BYTES } from '../src/limits.ts';
 import type { Doc } from '../src/schema.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
-
-/**
- * Shopify refuses to save a theme template larger than this. It is the hard
- * ceiling every page we publish has to fit under.
- */
-const TEMPLATE_LIMIT_BYTES = 256 * 1024;
-
-/** Our own target, well below the ceiling, so complex pages still have room. */
-const BUDGET_BYTES = 100 * 1024;
 
 function kb(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`;

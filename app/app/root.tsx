@@ -10,20 +10,21 @@ import {
 } from 'react-router';
 import type { LoaderFunctionArgs } from 'react-router';
 
+import { config } from './lib/config.server.ts';
 import { db } from './lib/db.server.ts';
 
 /**
  * App Bridge needs the app's client id to boot. It comes from the environment
- * or, failing that, from any registered store — every store runs the same app,
- * so any row's client id is the app's client id. No settings screen.
+ * or, failing that (development only), from any registered store — every store
+ * runs the same app, so any row's client id is the app's client id.
  */
 export async function loader(_: LoaderFunctionArgs) {
-  let clientId = process.env.SHOPIFY_CLIENT_ID ?? '';
-  if (!clientId) {
+  let clientId = config.shopifyClientId ?? '';
+  if (!clientId && !config.isProduction) {
     const store = await db.store.findFirst({ orderBy: { createdAt: 'asc' } }).catch(() => null);
     clientId = store?.clientId ?? '';
   }
-  return { clientId };
+  return { clientId, showErrorDetail: !config.isProduction };
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           Shopify's CDN, not npm. It reads the client id from the data attribute
           and is what makes the app embed properly in the admin.
         */}
+        {/* The meta tag is the form the current App Bridge docs specify; the
+            data attribute is the older one and still honoured. Both, so an
+            App Bridge update on the CDN cannot take the embedding down. */}
+        {data?.clientId ? <meta name="shopify-api-key" content={data.clientId} /> : null}
         <script
           src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
           data-api-key={data?.clientId || undefined}
@@ -70,10 +75,16 @@ export default function App() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
+  const data = useRouteLoaderData<typeof loader>('root');
+  // Outside production the loader is what decides; when the loader itself
+  // failed there is no data, and showing the detail is the useful default.
+  const showDetail = data?.showErrorDetail ?? true;
 
   // The whole error, not a polite summary: when this screen shows up inside
   // the admin on someone else's machine, its text is the only diagnostic that
   // exists. A vague "Bad Request" here once cost a whole debugging round.
+  // In production the stack stays in the server log — file paths and queries
+  // are not for whoever loaded the page.
   let message = 'Erro desconhecido';
   let detail = '';
   if (isRouteErrorResponse(error)) {
@@ -81,9 +92,9 @@ export function ErrorBoundary() {
     detail = typeof error.data === 'string' ? error.data : JSON.stringify(error.data, null, 2);
   } else if (error instanceof Error) {
     message = error.message;
-    detail = error.stack ?? '';
+    detail = showDetail ? (error.stack ?? '') : '';
   } else if (error !== undefined) {
-    detail = String(error);
+    detail = showDetail ? String(error) : '';
   }
 
   return (

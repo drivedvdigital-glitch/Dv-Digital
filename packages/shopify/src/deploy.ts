@@ -11,7 +11,8 @@
  *   - **Stores are independent.** One store failing must not stop the others,
  *     and the result has to say exactly which succeeded and which did not.
  *   - **Publishing twice is not publishing two pages.** Every store is upserted
- *     by handle, so re-running a deploy updates rather than duplicates.
+ *     by the id remembered from the last publish (handle as fallback), so
+ *     re-running a deploy updates rather than duplicates — even after a rename.
  */
 
 import { ShopifyClient, ShopifyError, type StoreCredentials } from './client.ts';
@@ -61,6 +62,18 @@ export interface DeployOptions {
    * without the files would 404 the storefront.
    */
   bindSoloTemplate?: boolean;
+  /**
+   * The Shopify page id this page already has on each store (keyed by domain),
+   * from an earlier publish. Lets the deploy update by id, so a renamed handle
+   * keeps the same live page. Stores absent here are looked up by handle.
+   */
+  existingIds?: Record<string, string | null | undefined>;
+  /**
+   * How to get a client for a store. The app passes a factory that reuses
+   * clients (and their cached tokens) across requests; the default mints one
+   * per deploy.
+   */
+  clientFor?: (store: Store) => ShopifyClient;
 }
 
 export class ProductionNotAllowedError extends Error {
@@ -107,9 +120,13 @@ export async function deployPage(
     for (let store = queue.shift(); store; store = queue.shift()) {
       const startedAt = Date.now();
       try {
-        const client = new ShopifyClient(store);
+        const client = options.clientFor ? options.clientFor(store) : new ShopifyClient(store);
         if (options.bindSoloTemplate) await ensureSoloTemplate(client);
-        const { page: published, created } = await upsertPage(client, input);
+        const { page: published, created } = await upsertPage(
+          client,
+          input,
+          options.existingIds?.[store.domain],
+        );
         targets.push({
           store,
           ok: true,

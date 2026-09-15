@@ -3,6 +3,7 @@ import { Link, useActionData, useLoaderData, useLocation, useNavigation, useSubm
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 
 import { COMPILER_VERSION, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
+import { PAGE_BODY_LIMIT_BYTES, SOLO_SUFFIX, TEMPLATE_LIMIT_BYTES } from '../lib/shared.ts';
 import { db } from '../lib/db.server.ts';
 import {
   BLOCK_LABELS,
@@ -25,9 +26,9 @@ import {
 } from '../lib/doc-ops.ts';
 import {
   clientFor,
+  clientForStore,
   deployPage,
   ProductionNotAllowedError,
-  SOLO_SUFFIX,
   toStore,
   updatePage,
 } from '../lib/shopify.server.ts';
@@ -143,6 +144,26 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
   const rows = await db.store.findMany({ where: { id: { in: storeIds } } });
   const compiled = compile(doc);
+  const fragment = toFragment(compiled);
+
+  // The ceilings are Shopify's, not ours: the page body column (64 KB) on the
+  // regular track, the theme template (256 KB) behind it. Refusing here, with
+  // the number, beats a cryptic API error after the save already happened.
+  const fragmentBytes = Buffer.byteLength(fragment, 'utf8');
+  const limit = Math.min(PAGE_BODY_LIMIT_BYTES, TEMPLATE_LIMIT_BYTES);
+  if (fragmentBytes > limit) {
+    return {
+      ok: false,
+      message:
+        `A página compilada tem ${(fragmentBytes / 1024).toFixed(1)} KB e o limite da Shopify para o ` +
+        `corpo de uma página é ${(limit / 1024).toFixed(0)} KB. Reduza blocos de HTML colado ou divida a página.`,
+    };
+  }
+
+  // Each store's page from the last publish, so a renamed handle updates the
+  // SAME live page (Shopify adds the redirect) instead of creating a twin.
+  const previous = await db.deployment.findMany({ where: { pageId }, include: { store: true } });
+  const existingIds = Object.fromEntries(previous.map((d) => [d.store.domain, d.shopifyGid]));
 
   try {
     const result = await deployPage(
@@ -150,7 +171,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       {
         title,
         handle,
-        body: toFragment(compiled),
+        body: fragment,
         // "Mostrar cabeçalho e rodapé" off binds the page to the D&VFly
         // chrome-less template; on returns it to the theme's default.
         templateSuffix: showChrome ? null : SOLO_SUFFIX,
@@ -159,6 +180,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
         publish: true,
         allowProduction: form.get('allowProduction') === 'on',
         bindSoloTemplate: !showChrome,
+        existingIds,
+        clientFor: clientForStore,
       },
     );
 
@@ -178,6 +201,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           versionId: version.id,
           shopifyGid: target.page!.id,
           isPublished: true,
+          publishedAt: new Date(),
           bytes: compiled.stats.bytes.total,
         },
       });
@@ -350,7 +374,7 @@ export default function PageEditor() {
   const [themeFonts, setThemeFonts] = useState<{ body: string | null; heading: string | null } | null>(null);
   const themeFontsRef = useRef<typeof themeFonts>(null);
   useEffect(() => {
-    fetch('/api/theme-fonts')
+    fetch(`/api/theme-fonts${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`)
       .then((r) => r.json())
       .then((fonts) => {
         themeFontsRef.current = fonts;
@@ -608,6 +632,9 @@ export default function PageEditor() {
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
+      // Only the canvas may drive the editor — not any window that got a
+      // reference to this one.
+      if (event.source !== frame.current?.contentWindow) return;
       const message = event.data;
       if (!message) return;
       if (message.type === 'dvf:select') select(message.id ?? null, message.additive === true);
@@ -927,7 +954,7 @@ export default function PageEditor() {
           </div>
         ) : null}
         <div style={statusBar}>
-          Total {kb(live.stats.bytes.total)} · {((live.stats.bytes.total / (256 * 1024)) * 100).toFixed(1)}%
+          Total {kb(live.stats.bytes.total)} · {((live.stats.bytes.total / PAGE_BODY_LIMIT_BYTES) * 100).toFixed(1)}%
           do teto · {live.stats.htmlOptimization.inlineStylesHoisted} estilos inline →{' '}
           {live.stats.cssRules} regras
         </div>
@@ -1272,7 +1299,7 @@ export default function PageEditor() {
 
             <div style={{ ...groupLabel, marginTop: 14 }}>Nome do modelo</div>
             <div style={{ ...metaLine, fontFamily: 'ui-monospace, Menlo, monospace' }}>
-              {showChrome ? 'padrão do tema' : `page.${'dvfly-solo'}`}
+              {showChrome ? 'padrão do tema' : `page.${SOLO_SUFFIX}`}
             </div>
           </div>
         </>

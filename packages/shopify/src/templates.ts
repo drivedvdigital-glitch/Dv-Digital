@@ -18,9 +18,9 @@
  */
 
 import { ShopifyError, type ShopifyClient } from './client.ts';
+import { SOLO_SUFFIX } from './constants.ts';
 
-/** The templateSuffix a chrome-less page gets. */
-export const SOLO_SUFFIX = 'dvfly-solo';
+export { SOLO_SUFFIX };
 
 const LAYOUT_FILE = 'layout/theme.dvfly.liquid';
 const SECTION_FILE = 'sections/dvfly-page.liquid';

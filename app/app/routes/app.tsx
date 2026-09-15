@@ -1,10 +1,7 @@
 import { data, Outlet, useLoaderData } from 'react-router';
 import type { HeadersFunction, LoaderFunctionArgs } from 'react-router';
 
-import { ensureStore } from '../lib/shopify.server.ts';
-
-/** A myshopify domain and nothing else — this value ends up inside a CSP. */
-const SHOP_DOMAIN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;
+import { ensureStore, SHOP_DOMAIN } from '../lib/shopify.server.ts';
 
 /**
  * Lets the Shopify admin put this app in an iframe, and nobody else.

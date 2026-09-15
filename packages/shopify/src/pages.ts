@@ -142,11 +142,14 @@ export async function findPageByHandle(
   client: ShopifyClient,
   handle: string,
 ): Promise<ShopifyPage | null> {
+  // A few candidates, not one: the search is a ranking, and `promo-2` can
+  // outrank `promo` for the query `handle:promo`. The exact match is picked
+  // from the batch.
   const data = await client.graphql<{
     pages: { nodes: ShopifyPage[] };
   }>(
     `query DvflyFindPage($query: String!) {
-       pages(first: 1, query: $query) { nodes { ${PAGE_FIELDS} } }
+       pages(first: 5, query: $query) { nodes { ${PAGE_FIELDS} } }
      }`,
     { query: `handle:${handle}` },
   );
@@ -154,13 +157,28 @@ export async function findPageByHandle(
 }
 
 /**
- * Creates or updates by handle, so publishing the same page twice produces one
- * page rather than two. This is the function the app actually calls.
+ * Creates or updates, so publishing the same page twice produces one page
+ * rather than two. This is the function the app actually calls.
+ *
+ * The page we published before is addressed by its Shopify id when the caller
+ * remembers it (`existingId`): that is what keeps a renamed handle pointing at
+ * the SAME live page (with a redirect from the old URL) instead of creating a
+ * second one and orphaning the first. The handle search is the fallback for a
+ * first publish, and for an id that no longer exists on the store.
  */
 export async function upsertPage(
   client: ShopifyClient,
   input: PageInput & { handle: string },
+  existingId?: string | null,
 ): Promise<{ page: ShopifyPage; created: boolean }> {
+  if (existingId) {
+    try {
+      return { page: await updatePage(client, existingId, input), created: false };
+    } catch (error) {
+      if (!(error instanceof ShopifyError && error.isNotFound)) throw error;
+      // Deleted on the store side since we last published; fall through.
+    }
+  }
   const existing = await findPageByHandle(client, input.handle);
   if (existing) {
     return { page: await updatePage(client, existing.id, input), created: false };

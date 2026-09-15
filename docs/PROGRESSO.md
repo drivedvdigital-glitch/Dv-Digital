@@ -831,14 +831,39 @@ real em megakciok.shop, com conferência do HTTP 200 e do conteúdo no ar depois
 flow17 7/7 + 52/52 compilador. Pendências novas registradas (telas Seções/Análise/CRO/
 Motor de Vendas, "Ver mais", Código GTM, "+" das abas de filtro).
 
+### ✅ Auditoria de configuração (15/09) — código × Shopify × PageFly
+
+Pedido do dono: analisar todo o código e pesquisar mais a fundo o que Shopify e PageFly fazem,
+para configurar o app da melhor forma. Três levantamentos em paralelo (leitura integral do
+código; docs oficiais da Shopify de set/2026; as 241 páginas da central do PageFly relidas
+por mecanismo) viraram `docs/CONFIGURACAO_E_MECANISMOS.md` — 30 achados com arquivo:linha,
+tabela "eles × nós", plano P0/P1/P2 e a lista final de variáveis de ambiente. **Corrigido na
+mesma entrega:** módulo de configuração explícito (`config.server.ts`: `.env` carregado de
+propósito, `SHOPIFY_API_VERSION` validada, produção recusa subir sem credenciais no
+ambiente); cliente Shopify com retry em 429/THROTTLED, aviso quando a Shopify serve outra
+versão de API e resposta não-JSON tratada; **publicação pela id lembrada** (renomear a URL
+atualiza a mesma página com redirect, em vez de criar uma segunda); clientes/tokens
+reutilizados entre requisições; teto de 64 KB (body da Page — o que morde primeiro) e 256 KB
+verificados no publish; excluir na lista despublica nas lojas antes; publicar em massa em
+loja de produção recusado com o caminho; `allowedActionOrigins` só fora de produção; fontes
+do tema por loja; `postMessage` com origem checada; stack de erro escondido em produção;
+`build`/`start`/`typecheck` na raiz (build de produção rodado pela primeira vez). Pacote
+Shopify ganhou seus **primeiros 14 testes** (token, retry, versão, upsert por id, deploy
+isolado). Armadilha nova paga: constante de módulo `.server.ts` usada num componente derruba
+o bundle do Vite ("Server-only module referenced by client") — nasceu `app/lib/shared.ts`.
+Verificado: 66/66 testes, typecheck limpo, flow18 8/8 (ciclo real em massa na loja, agora
+pela id) + flow17 + flow6 13/13 + flow14 + flow16, página ao vivo conferida no fim.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
-Três coisas, registradas também em `app/README.md`:
+Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
 
-1. **Não há verificação de requisição.** O App Bridge carrega, mas ainda não se valida que a
-   chamada veio mesmo da Shopify (token de sessão / HMAC).
-2. **Credenciais em texto claro no SQLite.** Precisam ser cifradas antes de sair da loja de teste.
-3. **O editor ainda é um `textarea`.** O canvas visual é o ponto 5.
+1. **Não há verificação de requisição (P0.1).** O App Bridge carrega, mas ainda não se valida
+   o ID token. Desenho pronto (`requireShop`, HS256 com o client secret, claims); precisa ser
+   testado dentro do admin real — primeira tarefa do "bora hospedar".
+2. **Credenciais por loja no SQLite (P0.2).** O ambiente já é a fonte primária e produção não
+   lê o banco; falta a decisão do dono: remover as colunas (um app = um par) ou cifrar.
+3. **`shopify.app.toml` (P0.3)** para versionar scopes/webhooks e publicar a versão do app.
 
 ## Fase 4 — Recursos P1 ⬜
 

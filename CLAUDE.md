@@ -21,8 +21,14 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
 | `INICIAR-DVFLY.cmd` (Windows, duplo clique) | pull + setup + servidor + túnel, com o endereço público copiado |
 | `npm run setup` | dependências dos 3 pacotes + `.env` + banco |
 | `npm run dev` | servidor em `http://localhost:5173` |
-| `npm test` | testes do compilador |
+| `npm test` | testes do compilador + do pacote Shopify |
+| `npm run typecheck` | `tsc` do app |
+| `npm run build` / `npm start` | build de produção e servidor (`NODE_ENV=production`, credenciais no ambiente) |
 | `npm run fix:duplicados` | remove `node_modules` órfão (React duplicado) |
+
+Configuração: toda variável de ambiente é lida em `app/app/lib/config.server.ts` (lista em
+`docs/CONFIGURACAO_E_MECANISMOS.md` §6). Constante que um componente de rota usa vem de
+`app/app/lib/shared.ts`, nunca de um módulo `.server.ts` (o Vite recusa o bundle).
 
 ## Arquitetura em 30 segundos
 
@@ -34,6 +40,8 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
   cheia (árvore / canvas / inspetor). Loja se registra sozinha ao abrir o app (`ensureStore`).
 - Decisões e porquês: `docs/ARQUITETURA.md` (invariantes I1–I7), `docs/UX_FLUXOS.md` (U1–U7),
   histórico honesto em `docs/PROGRESSO.md` — **atualizar a cada entrega**, incluindo o que falhou.
+  Estado real do código × plataforma × concorrente: `docs/CONFIGURACAO_E_MECANISMOS.md`
+  (auditoria de 15/09, com o plano P0/P1/P2 antes de hospedar).
 
 ## Armadilhas já pagas (não repagar)
 

@@ -1,6 +1,9 @@
 import type { ActionFunctionArgs } from 'react-router';
 
-import { ANIMATION_CSS, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
+import { ANIMATION_CSS, compile, TEMPLATE_LIMIT_BYTES, toFragment, type Doc } from '../lib/compiler.server.ts';
+
+/** A block document is far smaller than its output; 8× the output ceiling is generous. */
+const PREVIEW_INPUT_LIMIT = TEMPLATE_LIMIT_BYTES * 8;
 
 /**
  * The canvas side of the editor: click-to-select, drag-to-reorder, and the
@@ -305,6 +308,8 @@ const EDITOR_BRIDGE = `
   }
 
   window.addEventListener('message', function (event) {
+    // Only the editor that owns this frame.
+    if (event.source !== window.parent) return;
     if (event.data && event.data.type === 'dvf:selected') apply(event.data.id, event.data.label, event.data.ids);
     if (event.data && event.data.type === 'dvf:animPreview') animPreview(event.data.id, event.data.name);
     // The store theme's real font values, so the canvas typography matches
@@ -328,7 +333,18 @@ const EDITOR_BRIDGE = `
  * bridge, neither of which exists in published output.
  */
 export async function action({ request }: ActionFunctionArgs) {
-  const body = (await request.json()) as { doc?: Doc; html?: string; chrome?: boolean };
+  // A document several times the size of anything publishable is not a
+  // preview request; the parser must not be handed unbounded input.
+  const raw = await request.text();
+  if (raw.length > PREVIEW_INPUT_LIMIT) {
+    return Response.json({ error: 'Documento grande demais para pré-visualizar.' }, { status: 413 });
+  }
+  let body: { doc?: Doc; html?: string; chrome?: boolean };
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return Response.json({ error: 'JSON ilegível.' }, { status: 400 });
+  }
   const doc: Doc = body.doc ?? {
     version: 1,
     root: [{ id: 'html', type: 'html', props: { html: body.html ?? '' } }],
