@@ -31,8 +31,11 @@ primeira compilação, com `Cannot find module 'node-html-parser'`.
 | `/app/pages/:id` | **Editor** — tela cheia: estrutura à esquerda, canvas com larguras de dispositivo no centro, inspetor (Geral/Estilo) e publicação à direita |
 | `/api/preview/:id` | Compila o documento para o canvas (mesmo `compile()` do publish, com ids e dicas de editor) |
 | `/api/theme-fonts?shop=` | Fontes reais do tema da loja (lidas da vitrine, cache 10 min por loja) |
-| `/api/pages/:id/export` | Documento em JSON aberto (reimportável) |
+| `/api/products?storeId=&q=` | Busca de produtos de uma loja (painel "Produtos vinculados") |
+| `/api/pages/:id/export` | Documento em JSON aberto (reimportável, com tipo e configurações da página) |
 | `/preview/:id` | A página compilada, sem editor |
+| `/bounce` | Pede o ID token ao App Bridge e volta para onde a navegação ia (mesma origem só) |
+| `/webhooks/app`, `/webhooks/compliance` | Webhooks da Shopify, HMAC do corpo bruto |
 
 **Configuração** vive em `app/lib/config.server.ts` — todas as variáveis, defaults e
 validação num lugar (`.env.example` documenta cada uma). Em produção o app recusa subir sem
@@ -99,10 +102,15 @@ Todo o fluxo foi exercitado pelas próprias rotas, não só por teste unitário:
 
 ## O que falta
 
-- **Embedding de verdade.** O App Bridge já é carregado no `root.tsx`, mas a verificação do
-  ID token ainda não existe. Antes de qualquer loja de produção, isso precisa entrar — o
-  desenho está em `docs/CONFIGURACAO_E_MECANISMOS.md` §5 (P0.1).
-- **Credenciais por loja no banco.** O ambiente já é a fonte primária (e a única em
-  produção); falta remover as colunas ou cifrá-las (P0.2).
-- **`shopify.app.toml`** para versionar scopes e webhooks (P0.3); webhook `app/uninstalled`
-  e inventário dos arquivos escritos no tema (P1).
+- **Prova dentro do admin real.** Toda a autenticação foi testada com tokens assinados pelo
+  segredo real e webhooks com HMAC real; o ciclo completo só se prova instalando numa loja
+  ao hospedar (`docs/INSTALACAO.md` diz o que observar).
+- **Access token das lojas em texto claro no SQLite.** Cifrar em repouso antes de sair da
+  loja de teste (`docs/CONFIGURACAO_E_MECANISMOS.md` §5, P1).
+- **Inventário dos arquivos escritos no tema** (os três `dvfly-solo`; os modelos de produto
+  já são removidos ao excluir a página) e o webhook `themes/publish` (P1).
+
+Em produção, `npm start` sobe `app/server.mjs` — um servidor Express próprio, porque o
+`react-router-serve` não aceita `trust proxy`: atrás de qualquer proxy TLS o CSRF do React
+Router recusaria toda action com 400. O log de acesso imprime só o caminho (a primeira
+carga traz `?id_token=`).

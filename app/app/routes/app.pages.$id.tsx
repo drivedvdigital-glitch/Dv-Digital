@@ -33,15 +33,27 @@ import {
   type DocTree,
 } from '../lib/doc-ops.ts';
 import { requireShop } from '../lib/auth.server.ts';
-import { applyLinkNow, deploymentKind, retireOtherKind, switchPage } from '../lib/publish.server.ts';
+import { passHeaders } from '../lib/headers.ts';
+import {
+  applyLinkNow,
+  deploymentKind,
+  kindLabel,
+  otherKindDeployments,
+  retireOtherKind,
+  switchPage,
+} from '../lib/publish.server.ts';
+import { shopSearch } from '../ui/embedded.ts';
 import {
   clientForStore,
   deployPage,
   deployProductPage,
   ProductionNotAllowedError,
   productSuffix,
+  storeUnusableReason,
   toStore,
 } from '../lib/shopify.server.ts';
+
+export const headers = passHeaders;
 import {
   bannerErr,
   bannerOk,
@@ -65,16 +77,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   // A product page has no URL of its own: it is seen at the URL of every
   // product that adopted it. "Ver no ar" opens the first linked product of
-  // the first store it is live on.
+  // the first store it is live on. What is live is what each deployment IS
+  // on its store — a page whose type changed since keeps its old URLs until
+  // it is published again.
   const live = page.deployments.filter((d) => d.isPublished);
-  const liveUrls =
-    page.pageType === 'product'
-      ? live.flatMap((d) =>
-          page.productLinks
-            .filter((l) => l.storeId === d.storeId)
-            .map((l) => `https://${d.store.domain}/products/${l.productHandle}`),
-        )
-      : live.map((d) => `https://${d.store.domain}/pages/${page.handle}`);
+  const liveUrls = live.flatMap((d) =>
+    deploymentKind(d.shopifyGid) === 'product'
+      ? page.productLinks
+          .filter((l) => l.storeId === d.storeId)
+          .map((l) => `https://${d.store.domain}/products/${l.productHandle}`)
+      : [`https://${d.store.domain}/pages/${page.handle}`],
+  );
 
   return {
     page: {
@@ -86,7 +99,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       productContentAbove: page.productContentAbove,
     },
     doc: doc as unknown as DocTree,
-    stores,
+    // Only what the screen needs — never a store's token or credentials.
+    stores: stores.map((s) => ({
+      id: s.id,
+      domain: s.domain,
+      label: s.label,
+      isProduction: s.isProduction,
+      unusable: storeUnusableReason(s),
+    })),
     deployedStoreIds: page.deployments.map((d) => d.storeId),
     liveStoreIds: live.map((d) => d.storeId),
     productLinks: page.productLinks.map((l) => ({
@@ -207,41 +227,68 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return { ok: result.ok, message: `Despublicada de: ${result.outcomes.join('; ')}` };
   }
 
+  if (intent !== 'publish') return { ok: false, message: 'Ação desconhecida — nada foi publicado.', saved: true };
+
   // --- publish -------------------------------------------------------------
+  // From here on the page IS saved; a refusal below says so (`saved`), so the
+  // editor does not keep asking to save what it already saved.
   const storeIds = form.getAll('storeIds').map(String);
   if (storeIds.length === 0) {
-    return { ok: false, message: 'Escolha ao menos uma loja.' };
+    return { ok: false, message: 'Escolha ao menos uma loja.', saved: true };
   }
   const rows = await db.store.findMany({ where: { id: { in: storeIds } } });
+  const unreachable = rows.map((r) => [r.label, storeUnusableReason(r)] as const).filter(([, why]) => why);
+  if (unreachable.length > 0) {
+    return { ok: false, message: `Sem acesso a ${unreachable.map(([l, why]) => `${l} (${why})`).join('; ')}.`, saved: true };
+  }
   const compiled = compile(doc);
   const fragment = toFragment(compiled);
-
-  // A page that was live as the other kind (type changed after publishing)
-  // is taken down as that kind first; publishing over it would strand it.
-  const stuck = await retireOtherKind(pageId, pageType);
-  if (stuck.length > 0) {
-    return {
-      ok: false,
-      message: `Antes de publicar como ${pageType === 'product' ? 'produto' : 'página normal'}, não consegui tirar do ar a versão anterior em ${stuck.join('; ')}. Tente de novo.`,
-    };
-  }
-
-  if (pageType === 'product') {
-    return publishProductPage({ pageId, title, fragment, bytes: compiled.stats.bytes.total, rows, versionId: version.id, productContentAbove, allowProduction: form.get('allowProduction') === 'on' });
-  }
+  const allowProduction = form.get('allowProduction') === 'on';
 
   // The ceilings are Shopify's, not ours: the page body column (64 KB) on the
-  // regular track, the theme template (256 KB) behind it. Refusing here, with
-  // the number, beats a cryptic API error after the save already happened.
+  // regular track, the theme section file (256 KB) for a product page.
+  // Refusing here, with the number, beats a cryptic API error — and comes
+  // before anything on the stores is touched.
   const fragmentBytes = Buffer.byteLength(fragment, 'utf8');
-  const limit = Math.min(PAGE_BODY_LIMIT_BYTES, TEMPLATE_LIMIT_BYTES);
+  const limit = pageType === 'product' ? TEMPLATE_LIMIT_BYTES : Math.min(PAGE_BODY_LIMIT_BYTES, TEMPLATE_LIMIT_BYTES);
   if (fragmentBytes > limit) {
     return {
       ok: false,
+      saved: true,
       message:
-        `A página compilada tem ${(fragmentBytes / 1024).toFixed(1)} KB e o limite da Shopify para o ` +
-        `corpo de uma página é ${(limit / 1024).toFixed(0)} KB. Reduza blocos de HTML colado ou divida a página.`,
+        `A página compilada tem ${(fragmentBytes / 1024).toFixed(1)} KB e o limite da Shopify para ` +
+        (pageType === 'product' ? 'um arquivo de seção do tema' : 'o corpo de uma página') +
+        ` é ${(limit / 1024).toFixed(0)} KB. Reduza blocos de HTML colado ou divida a página.`,
     };
+  }
+
+  // A page that was live as the other kind (type changed after publishing)
+  // is taken down as that kind first; publishing over it would strand it.
+  // Taking something off a production store is as deliberate as publishing
+  // to one, so the confirmation covers both before anything happens.
+  const retiring = await otherKindDeployments(pageId, pageType);
+  const production = [...rows, ...retiring.map((d) => d.store)].filter(
+    (s, i, all) => s.isProduction && all.findIndex((x) => x.id === s.id) === i,
+  );
+  if (production.length > 0 && !allowProduction) {
+    return { ok: false, saved: true, message: new ProductionNotAllowedError(production.map(toStore)).message, needsProductionConfirm: true };
+  }
+  const retired = await retireOtherKind(pageId, pageType);
+  if (retired.failed.length > 0) {
+    return {
+      ok: false,
+      saved: true,
+      message: `Antes de publicar como ${kindLabel(pageType)}, não consegui tirar do ar a versão anterior em ${retired.failed.join('; ')}.`,
+    };
+  }
+  // Said in the result: a store not in this publish lost its old version too.
+  const retiredNote =
+    retired.retired.length > 0
+      ? ` Tirada do ar como ${kindLabel(pageType === 'product' ? 'regular' : 'product')} em: ${retired.retired.join(', ')}.`
+      : '';
+
+  if (pageType === 'product') {
+    return publishProductPage({ pageId, title, fragment, bytes: fragmentBytes, rows, versionId: version.id, productContentAbove, allowProduction, retiredNote });
   }
 
   // Each store's page from the last publish, so a renamed handle updates the
@@ -264,7 +311,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
       {
         publish: true,
-        allowProduction: form.get('allowProduction') === 'on',
+        allowProduction,
         bindSoloTemplate: !showChrome,
         existingIds,
         clientFor: clientForStore,
@@ -281,14 +328,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
           versionId: version.id,
           shopifyGid: target.page!.id,
           isPublished: true,
-          bytes: compiled.stats.bytes.total,
+          bytes: fragmentBytes,
         },
         update: {
           versionId: version.id,
           shopifyGid: target.page!.id,
           isPublished: true,
           publishedAt: new Date(),
-          bytes: compiled.stats.bytes.total,
+          bytes: fragmentBytes,
         },
       });
     }
@@ -296,17 +343,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const failed = result.failed;
     return {
       ok: failed.length === 0,
+      saved: true,
       message:
-        failed.length === 0
+        (failed.length === 0
           ? `Publicado em ${result.succeeded.length} loja(s).`
           : `${result.succeeded.length} ok, ${failed.length} com erro: ${failed
               .map((f) => `${f.store.label} — ${f.error}`)
-              .join('; ')}`,
+              .join('; ')}`) + retiredNote,
       urls: result.succeeded.map((t) => `https://${t.store.domain}/pages/${t.page!.handle}`),
     };
   } catch (error) {
     if (error instanceof ProductionNotAllowedError) {
-      return { ok: false, message: error.message, needsProductionConfirm: true };
+      return { ok: false, saved: true, message: error.message, needsProductionConfirm: true };
     }
     throw error;
   }
@@ -326,16 +374,8 @@ async function publishProductPage(input: {
   versionId: string;
   productContentAbove: boolean;
   allowProduction: boolean;
+  retiredNote: string;
 }) {
-  const fragmentBytes = Buffer.byteLength(input.fragment, 'utf8');
-  if (fragmentBytes > TEMPLATE_LIMIT_BYTES) {
-    return {
-      ok: false,
-      message:
-        `A página compilada tem ${(fragmentBytes / 1024).toFixed(1)} KB e o limite da Shopify para um ` +
-        `arquivo de seção do tema é ${(TEMPLATE_LIMIT_BYTES / 1024).toFixed(0)} KB. Reduza blocos de HTML colado ou divida a página.`,
-    };
-  }
   const links = await db.productLink.findMany({ where: { pageId: input.pageId }, include: { store: true } });
   const productsByDomain: Record<string, string[]> = {};
   for (const link of links) (productsByDomain[link.store.domain] ??= []).push(link.productGid);
@@ -373,29 +413,43 @@ async function publishProductPage(input: {
         },
       });
     }
-    const unbound = result.succeeded.filter((t) => (t.bound ?? 0) === 0).map((t) => t.store.label);
+    const unbound = result.succeeded
+      .filter((t) => (t.bound ?? 0) === 0 && (t.failedProducts?.length ?? 0) === 0)
+      .map((t) => t.store.label);
     const bound = result.succeeded.reduce((n, t) => n + (t.bound ?? 0), 0);
+    // A product that refused the template (deleted or archived since it was
+    // linked) is named by title, with the fix: unlink it.
+    const titleOf = (domain: string, id: string) =>
+      links.find((l) => l.store.domain === domain && l.productGid === id)?.productTitle ?? id;
+    const refused = result.succeeded.flatMap((t) =>
+      (t.failedProducts ?? []).map((f) => `"${titleOf(t.store.domain, f.id)}" em ${t.store.label}`),
+    );
     const failed = result.failed;
     const summary =
       `Modelo de produto publicado em ${result.succeeded.length} loja(s), aplicado a ${bound} produto(s).` +
       (unbound.length > 0
         ? ` Em ${unbound.join(', ')} nenhum produto está vinculado ainda — vincule em Configurações da página → Produtos vinculados.`
+        : '') +
+      (refused.length > 0
+        ? ` Não aceitou o modelo: ${refused.join('; ')} — o produto pode ter sido excluído ou arquivado; desvincule em Configurações da página → Produtos vinculados.`
         : '');
     return {
-      ok: failed.length === 0,
+      ok: failed.length === 0 && refused.length === 0,
+      saved: true,
       message:
-        failed.length === 0
+        (failed.length === 0
           ? summary
-          : `${summary} ${failed.length} com erro: ${failed.map((f) => `${f.store.label} — ${f.error}`).join('; ')}`,
+          : `${summary} ${failed.length} com erro: ${failed.map((f) => `${f.store.label} — ${f.error}`).join('; ')}`) +
+        input.retiredNote,
       urls: result.succeeded.flatMap((t) =>
         links
-          .filter((l) => l.store.domain === t.store.domain)
+          .filter((l) => l.store.domain === t.store.domain && !t.failedProducts?.some((f) => f.id === l.productGid))
           .map((l) => `https://${t.store.domain}/products/${l.productHandle}`),
       ),
     };
   } catch (error) {
     if (error instanceof ProductionNotAllowedError) {
-      return { ok: false, message: error.message, needsProductionConfirm: true };
+      return { ok: false, saved: true, message: error.message, needsProductionConfirm: true };
     }
     throw error;
   }
@@ -561,14 +615,26 @@ export default function PageEditor() {
       // Fine — it will show again next time.
     }
   };
-  // The right-click menu: which block, and where on screen.
+  // The right-click menu: which block, and where on screen. Focus moves into
+  // it when it opens, so Escape and the arrow keys work wherever the click
+  // came from (the canvas iframe included), and closes with it.
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+        if (items.length === 0) return;
+        event.preventDefault();
+        const at = items.indexOf(document.activeElement as HTMLButtonElement);
+        const step = event.key === 'ArrowDown' ? 1 : -1;
+        items[(at + step + items.length) % items.length]?.focus();
+      }
     };
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
     window.addEventListener('click', close);
     window.addEventListener('keydown', onKey);
     return () => {
@@ -612,13 +678,17 @@ export default function PageEditor() {
   const pendingSnapshot = useRef<string | null>(null);
   const dirty = metaDirty || JSON.stringify(doc) !== savedSnapshot;
 
-  // Title (native input) and handle (custom element) both bubble `input`, so
-  // one React handler on the form marks the page dirty whatever was typed in.
+  // The title and the page settings are the only fields saved outside the
+  // document, so only they mark the page dirty — not the store checkboxes,
+  // the production confirmation or the product search, which live in the
+  // same form and are never saved. Block edits are covered by comparing the
+  // document with its saved snapshot, which undo also satisfies.
   // It must be REACT's onInput, not a native listener: a setState fired from a
   // native listener mid-event re-renders before React processes the same
   // event, and the controlled field's first keystroke gets silently reverted.
   const onFormInput = useCallback((event: React.FormEvent) => {
-    if (event.target !== form.current) setMetaDirty(true);
+    const target = event.target as HTMLElement | null;
+    if (target?.matches?.('[name="title"], [data-settings]')) setMetaDirty(true);
   }, []);
 
   // A successful save (publishing also saves) resets the dirty tracking to
@@ -633,7 +703,10 @@ export default function PageEditor() {
     toastTimer.current = setTimeout(() => setToast(null), 3000);
   }, []);
   useEffect(() => {
-    if (result?.ok && pendingSnapshot.current !== null) {
+    // A publish refused after the save (size, production confirmation, a
+    // store out of reach) still saved: the editor must not ask again.
+    const saved = result?.ok || (result && 'saved' in result && result.saved);
+    if (saved && pendingSnapshot.current !== null) {
       setSavedSnapshot(pendingSnapshot.current);
       setMetaDirty(false);
       pendingSnapshot.current = null;
@@ -809,23 +882,37 @@ export default function PageEditor() {
   // bytes that get published (I1). The editor build adds node id stamps and the
   // selection bridge; published output carries neither.
   useEffect(() => {
+    // A newer edit cancels this one: whatever this request brings back is
+    // stale by then and must not overwrite the canvas or the numbers.
+    let stale = false;
     const timer = setTimeout(async () => {
-      const response = await fetch(`/api/preview/${data.page.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          doc,
-          chrome: showChrome,
-          // Where the theme's own product sections sit relative to our content.
-          productSections: pageType === 'product' ? (productContentAbove ? 'below' : 'above') : null,
-        }),
-      });
-      const payload = (await response.json()) as {
-        fragment: string;
-        stats: PreviewStats;
-        findings: { message: string }[];
-      };
-      setLive({ stats: payload.stats, findings: payload.findings });
+      let payload: { fragment?: string; stats?: PreviewStats; findings?: { message: string }[]; error?: string };
+      try {
+        const response = await fetch(`/api/preview/${data.page.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            doc,
+            // A product page renders inside the theme's product template, so
+            // its chrome is always there; the checkbox is disabled for it.
+            chrome: pageType === 'product' ? true : showChrome,
+            // Where the theme's own product sections sit relative to our content.
+            productSections: pageType === 'product' ? (productContentAbove ? 'below' : 'above') : null,
+          }),
+        });
+        payload = await response.json();
+        if (!response.ok) payload.stats = undefined;
+      } catch {
+        payload = { error: 'Sem resposta do servidor de pré-visualização.' };
+      }
+      if (stale) return;
+      // A refusal (document too large, server down) is reported in the
+      // findings list; the editor and the unsaved work stay put.
+      if (!payload.stats || typeof payload.fragment !== 'string') {
+        setLive((prev) => ({ ...prev, findings: [{ message: payload.error ?? 'Pré-visualização indisponível agora.' }] }));
+        return;
+      }
+      setLive({ stats: payload.stats, findings: payload.findings ?? [] });
       const target = frame.current?.contentDocument;
       if (target) {
         target.open();
@@ -838,21 +925,25 @@ export default function PageEditor() {
             '*',
           );
         }
-        // Re-apply the selection to the fresh document.
+        // Re-apply the CURRENT selection to the fresh document — read from
+        // the ref, since the person may have clicked elsewhere meanwhile.
+        const ids = selectionRef.current;
+        const primary = ids.length > 0 ? ids[ids.length - 1] : null;
         frame.current?.contentWindow?.postMessage(
           {
             type: 'dvf:selected',
-            id: selected,
-            ids: selectionRef.current,
-            label: nameOf(selected ? findNode(doc.root, selected) : null),
+            id: primary,
+            ids,
+            label: nameOf(primary ? findNode(doc.root, primary) : null),
           },
           '*',
         );
       }
     }, 250);
-    return () => clearTimeout(timer);
-    // `selected` is intentionally not a dependency: changing it must not recompile.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [doc, data.page.id, showChrome, pageType, productContentAbove]);
 
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
@@ -863,13 +954,18 @@ export default function PageEditor() {
       if (event.source !== frame.current?.contentWindow) return;
       const message = event.data;
       if (!message) return;
-      if (message.type === 'dvf:select') select(message.id ?? null, message.additive === true);
+      if (message.type === 'dvf:select') {
+        select(message.id ?? null, message.additive === true);
+        // A click in the canvas never reaches this window's listeners.
+        setMenu(null);
+      }
       if (message.type === 'dvf:move') {
         setRoot(relocateNode(doc.root, message.id, message.targetId, message.position));
       }
       if (message.type === 'dvf:key') {
         if (message.key === 'undo') undo();
         else if (message.key === 'redo') redo();
+        else if (message.key === 'escape') setMenu(null);
         else shortcutAction(message.key);
       }
       // Clicking a theme chrome placeholder opens the drawer where its
@@ -985,6 +1081,8 @@ export default function PageEditor() {
   return (
     <form
       ref={form}
+      method="post"
+      autoComplete="off"
       onSubmit={(e) => e.preventDefault()}
       onInput={onFormInput}
       className="dv-ui"
@@ -1000,7 +1098,7 @@ export default function PageEditor() {
 
       {/* ---- top bar ------------------------------------------------------ */}
       <header style={topBar}>
-        <Link to={`/app${location.search}`} style={backLink} aria-label="Voltar para páginas">
+        <Link to={`/app${shopSearch(location.search)}`} style={backLink} aria-label="Voltar para páginas">
           ←
         </Link>
         <img src="/mark.svg" alt="" width={20} height={20} />
@@ -1266,6 +1364,9 @@ export default function PageEditor() {
         ) : null}
         {menu && menuNode ? (
           <div
+            ref={menuRef}
+            role="menu"
+            aria-label={`Ações de ${nameOf(menuNode)}`}
             style={{ ...contextMenu, left: Math.min(menu.x, window.innerWidth - 260), top: Math.min(menu.y, window.innerHeight - 270) }}
             data-context-menu
             onClick={(event) => event.stopPropagation()}
@@ -1275,6 +1376,7 @@ export default function PageEditor() {
               <button
                 key={action.key}
                 type="button"
+                role="menuitem"
                 style={{ ...contextItem, ...(action.danger ? { color: 'var(--dv-danger)' } : {}) }}
                 data-menu-action={action.key}
                 onClick={() => {
@@ -1289,8 +1391,10 @@ export default function PageEditor() {
           </div>
         ) : null}
         <div style={statusBar}>
-          Total {kb(live.stats.bytes.total)} · {((live.stats.bytes.total / PAGE_BODY_LIMIT_BYTES) * 100).toFixed(1)}%
-          do teto · {live.stats.htmlOptimization.inlineStylesHoisted} estilos inline →{' '}
+          Total {kb(live.stats.bytes.total)} ·{' '}
+          {((live.stats.bytes.total / (pageType === 'product' ? TEMPLATE_LIMIT_BYTES : PAGE_BODY_LIMIT_BYTES)) * 100).toFixed(1)}%
+          do teto da Shopify ({pageType === 'product' ? `${kb(TEMPLATE_LIMIT_BYTES)}, seção do tema` : `${kb(PAGE_BODY_LIMIT_BYTES)}, corpo da página`})
+          · {live.stats.htmlOptimization.inlineStylesHoisted} estilos inline →{' '}
           {live.stats.cssRules} regras
         </div>
       </main>
@@ -1438,13 +1542,18 @@ export default function PageEditor() {
                       </div>
                       {selectedNode.type === 'tab' ? (
                         <Inspector
+                          key={selectedNode.id}
                           node={selectedNode}
                           onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
                         />
                       ) : null}
                     </>
                   ) : (
+                    // Keyed by block: the fields of one block never linger
+                    // into the next one selected (an uncontrolled textarea
+                    // would keep its text).
                     <Inspector
+                      key={selectedNode.id}
                       node={selectedNode}
                       onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
                     />
@@ -1579,15 +1688,17 @@ export default function PageEditor() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {data.stores.map((store) => (
-                <label key={store.id} style={storeRow}>
+                <label key={store.id} style={{ ...storeRow, ...(store.unusable ? { opacity: 0.6 } : {}) }}>
                   <input
                     type="checkbox"
                     name="storeIds"
                     value={store.id}
-                    defaultChecked={data.deployedStoreIds.includes(store.id) || store.domain === shop}
+                    disabled={store.unusable ? true : undefined}
+                    defaultChecked={!store.unusable && (data.deployedStoreIds.includes(store.id) || store.domain === shop)}
                   />
                   {store.label}
                   {store.isProduction ? <span style={pillDanger}>produção</span> : null}
+                  {store.unusable ? <span style={metaLine}>— {store.unusable}</span> : null}
                 </label>
               ))}
               {data.stores.some((s) => s.isProduction) ? (
@@ -1716,20 +1827,23 @@ export default function PageEditor() {
             )}
 
             <div style={{ ...groupLabel, marginTop: 14 }}>Seções do tema</div>
-            <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <label
+              style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start', opacity: pageType === 'product' ? 0.6 : 1 }}
+            >
               <input
                 type="checkbox"
                 data-settings="showChrome"
-                checked={showChrome}
+                checked={pageType === 'product' ? true : showChrome}
+                disabled={pageType === 'product' || undefined}
                 onChange={(e) => setShowChrome(e.target.checked)}
                 style={{ marginTop: 2 }}
               />
               <span>
                 Mostrar cabeçalho e rodapé do tema
                 <span style={{ ...metaLine, display: 'block' }}>
-                  Desligado, a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e
-                  o rodapé da loja — bom para landing pages. A mudança vale a partir da próxima
-                  publicação.
+                  {pageType === 'product'
+                    ? 'Página de produto usa o layout do tema: o cabeçalho e o rodapé da loja aparecem sempre. Disponível em páginas normais.'
+                    : 'Desligado, a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e o rodapé da loja — bom para landing pages. A mudança vale a partir da próxima publicação.'}
                 </span>
               </span>
             </label>
@@ -1791,7 +1905,7 @@ function ProductLinks({
   live,
 }: {
   pageId: string;
-  store: { id: string; label: string; isProduction: boolean };
+  store: { id: string; label: string; isProduction: boolean; unusable?: string | null };
   links: Array<{ id: string; productGid: string; productHandle: string; productTitle: string }>;
   live: boolean;
 }) {
@@ -1803,17 +1917,23 @@ function ProductLinks({
 
   useEffect(() => {
     if (!open) return;
+    // A slower answer to an older query must not land over the newer one.
+    let stale = false;
     const timer = setTimeout(async () => {
       try {
         const response = await fetch(`/api/products?storeId=${encodeURIComponent(store.id)}&q=${encodeURIComponent(query)}`);
         const payload = (await response.json()) as { products?: ProductHit[]; error?: string };
+        if (stale) return;
         setHits(payload.products ?? []);
         setSearchError(payload.error ?? null);
       } catch {
-        setSearchError(`Não consegui buscar produtos em ${store.label}.`);
+        if (!stale) setSearchError(`Não consegui buscar produtos em ${store.label}.`);
       }
     }, 250);
-    return () => clearTimeout(timer);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [query, open, store.id, store.label]);
 
   const linked = new Set(links.map((l) => l.productGid));
@@ -1830,6 +1950,7 @@ function ProductLinks({
           {live ? ' · no ar' : ''}
         </span>
       </div>
+      {store.unusable ? <div style={{ ...metaLine, marginBottom: 6 }}>Sem acesso: {store.unusable}.</div> : null}
 
       {links.length === 0 ? (
         <div style={{ ...metaLine, marginBottom: 6 }}>Nenhum produto vinculado nesta loja.</div>
@@ -1902,7 +2023,14 @@ function ProductLinks({
           </div>
         </>
       ) : (
-        <button type="button" style={addItemButton} data-link-open={store.id} onClick={() => setOpen(true)}>
+        <button
+          type="button"
+          style={addItemButton}
+          data-link-open={store.id}
+          disabled={store.unusable ? true : undefined}
+          title={store.unusable ? `Sem acesso: ${store.unusable}` : undefined}
+          onClick={() => setOpen(true)}
+        >
           + Vincular produto
         </button>
       )}

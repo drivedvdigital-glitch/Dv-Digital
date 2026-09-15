@@ -31,6 +31,15 @@ describe('stripJsonComments', () => {
     const parsed = JSON.parse(stripJsonComments('{ "sections": { "main": { "type": "main-product", }, }, "order": ["main",], }'));
     assert.deepEqual(parsed.order, ['main']);
   });
+
+  it('never touches a comma inside a string value', () => {
+    const parsed = JSON.parse(
+      stripJsonComments('{ "heading": "Related, ]", "quote": "say \\"a, }\\" here", "order": ["main",], }'),
+    );
+    assert.equal(parsed.heading, 'Related, ]');
+    assert.equal(parsed.quote, 'say "a, }" here');
+    assert.deepEqual(parsed.order, ['main']);
+  });
 });
 
 describe('composeProductTemplate', () => {
@@ -60,6 +69,63 @@ describe('composeProductTemplate', () => {
     assert.equal(productSuffix('cmAbC'), 'dvfly-cmabc');
     assert.equal(productSectionType('cmAbC'), 'dvfly-p-cmabc');
   });
+
+  it('does not duplicate our id when the theme file already carries it', () => {
+    const theme = JSON.stringify({
+      sections: { main: { type: 'main-product' }, dvfly: { type: 'something-else' } },
+      order: ['dvfly', 'main'],
+    });
+    const out = JSON.parse(composeProductTemplate(theme, input));
+    assert.deepEqual(out.order, ['main', 'dvfly']);
+    assert.equal(out.sections.dvfly.type, productSectionType('cmAbC123'));
+  });
+
+  it("republishes on top of the merchant's edited copy, keeping their order and hidden sections", () => {
+    const edited = JSON.stringify({
+      sections: {
+        main: { type: 'main-product' },
+        related: { type: 'related-products', disabled: true },
+        dvfly: { type: productSectionType('cmAbC123'), settings: {} },
+        extra: { type: 'newsletter' },
+      },
+      order: ['main', 'dvfly', 'related', 'extra'],
+    });
+    const out = JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, edited));
+    // Ours sits in the middle where the merchant put it; the theme default is not consulted.
+    assert.deepEqual(out.order, ['main', 'dvfly', 'related', 'extra']);
+    assert.equal(out.sections.related.disabled, true);
+    assert.equal(out.sections.extra.type, 'newsletter');
+  });
+
+  it('moves ours between the ends when the position setting changes, unless the merchant placed it', () => {
+    const atEnd = JSON.stringify({
+      sections: { main: { type: 'main-product' }, related: { type: 'related-products' }, dvfly: { type: 'x' } },
+      order: ['main', 'related', 'dvfly'],
+    });
+    assert.deepEqual(
+      JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, { ...input, contentAbove: true }, atEnd)).order,
+      ['dvfly', 'main', 'related'],
+    );
+    const removedByMerchant = JSON.stringify({
+      sections: { main: { type: 'main-product' } },
+      order: ['main'],
+    });
+    assert.deepEqual(
+      JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, removedByMerchant)).order,
+      ['main', 'dvfly'],
+    );
+  });
+
+  it('falls back to the theme default when the existing copy is unreadable or empty', () => {
+    assert.deepEqual(
+      JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, '{ broken')).order,
+      ['main', 'related', 'dvfly'],
+    );
+    assert.deepEqual(
+      JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, '{ "sections": {}, "order": [] }')).order,
+      ['main', 'related', 'dvfly'],
+    );
+  });
 });
 
 describe('productSectionLiquid', () => {
@@ -76,6 +142,17 @@ describe('productSectionLiquid', () => {
     assert.deepEqual(schema.enabled_on, { templates: ['product'] });
     assert.equal(schema.limit, 1);
     assert.equal(schema.presets, undefined);
+  });
+
+  it('never cuts an emoji in half and drops the separator for an empty title', () => {
+    const schemaOf = (title: string) => {
+      const liquid = productSectionLiquid({ pageId: 'p1', title, fragment: '<p>x</p>' });
+      return JSON.parse(/\{% schema %\}\n([\s\S]*?)\n\{% endschema %\}/.exec(liquid)![1]);
+    };
+    const emoji = schemaOf('Black Friday 20🎁 mega');
+    assert.ok(emoji.name.isWellFormed(), emoji.name);
+    assert.ok(Array.from(emoji.name).length <= 25);
+    assert.equal(schemaOf('   ').name, 'D&VFly');
   });
 
   it('refuses a fragment that would close the raw block', () => {

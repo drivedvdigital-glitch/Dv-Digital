@@ -912,6 +912,98 @@ retry, token assinado com o segredo real aceito, webhooks HMAC, criar→editar�
 Authorization), regressão 18/20/6/17 no modo dev, typecheck. **Pendente por natureza:** o
 ciclo dentro do admin real só se prova instalando numa loja — o guia diz o que observar.
 
+### ✅ Revisão geral (15/09, noite) — "revisar tudo para ver se está certinho"
+
+Quatro revisões independentes sobre o código do dia (segurança/autenticação; publicação e
+páginas de produto; editor e lista; documentação × código), mais a bateria completa de
+fluxos Playwright, os testes, o typecheck e o build. Elas acharam **coisa de verdade** — a
+lista abaixo é o que foi confirmado e corrigido, agrupado, com o que ficou de fora.
+
+**Publicação e páginas de produto**
+- Página publicada como Normal e trocada para Produto (ou o inverso) deixava a versão antiga
+  no ar e mandava um id `template:` para `pageUpdate` (achado na própria revisão, antes dos
+  agentes). Agora cada deployment sabe **o que ele é** na loja (`deploymentKind`), e publicar
+  como um tipo **retira o outro** antes (`retireOtherKind`) — depois do teto de tamanho e da
+  confirmação de produção, que passa a cobrir também a loja de onde algo sai do ar; lojas
+  retiradas são nomeadas na mensagem; recurso já apagado pelo lojista conta como retirado;
+  loja desinstalada é pulada.
+- Um produto excluído entre vincular e publicar derrubava a loja inteira **depois** de
+  escrever o tema (modelo órfão que o app não via). Vínculo por produto tolerante: a loja
+  registra o deployment, os outros produtos entram, o recusado é nomeado com o conserto.
+- "Mostrar cabeçalho e rodapé" era oferecido para página de produto e ignorado ao publicar:
+  desabilitado com o motivo, preview coerente.
+- Excluir na lista decidia a remoção do modelo do tema pelo tipo atual da página, não pelo
+  deployment; duplicar/exportar/importar perdiam tipo e configurações; "Ver no ar" e o teto
+  da barra de status também eram pelo tipo atual. Tudo por deployment / por tipo certo.
+- `stripJsonComments` apagava vírgulas **dentro de strings** ("Related, ]" → "Related ]");
+  nome da seção cortava emoji ao meio em 25 caracteres; republicar recompunha o modelo do
+  `product.json` do tema, apagando o que o lojista tinha reordenado/ocultado no editor de
+  temas (contra a promessa da tela). Scanner que respeita strings; corte por code point; o
+  modelo existente vira a base e só a nossa seção é garantida (muda de ponta quando
+  "acima/abaixo" muda; posição no meio é do lojista). `themeFilesDelete` trata `NOT_FOUND`
+  por código. Busca de produtos sanitiza `" : ( )`. Intent desconhecido não publica.
+
+**Segurança**
+- `/bounce` aceitava `to=/\evil.com` (o parser de URL lê `/\` como `//`) e `</script>` no
+  destino — um **redirect aberto que entregava o ID token** e um XSS refletido. Destino
+  parseado como URL e aceito só na mesma origem; JSON com `<` escapado; CSP
+  `frame-ancestors`; marca `dv_bounced` para um salto só (token que falha depois do bounce é
+  recusado, não bounceado de novo — e qualquer falha do token da URL bounceia, não só
+  "expirado").
+- O 401 lançado na lista e no editor chegava ao App Bridge **sem** o header de retry
+  (rotas sem `headers` export): token expirado quebrava o salvar em vez de repetir.
+  `passHeaders` nas três rotas.
+- Loja desinstalada continuava alvo (`toStore` caía nas credenciais do app); `storeUsable`
+  sem uso. `clientFor` recusa com o motivo; "Publicar em" e vínculos desabilitados
+  explicando; a lista marca "sem acesso". O webhook de desinstalação **não** vira mais os
+  deployments para "fora do ar" (a página continua no ar na Shopify — dizer o contrário era
+  mentira) e ignora entregas atrasadas anteriores a uma reinstalação.
+- Tokens/segredos das lojas iam inteiros nos payloads dos loaders; o ID token seguia em
+  todo `Link` e recarga, e o `react-router-serve` o imprimia no log. Loaders devolvem só o
+  que a tela usa; `shopSearch` mantém só `shop/host`; a barra de endereço é limpa depois da
+  carga; **`npm start` virou `app/server.mjs`** (Express, `trust proxy` — sem ele, atrás de
+  qualquer proxy TLS o CSRF do React Router recusaria toda action com 400 — e log só com o
+  caminho). `DVFLY_ALLOWED_SHOPS` opcional; `Store.tokenExpiresAt` + renovação ao abrir
+  (apps com token expirável); `[build] include_config_on_deploy` no TOML; corpo nulo no JWT
+  vira `SessionTokenError`; `<form method="post" autoComplete="off">` no editor.
+
+**Telas**
+- **Qualquer `input` no formulário marcava "não salvo"** — marcar uma loja em "Publicar em"
+  **escondia o Publicar** (os fluxos não pegaram porque marcavam o checkbox por script, sem
+  evento). Sujo só para título e `[data-settings]`; publicação recusada depois de salvar avisa
+  `saved` e o editor não pede para salvar de novo.
+- Preview com erro (413) derrubava o editor inteiro com o trabalho não salvo; respostas
+  atrasadas do preview e da busca de produtos sobrescreviam as novas; a seleção capturada no
+  timer podia ficar velha. Guardas de `stale` e leitura pela ref.
+- Inspetor sem `key`: o textarea de JSON mostrava o bloco anterior. Menu do botão direito
+  aberto pelo canvas não fechava com Escape nem com clique no canvas; sem `role=menu` nem
+  foco. Seleção da lista guardava ids de páginas excluídas. Toolbar do canvas aparecia no
+  canto para bloco oculto no dispositivo. Data "Atualizada" divergia entre servidor e
+  cliente (fuso). Tudo corrigido.
+
+**Docs × código** — 18 discrepâncias apontadas, corrigidas: TOML "não existe" (§0), `DVFLY_AUTH`
+fora da tabela §6, `app/README` "o que falta" contradizendo o próprio corpo e sem 3 rotas,
+`packages/shopify/README` descrevendo o desenho antigo (client credentials, upsert por
+handle, 4 arquivos), `packages/compiler/README` com 41 testes/11 blocos (são 52/16) e
+`npm install` dentro do pacote, `README` raiz sem 4 docs, vídeo 08 apontando arquivo
+inexistente, `CLAUDE.md` sem `editorHints` e exagerando "toda rota". O `ensureStore` de dev
+**ainda** copiava o par para a linha — agora só quando o `.env` não o tem, e o doc diz isso.
+
+**Verificado**: 94 testes (52 + 42, 7 novos), typecheck, build de produção, `checks-auth`
+11/11 contra o servidor de produção real (`server.mjs`: CSRF passa com `X-Forwarded-Proto` e
+recusa sem; bounce cai para `/app` com `/\evil.com`, `//evil.com`, `https://…`; `</script>`
+não escapa do JSON; 401 `.data` com header de retry na lista **e** no editor; token expirado
+ou forjado na URL → bounce, depois do bounce → 401; loaders sem segredo; log sem `id_token`),
+flow21 5/5 contra o servidor de produção, bateria 6–22 no modo dev (flow22 = troca de tipo ao
+vivo na loja: Normal → Produto → Normal → excluir). Falhas de teste corrigidas no caminho:
+flow16 lia a etiqueta com o grip `⠿`; flow22 casava "Despublicar" em `hasText: 'Publicar'`;
+flow9 não limpava a página que criava (flow7 encontrou a sobra).
+
+**Ficou de fora, com nome**: o olho da árvore dentro do `<button>` da linha (HTML inválido,
+P2); arrastar `<button draggable>` no Firefox (não testado; só há Chromium aqui); cifrar o
+access token em repouso; inventário dos três arquivos `dvfly-solo`; webhook `themes/publish`;
+renovação de token expirável sem ninguém abrir o app.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

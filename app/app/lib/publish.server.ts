@@ -11,11 +11,12 @@
  */
 import type { Deployment, ProductLink, Store as StoreRow } from '@prisma/client';
 
+import { ShopifyError } from '../../../packages/shopify/src/client.ts';
 import { releaseProducts, setProductTemplate } from '../../../packages/shopify/src/products.ts';
 import { productSuffix, removeProductTemplate } from '../../../packages/shopify/src/templates.ts';
 
 import { db } from './db.server.ts';
-import { clientFor, updatePage } from './shopify.server.ts';
+import { clientFor, storeUsable, updatePage } from './shopify.server.ts';
 
 export type PageKind = 'regular' | 'product';
 
@@ -26,6 +27,8 @@ export type PageKind = 'regular' | 'product';
  */
 export const deploymentKind = (shopifyGid: string): PageKind =>
   shopifyGid.startsWith('template:') ? 'product' : 'regular';
+
+export const kindLabel = (kind: PageKind): string => (kind === 'product' ? 'modelo de produto' : 'página normal');
 
 export interface SwitchOutcome {
   ok: boolean;
@@ -54,13 +57,20 @@ export async function switchPage(
   let failures = 0;
   for (const deployment of deployments) {
     try {
+      let note = '';
       if (deploymentKind(deployment.shopifyGid) === 'product') {
-        await switchProducts(deployment, page.productLinks, wantPublished, pageId);
+        const { bound, failed } = await switchProducts(deployment, page.productLinks, wantPublished, pageId);
+        if (failed.length > 0) {
+          // The template is on the store; the products that refused it are
+          // named. The switch counts as thrown, with the caveat in the line.
+          note = `: ${bound} de ${bound + failed.length} produto(s) aplicado(s); falhou em ${failed.join('; ')}`;
+          failures++;
+        }
       } else {
         await updatePage(clientFor(deployment.store), deployment.shopifyGid, { isPublished: wantPublished });
       }
       await db.deployment.update({ where: { id: deployment.id }, data: { isPublished: wantPublished } });
-      outcomes.push(deployment.store.label);
+      outcomes.push(deployment.store.label + note);
     } catch (error) {
       failures++;
       outcomes.push(`${deployment.store.label}: ${error instanceof Error ? error.message : error}`);
@@ -69,20 +79,48 @@ export async function switchPage(
   return { ok: failures === 0, outcomes, touched: deployments.length };
 }
 
+/**
+ * Points the store's linked products at the template (or releases them).
+ * One product refusing (deleted since it was linked) does not stop the rest;
+ * it is reported by title.
+ */
 async function switchProducts(
   deployment: DeploymentRow,
   links: ProductLink[],
   on: boolean,
   pageId: string,
-): Promise<void> {
+): Promise<{ bound: number; failed: string[] }> {
   const client = clientFor(deployment.store);
-  const ids = links.filter((l) => l.storeId === deployment.storeId).map((l) => l.productGid);
+  const mine = links.filter((l) => l.storeId === deployment.storeId);
   const suffix = productSuffix(pageId);
-  if (on) {
-    for (const id of ids) await setProductTemplate(client, id, suffix);
-  } else {
-    await releaseProducts(client, ids, suffix);
+  if (!on) {
+    await releaseProducts(client, mine.map((l) => l.productGid), suffix);
+    return { bound: 0, failed: [] };
   }
+  let bound = 0;
+  const failed: string[] = [];
+  for (const link of mine) {
+    try {
+      await setProductTemplate(client, link.productGid, suffix);
+      bound++;
+    } catch (error) {
+      failed.push(`"${link.productTitle}" (${error instanceof Error ? error.message : error})`);
+    }
+  }
+  return { bound, failed };
+}
+
+/**
+ * The deployments a publish as `keep` would have to retire first: everything
+ * of the other kind on a store the app can still act on. A store that
+ * uninstalled the app is out of reach; its row stays as history.
+ */
+export async function otherKindDeployments(pageId: string, keep: PageKind): Promise<DeploymentRow[]> {
+  const page = await db.page.findUniqueOrThrow({
+    where: { id: pageId },
+    include: { deployments: { include: { store: true } } },
+  });
+  return page.deployments.filter((d) => deploymentKind(d.shopifyGid) !== keep && storeUsable(d.store));
 }
 
 /**
@@ -92,32 +130,37 @@ async function switchProducts(
  * published page from "Normal" to "Produto" would leave the old /pages/ URL
  * live forever, with nothing in the app pointing at it.
  *
- * Returns the stores where the retirement failed; the caller must not publish
- * over a deployment it could not retire.
+ * A resource the merchant already deleted on the store counts as retired.
+ * Returns the store labels retired and the ones where it failed; the caller
+ * must not publish over a deployment it could not retire.
  */
-export async function retireOtherKind(pageId: string, keep: PageKind): Promise<string[]> {
-  const page = await db.page.findUniqueOrThrow({
-    where: { id: pageId },
-    include: { deployments: { include: { store: true } }, productLinks: true },
-  });
+export async function retireOtherKind(
+  pageId: string,
+  keep: PageKind,
+): Promise<{ retired: string[]; failed: string[] }> {
+  const links = await db.productLink.findMany({ where: { pageId } });
+  const retired: string[] = [];
   const failed: string[] = [];
-  for (const deployment of page.deployments) {
-    const kind = deploymentKind(deployment.shopifyGid);
-    if (kind === keep) continue;
+  for (const deployment of await otherKindDeployments(pageId, keep)) {
     try {
       const client = clientFor(deployment.store);
-      if (kind === 'regular') {
-        await updatePage(client, deployment.shopifyGid, { isPublished: false });
-      } else {
-        await switchProducts(deployment, page.productLinks, false, pageId);
-        await removeProductTemplate(client, pageId);
+      try {
+        if (deploymentKind(deployment.shopifyGid) === 'regular') {
+          await updatePage(client, deployment.shopifyGid, { isPublished: false });
+        } else {
+          await switchProducts(deployment, links, false, pageId);
+          await removeProductTemplate(client, pageId);
+        }
+      } catch (error) {
+        if (!(error instanceof ShopifyError && error.isNotFound)) throw error;
       }
       await db.deployment.delete({ where: { id: deployment.id } });
+      retired.push(deployment.store.label);
     } catch (error) {
       failed.push(`${deployment.store.label}: ${error instanceof Error ? error.message : error}`);
     }
   }
-  return failed;
+  return { retired, failed };
 }
 
 /**

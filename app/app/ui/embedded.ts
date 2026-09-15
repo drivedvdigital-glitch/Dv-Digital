@@ -14,6 +14,31 @@ declare global {
   }
 }
 
+/**
+ * The query an in-app link carries forward: the shop and host the admin put
+ * in the first URL — never the ID token, which lives for a minute and has no
+ * business in a link, a bookmark or a server log.
+ */
+export function shopSearch(search: string): string {
+  const incoming = new URLSearchParams(search);
+  const kept = new URLSearchParams();
+  for (const name of ['shop', 'host', 'embedded']) {
+    const value = incoming.get(name);
+    if (value) kept.set(name, value);
+  }
+  const text = kept.toString();
+  return text ? `?${text}` : '';
+}
+
+/** Drops the ID token from the address bar once the page has used it. */
+export function forgetUrlToken(): void {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('id_token') && !url.searchParams.has('dv_bounced')) return;
+  url.searchParams.delete('id_token');
+  url.searchParams.delete('dv_bounced');
+  window.history.replaceState(window.history.state, '', url);
+}
+
 export function openWithToken(path: string): void {
   const tab = window.open('', '_blank', 'noopener');
   const go = (url: string) => {

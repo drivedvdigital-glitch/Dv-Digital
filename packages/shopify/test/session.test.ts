@@ -50,6 +50,7 @@ describe('verifySessionToken', () => {
   reject('iss and dest on different shops', signSessionToken(claims({ iss: 'https://outra.myshopify.com/admin' }), credentials.clientSecret), 'iss');
   reject('a dest that is not a myshopify domain', signSessionToken(claims({ dest: 'https://evil.example', iss: 'https://evil.example/admin' }), credentials.clientSecret), 'dest');
   reject('garbage', 'not.a.jwt', 'formato');
+  reject('a body that is not an object', signSessionToken(null as unknown as Record<string, unknown>, credentials.clientSecret), 'formato');
 
   it('tolerates a few seconds of clock skew', () => {
     const token = signSessionToken(claims({ exp: now / 1000 - 5 }), credentials.clientSecret);

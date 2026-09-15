@@ -44,8 +44,8 @@ daqui é com tokens assinados pelo segredo real — flow21).
   extension com app block) fica como plano B documentado.
 - **Um único app no Dev Dashboard serve todas as lojas da organização** com o client
   credentials grant; os scopes vêm da **versão do app** publicada por `shopify app deploy`
-  (arquivo `shopify.app.toml`), não do pedido de token. Hoje o repositório não tem esse
-  arquivo — os scopes vivem só no painel.
+  (arquivo `shopify.app.toml`), não do pedido de token. O arquivo está na raiz do
+  repositório desde 15/09 (`docs/INSTALACAO.md` diz como publicá-lo).
 
 **Do PageFly, o que mais vale**: eles precisam de uma **Theme App Extension obrigatória**
 (app embed) para o JS dos elementos funcionar, escrevem `layout/theme.pagefly.liquid` e um
@@ -215,7 +215,7 @@ Estado: ✅ corrigido nesta entrega · 🟡 parcial · ⬜ pendente (ver seção
 | # | Achado | Onde | Estado |
 |---|---|---|---|
 | 1 | Nenhuma rota verifica ID token/HMAC; `?shop=` sozinho dispara pedido de token para qualquer domínio myshopify | todas as rotas; `app.tsx:30` | ✅ `requireShop` em toda rota; instalação por token exchange; `/bounce`; webhooks HMAC (docs/INSTALACAO.md) |
-| 2 | Segredo do app copiado em cada `Store`, banco como fonte primária | `schema.prisma:17-18`, `shopify.server.ts` | ✅ colunas opcionais, não mais gravadas; lojas instaladas guardam só o access token offline delas |
+| 2 | Segredo do app copiado em cada `Store`, banco como fonte primária | `schema.prisma:17-18`, `shopify.server.ts` | ✅ colunas opcionais; a instalação por token guarda só o access token offline da loja; o caminho de dev (client credentials) só copia o par quando o `.env` não o tem |
 | 3 | `.env` carregado só pelo Prisma gerado | — | ✅ `config.server.ts` carrega e valida |
 | 4 | Versão da API fixa `2026-07`, sem forma de trocar; sem checagem do header servido | `client.ts:16` | ✅ `SHOPIFY_API_VERSION` + aviso de fall-forward |
 | 5 | `allowedActionOrigins: ['*.trycloudflare.com']` incondicional | `react-router.config.ts` | ✅ só fora de produção / `DVFLY_DEV_ORIGINS` |
@@ -232,18 +232,37 @@ Estado: ✅ corrigido nesta entrega · 🟡 parcial · ⬜ pendente (ver seção
 | 16 | ErrorBoundary imprime stack em qualquer ambiente | `root.tsx` | ✅ só fora de produção |
 | 17 | Sem `build`/`start`/`typecheck` na raiz; build nunca rodado | `package.json` | ✅ scripts + build verificado |
 | 18 | `dvfly-solo` e regex de domínio duplicados; `SOLO_SUFFIX` num módulo com o client | vários | ✅ `constants.ts`, `shared.ts`, `SHOP_DOMAIN` exportado |
-| 19 | Pacote shopify sem nenhum teste | `packages/shopify` | ✅ 14 testes (token, retry, versão, upsert por id, deploy isolado) |
-| 20 | Arquivos do tema escritos sem inventário nem remoção (I3) | `templates.ts` | ⬜ P1 |
+| 19 | Pacote shopify sem nenhum teste | `packages/shopify` | ✅ 42 testes (token, retry, versão, upsert por id, deploy isolado, sessão/HMAC, templates de produto) |
+| 20 | Arquivos do tema escritos sem inventário nem remoção (I3) | `templates.ts` | 🟡 o modelo de produto é removido ao excluir a página e ao trocar de tipo; falta o inventário e a remoção dos 3 arquivos `dvfly-solo` (P1) |
 | 21 | Sem webhook `app/uninstalled` (loja desinstalada continua registrada) | — | ✅ `/webhooks/app` + `/webhooks/compliance` |
 | 22 | `Page.handle` não é único; `freeHandle` só no import | `schema.prisma` | ⬜ P1 |
 | 23 | Sem `shopify.app.toml` — scopes só no painel | — | ✅ na raiz; `shopify app deploy` (docs/INSTALACAO.md) |
 | 24 | Sem migrations (`db push` a cada start); provider sqlite fixo | `app/package.json`, schema | ⬜ P1 (hospedagem) |
-| 25 | `INICIAR-DVFLY.cmd` faz `git pull` sem `--rebase` nem checar a branch; `start.mjs` duplica chaves no `.env` | scripts | ⬜ P2 |
+| 25 | `INICIAR-DVFLY.cmd` faz `git pull` sem `--rebase` nem checar a branch; `start.mjs` duplica chaves no `.env` | scripts | ✅ checkout da branch + `pull --rebase` com erro explicado; chaves substituídas no lugar |
 | 26 | `audit()` exportado e nunca usado no editor | `compiler.server.ts` | ⬜ P2 |
 | 27 | Valores do vocabulário de estilo saem sem escape no `<style>` (`}` fecha o bloco) | `css.ts` | ⬜ P2 (mesma fronteira de confiança do bloco HTML) |
 | 28 | `COMPILER_VERSION` '0.1.0' × `package.json` 0.0.0 | — | ⬜ P2 |
 | 29 | Docs desatualizados (ARQUITETURA: dnd-kit, Postgres, `@shopify/shopify-app-react-router`, modelo de dados; READMEs) | `docs/`, `app/README.md` | 🟡 aviso no ARQUITETURA; README do app atualizado |
-| 30 | `getPage`, `DeployTarget.accessDenied`, `Version.label`, `Page.pageType` sem uso | vários | ⬜ P2 |
+| 30 | `getPage`, `DeployTarget.accessDenied`, `Version.label` sem uso (`Page.pageType` passou a decidir o tipo de publicação) | vários | ⬜ P2 |
+
+**Revisão geral de 15/09 (noite)** — quatro revisões independentes (segurança, publicação,
+telas, docs × código) sobre tudo o que foi feito no dia. O que elas acharam e o que foi
+corrigido, com a verificação, está em `docs/PROGRESSO.md` ("Revisão geral"). Os achados
+que viraram linha aqui:
+
+| # | Achado | Onde | Estado |
+|---|---|---|---|
+| 31 | `/bounce` aceitava `to=/\evil.com` (o parser de URL lê `/\` como `//`) e `</script>` no destino: redirect aberto que entregava o ID token, XSS refletido | `bounce.tsx` | ✅ destino parseado como URL e aceito só na mesma origem; JSON com `<` escapado; CSP `frame-ancestors`; marca `dv_bounced` (um salto, sem loop) |
+| 32 | 401 lançado na lista/editor chegava ao App Bridge **sem** `X-Shopify-Retry-Invalid-Session-Request` (rotas sem `headers` export) — token expirado quebrava o salvar em vez de repetir | `app._index.tsx`, `app.pages.$id.tsx` | ✅ `passHeaders` (`lib/headers.ts`) nas três rotas |
+| 33 | Loja desinstalada continuava alvo: `toStore` caía nas credenciais do app e a loja reaparecia em "Publicar em"; `storeUsable` sem uso | `shopify.server.ts`, telas | ✅ `clientFor` recusa com o motivo; checkbox e vínculo desabilitados explicando; lista marca "sem acesso" |
+| 34 | `npm start` (`react-router-serve`) sem `trust proxy`: atrás de proxy TLS toda action daria 400 (CSRF do React Router); log imprimia `?id_token=` | `app/package.json` | ✅ `app/server.mjs` (`@react-router/express`, `trust proxy`, log só com o caminho); `DVFLY_DEV_ORIGINS` documentado como valor de **build** |
+| 35 | Token na URL seguia em todo `Link` e em recargas; `expiresIn` do token ignorado (apps com token expirável quebrariam em 1 h) | `embedded.ts`, `auth.server.ts` | ✅ `shopSearch` mantém só `shop/host`; `forgetUrlToken` limpa a barra; `Store.tokenExpiresAt` + renovação ao abrir |
+| 36 | Página publicada como Normal e trocada para Produto (ou o inverso) deixava a versão antiga no ar; `template:` ia para `pageUpdate` | `publish.server.ts`, editor | ✅ `deploymentKind` por deployment; `retireOtherKind` antes de publicar (depois do teto e da confirmação de produção); lojas retiradas nomeadas na mensagem |
+| 37 | Um produto excluído entre vincular e publicar derrubava a loja inteira depois de escrever o tema (modelo órfão que o app não via) | `deploy.ts` | ✅ vínculo por produto tolerante; a loja registra o deployment e a mensagem nomeia o produto recusado |
+| 38 | `stripJsonComments` apagava vírgulas **dentro de strings** ("Related, ]" virava "Related ]"); nome da seção partia emoji ao cortar em 25 | `templates.ts` | ✅ scanner que respeita strings; corte por code point |
+| 39 | Republicar recompunha o modelo do `product.json` do tema, apagando o que o lojista tinha reordenado/ocultado no editor de temas (contra a promessa da tela) | `templates.ts` | ✅ o modelo existente é a base; só a nossa seção é garantida (muda de ponta quando "acima/abaixo" muda; posição no meio é do lojista) |
+| 40 | Qualquer `input` no formulário do editor marcava "não salvo" — marcar uma loja em "Publicar em" **escondia o Publicar**; preview com erro (413) derrubava o editor com o trabalho não salvo | editor | ✅ sujo só para título e `[data-settings]`; resposta de preview sem `stats` vira aviso; publicação recusada depois de salvar avisa `saved` |
+| 41 | Tokens/segredos das lojas iam inteiros no payload dos loaders (lista e editor) | `app._index.tsx`, `app.pages.$id.tsx` | ✅ loaders devolvem só `id/label/isProduction/unusable` |
 
 ---
 
@@ -293,9 +312,10 @@ Estado: ✅ corrigido nesta entrega · 🟡 parcial · ⬜ pendente (ver seção
    links de nova aba, `DVFLY_AUTH=off` só fora de produção. Falta o teste dentro do admin
    real ao hospedar — `docs/INSTALACAO.md` diz o que observar.
 
-**P0.2 Credenciais.** **Feito**: `clientId/clientSecret` viraram opcionais e não são mais
-gravados; lojas instaladas guardam só o **access token offline delas** (`Store.accessToken`).
-Cifrar esse token em repouso continua na fila (P1) — hoje o banco é o segredo.
+**P0.2 Credenciais.** **Feito**: `clientId/clientSecret` viraram opcionais; lojas instaladas
+guardam só o **access token offline delas** (`Store.accessToken`, com `tokenExpiresAt` quando
+a Shopify o der expirável). O caminho de dev só copia o par para a linha quando o `.env` não
+o tem. Cifrar esse token em repouso continua na fila (P1) — hoje o banco é o segredo.
 
 **P0.3 `shopify.app.toml` + `shopify app deploy`.** **Feito**: arquivo na raiz com
 `client_id`, `embedded`, `[access_scopes] scopes = "write_content,write_themes,write_products"`
@@ -304,9 +324,10 @@ Falta só o endereço público real antes do `shopify app deploy` (`docs/INSTALA
 
 ### P1 — antes de operar no dia a dia em várias lojas
 
-- **P1.1 Webhook `app/uninstalled`** (+ `themes/publish`): endpoint com HMAC do corpo bruto;
-  desinstalou → apaga a `Store`; tema publicado → reescrever `dvfly-solo` nas páginas que
-  o usam.
+- **P1.1 Webhook `themes/publish`**: tema publicado → reescrever `dvfly-solo` e os modelos
+  de produto nas páginas que os usam. (`app/uninstalled` já existe: esquece o token e marca
+  a loja como desinstalada; a linha e os deployments ficam, porque a página continua no ar
+  na Shopify; entregas atrasadas anteriores a uma reinstalação são ignoradas.)
 - **P1.2 Inventário do tema (I3)**: tabela `ThemeFile { storeId, themeId, path }` gravada
   em `ensureSoloTemplate`; `themeFilesDelete` na desinstalação/limpeza (já provado no
   `shopify-probe.ts`).
@@ -321,10 +342,11 @@ Falta só o endereço público real antes do `shopify app deploy` (`docs/INSTALA
 
 ### P2 — higiene
 
-`INICIAR-DVFLY.cmd` com `git pull --rebase` na branch certa; `start.mjs` substituindo em vez
-de anexar no `.env`; `audit()` no editor; escape dos valores de estilo no `<style>`;
-`COMPILER_VERSION` lido do `package.json` do compilador; remover `getPage`/campos sem uso ou
-usá-los (`accessDenied` na mensagem de publicação); comitar os fluxos Playwright.
+`audit()` no editor; escape dos valores de estilo no `<style>`; `COMPILER_VERSION` lido do
+`package.json` do compilador; remover `getPage`/campos sem uso ou usá-los (`accessDenied` na
+mensagem de publicação); comitar os fluxos Playwright; o olho da árvore fora do `<button>` da
+linha (HTML inválido: interativo dentro de interativo); testar arrastar linhas `<button
+draggable>` no Firefox.
 
 ---
 
@@ -335,9 +357,11 @@ usá-los (`accessDenied` na mensagem de publicação); comitar os fluxos Playwri
 | `DATABASE_URL` | Prisma | sim | `file:./dev.db` (relativo a `app/prisma/`) |
 | `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET` | `config.server.ts` | **sim em produção**; em dev cai para a primeira `Store` | — |
 | `SHOPIFY_API_VERSION` | `config.server.ts` (validada `AAAA-MM`) | não | `2026-07` |
-| `DVFLY_DEV_ORIGINS` | `react-router.config.ts`, `config.server.ts` | não | `*.trycloudflare.com` fora de produção; vazio em produção |
+| `DVFLY_DEV_ORIGINS` | `react-router.config.ts` — **no build**, não em tempo de execução | não | `*.trycloudflare.com` fora de produção; vazio em produção |
+| `DVFLY_AUTH` | `config.server.ts` | não | `off` desliga o ID token **só fora de produção** (Playwright, localhost) |
+| `DVFLY_ALLOWED_SHOPS` | `config.server.ts` | não | vazio = qualquer loja que a Shopify deixe instalar; lista de domínios `myshopify.com` separados por vírgula restringe `requireShop` (403) |
 | `NODE_ENV` | `db.server.ts`, config, RR config | `production` no host | — |
-| `PORT` / `HOST` | `react-router-serve` | não | 3000 / todas |
+| `PORT` / `HOST` | `app/server.mjs` (`npm start`) | não | 3000 / todas |
 
 Scripts (`SHOP`, `CLIENT_ID`, `CLIENT_SECRET`, `ADMIN_TOKEN`, `KEEP`) continuam com nomes
 próprios em `packages/*/bin` — só para sondagem manual.

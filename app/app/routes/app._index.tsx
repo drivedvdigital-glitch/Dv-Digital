@@ -5,10 +5,14 @@ import { redirect } from 'react-router';
 
 import { requireShop } from '../lib/auth.server.ts';
 import { compile, type Doc } from '../lib/compiler.server.ts';
-import { openWithToken } from '../ui/embedded.ts';
+import { openWithToken, shopSearch } from '../ui/embedded.ts';
+import { LocalDateTime } from '../ui/local-time.tsx';
 import { db } from '../lib/db.server.ts';
-import { switchPage } from '../lib/publish.server.ts';
-import { clientFor, removeProductTemplate } from '../lib/shopify.server.ts';
+import { passHeaders } from '../lib/headers.ts';
+import { deploymentKind, switchPage } from '../lib/publish.server.ts';
+import { clientFor, removeProductTemplate, storeUnusableReason } from '../lib/shopify.server.ts';
+
+export const headers = passHeaders;
 import {
   bannerErr,
   bannerOk,
@@ -28,7 +32,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { updatedAt: 'desc' },
     include: { deployments: { include: { store: true } } },
   });
-  return { pages };
+  // Only what the list shows — never a store's token or credentials.
+  return {
+    pages: pages.map((page) => ({
+      ...page,
+      deployments: page.deployments.map((d) => ({
+        id: d.id,
+        isPublished: d.isPublished,
+        kind: deploymentKind(d.shopifyGid),
+        store: { label: d.store.label, isProduction: d.store.isProduction, unusable: storeUnusableReason(d.store) },
+      })),
+    })),
+  };
 }
 
 /** A handle no other page uses; suffixes only when needed. */
@@ -53,19 +68,23 @@ export async function action({ request }: ActionFunctionArgs) {
         }),
       },
     });
-    const search = new URL(request.url).search;
-    return redirect(`/app/pages/${page.id}${search}`);
+    return redirect(`/app/pages/${page.id}${shopSearch(new URL(request.url).search)}`);
   }
 
   if (intent === 'duplicate') {
     const source = await db.page.findUniqueOrThrow({ where: { id: String(form.get('id')) } });
     // Duplicating is the real creation gesture here: pages are named per
-    // market (250-CO-…, 08-MX-…) and varied from an existing one.
+    // market (250-CO-…, 08-MX-…) and varied from an existing one. The copy
+    // is the same kind of page, with the same settings; product links are
+    // not copied (one product renders one page).
     await db.page.create({
       data: {
         title: `${source.title} (cópia)`,
         handle: `${source.handle}-copia-${Date.now().toString(36)}`,
         doc: source.doc,
+        pageType: source.pageType,
+        showChrome: source.showChrome,
+        productContentAbove: source.productContentAbove,
       },
     });
     return null;
@@ -85,14 +104,18 @@ export async function action({ request }: ActionFunctionArgs) {
         message: `A página não foi excluída: não consegui despublicá-la em ${stuck.join('; ')}. Tente de novo.`,
       };
     }
-    // A product page also leaves its template and section in each theme;
+    // A product template also leaves its template and section in each theme;
     // deleting the page is the moment to take them out (invariant I3: we
-    // remove exactly what we wrote). Best effort — a theme that refuses does
-    // not keep the page alive here.
+    // remove exactly what we wrote). Decided per deployment — what IS on the
+    // store, not what the page's type says today. Best effort — a theme that
+    // refuses does not keep the page alive here.
     const page = await db.page.findUnique({ where: { id }, include: { deployments: { include: { store: true } } } });
-    if (page?.pageType === 'product') {
-      for (const deployment of page.deployments) {
-        await removeProductTemplate(clientFor(deployment.store), id).catch(() => {});
+    for (const deployment of page?.deployments ?? []) {
+      if (deploymentKind(deployment.shopifyGid) !== 'product') continue;
+      try {
+        await removeProductTemplate(clientFor(deployment.store), id);
+      } catch {
+        // Out of reach (uninstalled) or the theme refused: the page still goes.
       }
     }
     await db.page.delete({ where: { id } });
@@ -105,7 +128,15 @@ export async function action({ request }: ActionFunctionArgs) {
   // document is compiled before anything is written: a file that does not
   // compile does not become a page.
   if (intent === 'import') {
-    let payload: { dvfly?: number; title?: string; handle?: string; doc?: Doc };
+    let payload: {
+      dvfly?: number;
+      title?: string;
+      handle?: string;
+      pageType?: unknown;
+      showChrome?: unknown;
+      productContentAbove?: unknown;
+      doc?: Doc;
+    };
     try {
       payload = JSON.parse(String(form.get('payload')));
     } catch {
@@ -127,6 +158,10 @@ export async function action({ request }: ActionFunctionArgs) {
         title: payload.title || 'Página importada',
         handle: await freeHandle(payload.handle || `importada-${Date.now().toString(36)}`),
         doc: JSON.stringify(payload.doc),
+        // Settings from a newer export; an older file simply has none.
+        pageType: payload.pageType === 'product' ? 'product' : 'regular',
+        showChrome: payload.showChrome !== false,
+        productContentAbove: payload.productContentAbove === true,
       },
     });
     return { ok: true, message: `"${page.title}" importada.` };
@@ -219,7 +254,10 @@ export default function PagesList() {
   const [confirming, setConfirming] = useState<string | null>(null);
 
   // Row selection feeds the bulk bar (publish/unpublish across many pages).
-  const [sel, setSel] = useState<string[]>([]);
+  // Read against the current list, so a page deleted meanwhile drops out of
+  // the count and out of the next bulk action.
+  const [rawSel, setSel] = useState<string[]>([]);
+  const sel = rawSel.filter((id) => pages.some((p) => p.id === id));
   const toggleSel = (id: string) =>
     setSel((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const allSelected = pages.length > 0 && sel.length === pages.length;
@@ -370,7 +408,7 @@ export default function PagesList() {
                       />
                     </td>
                     <td style={td}>
-                      <Link to={`/app/pages/${page.id}${search}`} style={titleLink}>
+                      <Link to={`/app/pages/${page.id}${shopSearch(search)}`} style={titleLink}>
                         {page.title}
                       </Link>
                     </td>
@@ -381,21 +419,20 @@ export default function PagesList() {
                           <span style={pillNeutral}>rascunho</span>
                         ) : (
                           page.deployments.map((d) => (
-                            <span key={d.id} style={d.isPublished ? pillSuccess : pillNeutral}>
+                            <span
+                              key={d.id}
+                              style={d.isPublished ? pillSuccess : pillNeutral}
+                              title={d.store.unusable ? `Sem acesso: ${d.store.unusable}` : undefined}
+                            >
                               {d.isPublished ? d.store.label : `${d.store.label} (pausada)`}
+                              {d.store.unusable ? ' · sem acesso' : ''}
                             </span>
                           ))
                         )}
                       </span>
                     </td>
                     <td style={{ ...td, color: 'var(--dv-ink-2)', whiteSpace: 'nowrap' }}>
-                      {new Date(page.updatedAt).toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      <LocalDateTime iso={new Date(page.updatedAt).toISOString()} />
                     </td>
                     <td style={{ ...td, textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {confirming === page.id ? (

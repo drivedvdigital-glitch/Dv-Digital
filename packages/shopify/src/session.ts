@@ -74,6 +74,10 @@ export function verifySessionToken(
   } catch {
     throw new SessionTokenError('formato');
   }
+  // `null` and `[]` parse fine and would only blow up further down.
+  if (!header || typeof header !== 'object' || !claims || typeof claims !== 'object') {
+    throw new SessionTokenError('formato');
+  }
   if (header.alg !== 'HS256') throw new SessionTokenError('algoritmo');
 
   const expected = createHmac('sha256', credentials.clientSecret).update(`${head}.${body}`).digest();

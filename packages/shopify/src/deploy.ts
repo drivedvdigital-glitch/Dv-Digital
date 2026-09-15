@@ -130,13 +130,17 @@ export interface ProductDeployTarget extends DeployTarget {
   suffix?: string;
   /** Products now rendering the page. */
   bound?: number;
+  /** Products that refused the template (deleted, archived…), with the reason. */
+  failedProducts?: Array<{ id: string; error: string }>;
 }
 
 /**
  * Publishes a product page to every listed store: the template and section go
  * into the main theme, then each linked product is pointed at the template.
  * A store with no linked products still gets the template — it is selectable
- * by name in the theme editor from then on.
+ * by name in the theme editor from then on. One product refusing (deleted
+ * since it was linked) does not fail the store: the template is written, the
+ * other products are bound, and the refusal is reported by id.
  */
 export async function deployProductPage(
   stores: Store[],
@@ -151,8 +155,17 @@ export async function deployProductPage(
       contentAbove: input.contentAbove,
     });
     const products = input.productsByDomain[store.domain] ?? [];
-    for (const id of products) await setProductTemplate(client, id, suffix);
-    return { suffix, bound: products.length };
+    const failedProducts: Array<{ id: string; error: string }> = [];
+    let bound = 0;
+    for (const id of products) {
+      try {
+        await setProductTemplate(client, id, suffix);
+        bound++;
+      } catch (error) {
+        failedProducts.push({ id, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    return { suffix, bound, failedProducts };
   })) as ProductDeployTarget[];
   return {
     targets,

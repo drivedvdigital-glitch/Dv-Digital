@@ -79,6 +79,9 @@ const EDITOR_BRIDGE = `
 
   function positionToolbar(el) {
     var rect = el.getBoundingClientRect();
+    // A block hidden at this width has no box; a toolbar for it would float
+    // in the corner over nothing.
+    if (rect.width === 0 && rect.height === 0) { toolbar.style.display = 'none'; return; }
     toolbar.style.display = 'flex';
     var top = rect.top + window.scrollY - toolbar.offsetHeight - 6;
     // A tab panel's toolbar would sit exactly over the tab buttons — go below.
@@ -280,6 +283,8 @@ const EDITOR_BRIDGE = `
     var key = event.key.toLowerCase();
     if (!(event.ctrlKey || event.metaKey)) {
       if (event.key === 'Delete' || event.key === 'Backspace') send('delete');
+      // Escape closes whatever the editor has open (the right-click menu).
+      else if (event.key === 'Escape') parent.postMessage({ type: 'dvf:key', key: 'escape' }, '*');
       return;
     }
     if (key === 'z' && !event.shiftKey) send('undo');

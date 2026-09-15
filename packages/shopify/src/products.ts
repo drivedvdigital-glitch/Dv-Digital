@@ -48,7 +48,9 @@ export async function searchProducts(
   query: string,
   first = 10,
 ): Promise<ProductSummary[]> {
-  const q = query.trim();
+  // What the person typed is a term, never search syntax: quotes, colons and
+  // parentheses would otherwise turn "size: 10" into a broken filter.
+  const q = query.replace(/["':\\()]/g, ' ').replace(/\s+/g, ' ').trim();
   const data = await client.graphql<{ products: { nodes: ProductNode[] } }>(
     `query DvflyProducts($first: Int!, $query: String, $sortKey: ProductSortKeys!, $reverse: Boolean!) {
        products(first: $first, query: $query, sortKey: $sortKey, reverse: $reverse) {

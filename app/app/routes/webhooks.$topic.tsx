@@ -31,18 +31,26 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Some topics carry an empty body; the headers say what happened.
   }
 
+  // Shopify retries a delivery for up to 48 hours. An uninstall or a
+  // redaction that fires AFTER the store installed again is about the
+  // previous installation and must not touch the current one.
+  const triggeredAt = Date.parse(request.headers.get('x-shopify-triggered-at') ?? '');
+  const aboutPreviousInstall = async (): Promise<boolean> => {
+    if (!domain || !Number.isFinite(triggeredAt)) return false;
+    const store = await db.store.findUnique({ where: { domain }, select: { installedAt: true } });
+    return Boolean(store?.installedAt && triggeredAt < store.installedAt.getTime());
+  };
+
   if (params.topic === 'app') {
-    if (topic === 'app/uninstalled' && domain) {
+    if (topic === 'app/uninstalled' && domain && !(await aboutPreviousInstall())) {
       // The token is dead the moment the app is removed. The row stays, so
-      // pages keep their deployment history; nothing is deleted on the
-      // store's side (its content survives the app — invariant I4).
+      // pages keep their deployment history, and the deployments keep their
+      // state: nothing changes on the store's side (its content survives the
+      // app — invariant I4), so a page that was live is still live. The
+      // screens say the store is out of reach until it installs again.
       await db.store.updateMany({
         where: { domain },
-        data: { accessToken: null, scopes: null, uninstalledAt: new Date() },
-      });
-      await db.deployment.updateMany({
-        where: { store: { domain } },
-        data: { isPublished: false },
+        data: { accessToken: null, tokenExpiresAt: null, scopes: null, uninstalledAt: new Date() },
       });
     }
     if (topic === 'app/scopes_update' && domain) {
@@ -59,7 +67,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // The app stores no customer data: a data request has nothing to return
     // and a customer redaction nothing to delete. A shop redaction (48h after
     // uninstall) removes what the app knows about the store.
-    if (topic === 'shop/redact' && domain) {
+    if (topic === 'shop/redact' && domain && !(await aboutPreviousInstall())) {
       await db.store.deleteMany({ where: { domain } });
     }
     return new Response(null, { status: 200 });

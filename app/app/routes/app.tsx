@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { data, Outlet, useLoaderData } from 'react-router';
-import type { HeadersFunction, LoaderFunctionArgs } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
 
 import { installStore, requireShop } from '../lib/auth.server.ts';
+import { passHeaders } from '../lib/headers.ts';
 import { SHOP_DOMAIN } from '../lib/shopify.server.ts';
+import { forgetUrlToken } from '../ui/embedded.ts';
 
 /**
  * Lets the Shopify admin put this app in an iframe, and nobody else.
@@ -43,7 +46,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   );
 }
 
-export const headers: HeadersFunction = ({ loaderHeaders }) => loaderHeaders;
+export const headers = passHeaders;
 
 /**
  * The frame is deliberately empty chrome: no app title, no logo, no tab bar.
@@ -56,6 +59,9 @@ export const headers: HeadersFunction = ({ loaderHeaders }) => loaderHeaders;
  */
 export default function AppFrame() {
   useLoaderData<typeof loader>();
+  // The token in the first URL has done its job; data requests carry their
+  // own. Out of the address bar it stays out of bookmarks and copied links.
+  useEffect(() => forgetUrlToken(), []);
   return (
     <>
       <ui-nav-menu>

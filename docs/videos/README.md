@@ -18,7 +18,7 @@ Regra de ouro inalterada: **conceito e funcionalidade deles, código e visual 10
 | 5 | Página de produto (6:49) | How to Easy | ✅ `05-howtoeasy-produto.md` (frames) |
 | 6 | Seções no tema (2:35) | Tutorial Toolkit | ✅ `06-toolkit-secoes-tema.md` (frames) |
 | 7 | Review: preços, limites, CRO Center (5:59) | How to Easy | ✅ `07-howtoeasy-precos-cro.md` (frames) |
-| 8 | Spec Abas + Fontes (frames do vídeo 02) | Claude no Chrome | ✅ `08-spec-abas-fontes.md` |
+| 8 | Spec Abas + Fontes (frames do vídeo 02) | Claude no Chrome | ✅ aplicada direto no editor (abas + fontes do tema); a spec não foi arquivada como arquivo — ver `PROGRESSO.md` |
 | 9 | Aba Shopify + formulários + terceiros (2 clipes) | Be Wiser Clips | ✅ `09-bewiser-shopify-forms.md` |
 | 10 | Product list completo / carrossel (1:27) | Be Wiser Clips | ✅ `10-bewiser-product-list.md` |
 | 11 | Produtos relacionados — fecha o Product list (1:30) | Be Wiser Clips | ✅ `11-bewiser-related-products.md` |

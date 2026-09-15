@@ -23,7 +23,7 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
 | `npm run dev` | servidor em `http://localhost:5173` |
 | `npm test` | testes do compilador + do pacote Shopify |
 | `npm run typecheck` | `tsc` do app |
-| `npm run build` / `npm start` | build de produção e servidor (`NODE_ENV=production`, credenciais no ambiente) |
+| `npm run build` / `npm start` | build de produção e servidor próprio `app/server.mjs` (`trust proxy`; `NODE_ENV=production`, credenciais no ambiente) |
 | `npm run fix:duplicados` | remove `node_modules` órfão (React duplicado) |
 
 Configuração: toda variável de ambiente é lida em `app/app/lib/config.server.ts` (lista em
@@ -33,13 +33,16 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 ## Arquitetura em 30 segundos
 
 - `packages/compiler/` — **o único renderizador** (invariante I1): documento de blocos → HTML+CSS
-  deduplicado. Preview do editor e publicação chamam a MESMA função. Editor-only: `nodeIds`.
+  deduplicado. Preview do editor e publicação chamam a MESMA função. Editor-only: `nodeIds`,
+  `editorHints`.
 - `packages/shopify/` — instalação gerenciada + token exchange (`session.ts`; client credentials
   só para lojas da própria organização em dev), `upsertPage` pela id lembrada, deploy multi-loja
   com lojas independentes, templates de produto por página.
 - `app/` — React Router 7 + Prisma/SQLite. Telas próprias (tokens `--dv-*`, claro/escuro); editor
-  em tela cheia (árvore / canvas / inspetor). **Toda rota chama `requireShop`** (ID token da
-  Shopify); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só em dev.
+  em tela cheia (árvore / canvas / inspetor). **Toda rota de tela/dados chama `requireShop`**
+  (ID token da Shopify; exceções por desenho: `/bounce`, webhooks com HMAC, `/` que só
+  redireciona); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só
+  em dev. Loaders nunca devolvem token/segredo de loja ao cliente.
 - Decisões e porquês: `docs/ARQUITETURA.md` (invariantes I1–I7), `docs/UX_FLUXOS.md` (U1–U7),
   histórico honesto em `docs/PROGRESSO.md` — **atualizar a cada entrega**, incluindo o que falhou.
   Estado real do código × plataforma × concorrente: `docs/CONFIGURACAO_E_MECANISMOS.md`

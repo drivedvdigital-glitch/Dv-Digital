@@ -2,7 +2,9 @@
  * The app's configuration, read once and validated.
  *
  * Every environment variable the app consumes is named here, with its default
- * and its rule — nowhere else reads `process.env` for these. Until this module
+ * and its rule — nowhere else reads `process.env` for these, except the two
+ * build-time readers that cannot import a server module (react-router.config
+ * for `DVFLY_DEV_ORIGINS`, db.server for `NODE_ENV`). Until this module
  * existed, `app/.env` reached the process only because the generated Prisma
  * client happened to load it at construction; moving the schema or lazy-loading
  * the database would have silently blanked the Shopify credentials.
@@ -62,13 +64,14 @@ export const config = {
   shopifyClientSecret: process.env.SHOPIFY_CLIENT_SECRET?.trim() || null,
 
   /**
-   * Origins allowed to POST to actions besides the app's own URL. Only the dev
-   * tunnel needs this (its `https` origin never matches the `http` the server
-   * sees). Empty in production unless set on purpose.
+   * Shops allowed to open (and so install) the app, as myshopify domains,
+   * comma-separated. Empty means any shop Shopify lets install it — right for
+   * a custom-distribution app, which Shopify already ties to one store or
+   * organization. Set it on a host that also serves other people's stores.
    */
-  devActionOrigins: (process.env.DVFLY_DEV_ORIGINS ?? (isProduction ? '' : '*.trycloudflare.com'))
+  allowedShops: (process.env.DVFLY_ALLOWED_SHOPS ?? '')
     .split(',')
-    .map((s) => s.trim())
+    .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
 
   /**

@@ -23,6 +23,9 @@ model Store {
   clientSecret  String?
   /// Offline access token from the token exchange; null until installed.
   accessToken   String?
+  /// When the token stops working (apps set to expiring offline tokens);
+  /// null for a token that does not expire. Renewed on the next open.
+  tokenExpiresAt DateTime?
   /// Scopes granted at install, comma-separated, as Shopify reported them.
   scopes        String?
   installedAt   DateTime?

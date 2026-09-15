@@ -13,7 +13,7 @@
  */
 import type { Store as StoreRow } from '@prisma/client';
 
-import { ShopifyClient } from '../../../packages/shopify/src/client.ts';
+import { ShopifyClient, ShopifyError } from '../../../packages/shopify/src/client.ts';
 import type { Store } from '../../../packages/shopify/src/deploy.ts';
 
 import { config } from './config.server.ts';
@@ -72,8 +72,12 @@ export async function ensureStore(shop: string): Promise<StoreRow | null> {
   try {
     const client = new ShopifyClient({ domain, ...credentials, apiVersion: config.shopifyApiVersion });
     const name = await client.shopName();
+    // The pair is copied into the row only when the environment does not
+    // carry it (a database registered before the app had a .env) — the
+    // secret has one home, and it is not the database.
+    const fromEnvironment = Boolean(config.shopifyClientId && config.shopifyClientSecret);
     return await db.store.create({
-      data: { domain, label: name, ...credentials, isProduction: true },
+      data: { domain, label: name, ...(fromEnvironment ? {} : credentials), isProduction: true },
     });
   } catch {
     // Wrong shop or the app is not installed there; nothing to register.
@@ -84,8 +88,18 @@ export async function ensureStore(shop: string): Promise<StoreRow | null> {
 /** True when the app can still act on this store. */
 export function storeUsable(row: StoreRow): boolean {
   if (row.uninstalledAt) return false;
-  if (row.accessToken) return true;
+  if (row.accessToken) return !row.tokenExpiresAt || row.tokenExpiresAt.getTime() > Date.now();
   return Boolean((row.clientId && row.clientSecret) || (config.shopifyClientId && config.shopifyClientSecret));
+}
+
+/** Why the store is out of reach, in the words the screen shows. */
+export function storeUnusableReason(row: StoreRow): string | null {
+  if (row.uninstalledAt) return 'o app foi desinstalado nesta loja — reinstale pela Shopify para voltar a publicar nela';
+  if (row.accessToken && row.tokenExpiresAt && row.tokenExpiresAt.getTime() <= Date.now()) {
+    return 'o acesso a esta loja expirou — abra o D&VFly pelo admin dela para renovar';
+  }
+  if (!storeUsable(row)) return 'sem credencial para esta loja';
+  return null;
 }
 
 /** Database row to the shape the deploy package expects. */
@@ -117,6 +131,13 @@ export function clientForStore(store: Store): ShopifyClient {
   return client;
 }
 
+/**
+ * The client for a registered store — refused, with the reason, when the
+ * store is out of reach. Without this, an uninstalled store would quietly be
+ * reached again through the app's own client credentials.
+ */
 export function clientFor(row: StoreRow): ShopifyClient {
+  const reason = storeUnusableReason(row);
+  if (reason) throw new ShopifyError(`${row.label}: ${reason}.`);
   return clientForStore(toStore(row));
 }

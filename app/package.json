@@ -5,15 +5,18 @@
   "scripts": {
     "dev": "react-router dev",
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js",
+    "start": "node server.mjs",
     "db:push": "prisma db push",
     "db:setup": "node scripts/ensure-env.mjs && prisma generate && prisma db push"
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",
+    "@react-router/express": "^7.18.2",
     "@react-router/node": "^7.18.2",
-    "@react-router/serve": "^7.18.2",
+    "compression": "^1.8.2",
+    "express": "^4.22.3",
     "isbot": "^5.1.0",
+    "morgan": "^1.12.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router": "^7.18.2"

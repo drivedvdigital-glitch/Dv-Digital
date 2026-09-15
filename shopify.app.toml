@@ -22,6 +22,9 @@ embedded = true
 [build]
 # Em produção o endereço não muda a cada `shopify app dev`; deixe falso.
 automatically_update_urls_on_dev = false
+# Escopos e webhooks deste arquivo vão junto no `shopify app deploy` (CLIs
+# antigas só os enviam com esta chave; nas novas ela é o padrão).
+include_config_on_deploy = true
 
 [access_scopes]
 # Escopo de escrita já inclui o de leitura (write_products ⊃ read_products).

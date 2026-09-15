@@ -47,7 +47,11 @@ estado em vez de deixar você descobrir pelo erro.
 - [`docs/PESQUISA_PAGEFLY.md`](docs/PESQUISA_PAGEFLY.md) — pesquisa competitiva
 - [`docs/UX_FLUXOS.md`](docs/UX_FLUXOS.md) — desenho de interação
 - [`docs/USO_REAL.md`](docs/USO_REAL.md) — como a ferramenta concorrente é usada de verdade hoje
-- [`docs/PROGRESSO.md`](docs/PROGRESSO.md) — o que já está feito
+- [`docs/INSTALACAO.md`](docs/INSTALACAO.md) — instalar o app numa loja (Dev Dashboard, `shopify.app.toml`, hospedagem)
+- [`docs/CONFIGURACAO_E_MECANISMOS.md`](docs/CONFIGURACAO_E_MECANISMOS.md) — auditoria código × plataforma × concorrente, plano P0/P1/P2, variáveis de ambiente
+- [`docs/MODELOS_DE_TEMA.md`](docs/MODELOS_DE_TEMA.md) — páginas de produto como templates do tema
+- [`docs/videos/`](docs/videos/) — o que cada gravação da referência ensinou
+- [`docs/PROGRESSO.md`](docs/PROGRESSO.md) — o que já está feito, incluindo o que falhou
 
 ## Testes
 

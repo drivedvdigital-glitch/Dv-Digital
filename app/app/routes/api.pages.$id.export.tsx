@@ -14,11 +14,17 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const page = await db.page.findUnique({ where: { id: params.id } });
   if (!page) throw new Response('Página não encontrada', { status: 404 });
 
+  // The page settings travel too: a product page or a chrome-less landing
+  // page comes back as what it was. Product links do not — they name
+  // products of specific stores, and one product renders one page.
   const payload = {
     dvfly: 1,
     exportedAt: new Date().toISOString(),
     title: page.title,
     handle: page.handle,
+    pageType: page.pageType,
+    showChrome: page.showChrome,
+    productContentAbove: page.productContentAbove,
     doc: JSON.parse(page.doc),
   };
 

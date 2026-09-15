@@ -73,7 +73,52 @@ const productSectionFile = (pageId: string) => `sections/${productSectionType(pa
  * neither, so both are removed before parsing.
  */
 export function stripJsonComments(text: string): string {
-  return text.replace(/^\s*\/\*[\s\S]*?\*\/\s*/, '').replace(/,(\s*[}\]])/g, '$1');
+  const body = text.replace(/^\s*\/\*[\s\S]*?\*\/\s*/, '');
+  // Trailing commas go, but only outside strings: a merchant's heading may
+  // legitimately read "Related, ]" and must come back untouched.
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (inString) {
+      out += ch;
+      if (ch === '\\') out += body[++i] ?? '';
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === ',') {
+      let j = i + 1;
+      while (j < body.length && /\s/.test(body[j])) j++;
+      if (body[j] === '}' || body[j] === ']') continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/** Reads theme files as text, in the order asked; null where the theme lacks one. */
+export async function readThemeFiles(
+  client: ShopifyClient,
+  themeId: string,
+  filenames: string[],
+): Promise<Array<string | null>> {
+  const data = await client.graphql<{
+    theme: {
+      files: { nodes: Array<{ filename: string; body: { content?: string } }> };
+    } | null;
+  }>(
+    `query DvflyThemeFiles($themeId: ID!, $filenames: [String!]!, $first: Int!) {
+       theme(id: $themeId) {
+         files(filenames: $filenames, first: $first) {
+           nodes { filename body { ... on OnlineStoreThemeFileBodyText { content } } }
+         }
+       }
+     }`,
+    { themeId, filenames, first: filenames.length },
+  );
+  const nodes = data.theme?.files.nodes ?? [];
+  return filenames.map((filename) => nodes.find((f) => f.filename === filename)?.body.content ?? null);
 }
 
 /** Reads one theme file as text, or null when the theme does not have it. */
@@ -82,22 +127,7 @@ export async function readThemeFile(
   themeId: string,
   filename: string,
 ): Promise<string | null> {
-  const data = await client.graphql<{
-    theme: {
-      files: { nodes: Array<{ filename: string; body: { content?: string } }> };
-    } | null;
-  }>(
-    `query DvflyThemeFile($themeId: ID!, $filenames: [String!]!) {
-       theme(id: $themeId) {
-         files(filenames: $filenames, first: 1) {
-           nodes { filename body { ... on OnlineStoreThemeFileBodyText { content } } }
-         }
-       }
-     }`,
-    { themeId, filenames: [filename] },
-  );
-  const node = data.theme?.files.nodes.find((f) => f.filename === filename);
-  return node?.body.content ?? null;
+  return (await readThemeFiles(client, themeId, [filename]))[0];
 }
 
 export interface ProductTemplateInput {
@@ -121,8 +151,10 @@ export function productSectionLiquid(input: ProductTemplateInput): string {
       'O conteúdo da página contém "{% endraw %}", que a Shopify não permite dentro de uma seção.',
     );
   }
-  // Section names are capped at 25 characters by the theme editor.
-  const name = `D&VFly · ${input.title}`.slice(0, 25);
+  // Section names are capped at 25 characters by the theme editor. Counted
+  // in code points, so an emoji at the cut is dropped whole, never halved.
+  const title = input.title.trim();
+  const name = Array.from(title ? `D&VFly · ${title}` : 'D&VFly').slice(0, 25).join('').trimEnd();
   // No presets: the section cannot be added elsewhere from the editor's
   // "Add section" nor removed there (hiding it stays possible). Product
   // templates only, once — it carries one page's content.
@@ -139,39 +171,72 @@ export function productSectionLiquid(input: ProductTemplateInput): string {
   ].join('\n');
 }
 
+type TemplateJson = { sections?: Record<string, unknown>; order?: string[]; [key: string]: unknown };
+
+/** The id our section has inside the template. */
+const OUR_SECTION = 'dvfly';
+
+function parseTemplate(text: string, what: string): TemplateJson {
+  try {
+    const parsed = JSON.parse(stripJsonComments(text));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object');
+    return parsed as TemplateJson;
+  } catch {
+    throw new ShopifyError(`O ${what} do tema não pôde ser lido como JSON.`);
+  }
+}
+
 /**
- * Composes our template from the theme's own `templates/product.json`: every
- * section the theme renders on a product page stays (price, variants, buy),
- * and ours is added below them — or above, when asked. The merchant can still
- * reorder or hide any of them in the theme editor.
+ * Composes our template. The first publish starts from the theme's own
+ * `templates/product.json`: every section the theme renders on a product page
+ * stays (price, variants, buy) and ours is added below them — or above, when
+ * asked. From then on the base is the template AS THE MERCHANT LEFT IT in the
+ * theme editor (`existingJson`): reordered, sections hidden or tweaked —
+ * republishing only guarantees that our section is there. Our section moves
+ * between the ends when the "above/below" setting changes; a custom position
+ * in the middle is the merchant's and is kept.
  */
 export function composeProductTemplate(
   themeProductJson: string | null,
   input: ProductTemplateInput,
+  existingJson?: string | null,
 ): string {
-  let base: { sections?: Record<string, unknown>; order?: string[]; [key: string]: unknown } = {};
-  if (themeProductJson) {
+  let base: TemplateJson | null = null;
+  let fromExisting = false;
+  if (existingJson) {
     try {
-      base = JSON.parse(stripJsonComments(themeProductJson));
+      const candidate = parseTemplate(existingJson, productTemplateFile(input.pageId));
+      const theirs = (candidate.order ?? []).filter((id) => id !== OUR_SECTION && id in (candidate.sections ?? {}));
+      if (theirs.length > 0) {
+        base = candidate;
+        fromExisting = true;
+      }
     } catch {
-      throw new ShopifyError('O templates/product.json do tema não pôde ser lido como JSON.');
+      // An unreadable copy of our own file is rebuilt from the theme's default.
     }
   }
+  if (!base) base = themeProductJson ? parseTemplate(themeProductJson, 'templates/product.json') : {};
+
   const sections = { ...(base.sections ?? {}) };
-  const order = [...(base.order ?? [])].filter((id) => id in sections);
-  if (order.length === 0) {
+  // A theme section that happens to use our id would be replaced; filtering
+  // it here keeps the order free of duplicates either way.
+  const theirs = [...(base.order ?? [])].filter((id) => id in sections && id !== OUR_SECTION);
+  if (theirs.length === 0) {
     throw new ShopifyError(
       'O tema não tem um templates/product.json com seções — não dá para compor o modelo de produto.',
     );
   }
-  const ours = 'dvfly';
-  sections[ours] = { type: productSectionType(input.pageId), settings: {} };
-  const composed = {
-    ...base,
-    sections,
-    order: input.contentAbove ? [ours, ...order] : [...order, ours],
-  };
-  return JSON.stringify(composed, null, 2);
+  sections[OUR_SECTION] = { type: productSectionType(input.pageId), settings: {} };
+
+  const currentIndex = (base.order ?? []).indexOf(OUR_SECTION);
+  const inTheMiddle = fromExisting && currentIndex > 0 && currentIndex < (base.order?.length ?? 0) - 1;
+  const order = inTheMiddle
+    ? (base.order ?? []).filter((id) => id in sections)
+    : input.contentAbove
+      ? [OUR_SECTION, ...theirs]
+      : [...theirs, OUR_SECTION];
+
+  return JSON.stringify({ ...base, sections, order }, null, 2);
 }
 
 /**
@@ -183,10 +248,16 @@ export async function ensureProductTemplate(
   input: ProductTemplateInput,
 ): Promise<{ suffix: string; files: string[] }> {
   const themeId = await mainThemeId(client);
-  const themeProduct = await readThemeFile(client, themeId, 'templates/product.json');
+  const [themeProduct, existing] = await readThemeFiles(client, themeId, [
+    'templates/product.json',
+    productTemplateFile(input.pageId),
+  ]);
   const files = [
     { filename: productSectionFile(input.pageId), body: { type: 'TEXT', value: productSectionLiquid(input) } },
-    { filename: productTemplateFile(input.pageId), body: { type: 'TEXT', value: composeProductTemplate(themeProduct, input) } },
+    {
+      filename: productTemplateFile(input.pageId),
+      body: { type: 'TEXT', value: composeProductTemplate(themeProduct, input, existing) },
+    },
   ];
   await upsertThemeFiles(client, themeId, files);
   return { suffix: productSuffix(input.pageId), files: files.map((f) => f.filename) };
@@ -196,19 +267,25 @@ export async function ensureProductTemplate(
 export async function removeProductTemplate(client: ShopifyClient, pageId: string): Promise<void> {
   const themeId = await mainThemeId(client);
   const data = await client.graphql<{
-    themeFilesDelete: { deletedThemeFiles: Array<{ filename: string }> | null; userErrors: unknown[] };
+    themeFilesDelete: {
+      deletedThemeFiles: Array<{ filename: string }> | null;
+      userErrors: Array<{ code?: string | null; message?: string }>;
+    };
   }>(
     `mutation DvflyThemeFilesDelete($themeId: ID!, $files: [String!]!) {
        themeFilesDelete(themeId: $themeId, files: $files) {
          deletedThemeFiles { filename }
-         userErrors { field message }
+         userErrors { code field message }
        }
      }`,
     { themeId, files: [productTemplateFile(pageId), productSectionFile(pageId)] },
   );
-  const errors = data.themeFilesDelete.userErrors;
-  // A file that is already gone is not a failure.
-  if (errors.length > 0 && !/not found|does not exist/i.test(JSON.stringify(errors))) {
+  // A file that is already gone is not a failure — by code, or by wording
+  // when the code is missing.
+  const errors = data.themeFilesDelete.userErrors.filter(
+    (e) => e.code !== 'NOT_FOUND' && !/not found|does not exist/i.test(e.message ?? ''),
+  );
+  if (errors.length > 0) {
     throw new ShopifyError(
       `Não foi possível remover o modelo de produto do tema de ${client.domain}: ${JSON.stringify(errors)}`,
       { userErrors: errors },

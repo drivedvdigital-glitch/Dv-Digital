@@ -79,6 +79,12 @@ PORT=3000
 npm run setup && npm run build && npm start
 ```
 
+`npm start` sobe `app/server.mjs` (Express com `trust proxy`): atrás de qualquer proxy TLS o
+servidor vê `http://` enquanto o navegador manda `Origin: https://…`, e sem isso o CSRF do
+React Router recusaria toda action com 400. Opcional: `DVFLY_ALLOWED_SHOPS` (domínios
+`myshopify.com` separados por vírgula) restringe quem pode abrir o app, além do que a
+distribuição custom já restringe. `DVFLY_DEV_ORIGINS` é lido no **build**, não no host.
+
 Toda tela exige o ID token em produção (`DVFLY_AUTH` é ignorado). Se o endereço público
 mudar: edite `application_url` e `redirect_urls` no TOML e rode `shopify app deploy` de
 novo — as URIs dos webhooks são relativas e seguem sozinhas.
@@ -103,9 +109,13 @@ registradas pelo caminho antigo (client credentials) em desenvolvimento.
 
 ### 6. Desinstalar
 
-Desinstalar pelo admin dispara `app/uninstalled`: o app apaga o token e marca as
-publicações daquela loja como fora do ar; **nada é apagado na loja** — páginas continuam
-na Shopify (invariante I4). 48 h depois chega `shop/redact`, e a linha da loja é removida.
+Desinstalar pelo admin dispara `app/uninstalled`: o app esquece o token e marca a loja como
+desinstalada; **nada é apagado na loja** — páginas continuam na Shopify, no ar se estavam no
+ar (invariante I4), e é assim que as telas as mostram, com a loja marcada "sem acesso" (o
+checkbox de "Publicar em" e o vínculo de produtos ficam desabilitados com o motivo) até
+reinstalar. 48 h depois chega `shop/redact`, e a linha da loja é removida. A Shopify tenta
+entregar um webhook por até 48 h: uma entrega atrasada de antes de uma reinstalação é
+ignorada (comparação com `installedAt`).
 
 ## O que fica registrado como pendente
 
@@ -115,8 +125,9 @@ na Shopify (invariante I4). 48 h depois chega `shop/redact`, e a linha da loja �
   primeiro passo ao hospedar. O que observar: a tela abre sem pedir nada; `Store` ganha
   `accessToken`; ao recarregar dentro do admin, a página passa pelo `/bounce` e volta.
 - **Token offline expirável.** Apps **públicos** (App Store) são obrigados a usar token
-  offline expirável (1 h + refresh de 90 dias) até 01/01/2027; apps custom não. O código
-  usa o não-expirável; o refresh entra quando (se) formos para a App Store.
+  offline expirável até 01/01/2027; apps custom não. Se o app for configurado assim, o
+  código já guarda `Store.tokenExpiresAt` e refaz a troca de token na próxima abertura pelo
+  admin (com 1 h de antecedência); o que não existe é renovação sem ninguém abrir o app.
 - **App Store × `write_themes`.** A política 5.1.1 da App Store exige que apps alterem o
   tema só por *theme app extensions*. Nosso "sem cabeçalho/rodapé" e as páginas de produto
   escrevem arquivos no tema. Para distribuição custom não há restrição; para a App Store

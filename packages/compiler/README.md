@@ -17,12 +17,11 @@ otimização de HTML** — a peça que veio da descoberta em `docs/USO_REAL.md`.
 Node 22.6+ (remove os tipos do TypeScript sozinho) e uma dependência: um parser de HTML.
 
 ```sh
+# dependências: `npm run setup` na RAIZ do repositório (workspace npm — nunca `npm install` aqui dentro)
 cd packages/compiler
-npm install
-
 npm run build          # compila a landing de blocos e mede
 npm run build:html     # compila HTML escrito à mão e mostra o que foi otimizado
-npm test               # 41 testes de invariante
+npm test               # 52 testes de invariante
 ```
 
 ## O que o protótipo demonstra
@@ -82,13 +81,14 @@ Rodar `raw: true` no nó desliga o passe e publica o markup intocado.
 src/schema.ts        O documento de blocos. É o contrato entre editor e compilador.
 src/css.ts           Vocabulário fechado de estilo -> CSS escopado e deduplicado por hash.
 src/html.ts          Emissão e escape de HTML.
-src/blocks.ts        Um compilador por bloco. 11 blocos.
+src/blocks.ts        Um compilador por bloco. 16 blocos (15 na paleta; `tab` só dentro de `tabs`).
 src/html-optimize.ts O passe de otimização do HTML do autor.
 src/compile.ts       A função pura Doc -> { html, css, js } + checagens de página.
+src/limits.ts        Os tetos da Shopify (64 KB corpo de página, 256 KB arquivo de tema) e o orçamento.
 src/audit.ts         Auditoria por nó (o "page checkup" sem IA).
 bin/build.ts         Compila um fixture (.json ou .html) e imprime o relatório.
 bin/shopify-probe.ts Sonda de permissões contra uma loja real (ver abaixo).
-test/                41 testes que travam os invariantes da arquitetura.
+test/                52 testes que travam os invariantes da arquitetura.
 ```
 
 **Divisão de responsabilidade entre `audit` e `compile`:** `audit` faz checagem **por nó** (alt de
@@ -141,7 +141,7 @@ Para ninguém confundir spike com produto:
 - Não tem editor. A árvore vem de um arquivo JSON escrito à mão.
 - Não fala com a Shopify no `build.ts` — só o `shopify-probe.ts` faz rede.
 - Não tem persistência, versionamento, autenticação nem multi-página.
-- Tem 11 blocos, não os 56 itens P0 da pesquisa.
+- Tem 16 blocos, não os 56 itens P0 da pesquisa.
 - O passe de HTML não converte markup em árvore de blocos — isso é o item P1 de importação.
 - O `repeater` liga dados por substituição de `{{campo}}`, que é ingênuo de propósito — o produto
   vai precisar de um modelo de binding de verdade.
