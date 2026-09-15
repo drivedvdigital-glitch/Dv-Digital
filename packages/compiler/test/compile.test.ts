@@ -236,3 +236,27 @@ test('nodeIds stamps every block for the editor and never leaks into published o
     assert.ok(editor.html.includes(`data-dvf-id="${id}"`), `missing id stamp for ${id}`);
   }
 });
+
+test('a hidden node ships nothing — no markup, no display:none, no audit weight', () => {
+  const doc: Doc = {
+    version: 1,
+    root: [
+      { id: 'h1', type: 'heading', props: { level: 1, text: 'Fica' } },
+      { id: 'b1', type: 'button', props: { label: 'CTA', href: '/x' } },
+      {
+        id: 's1',
+        type: 'section',
+        hidden: true,
+        children: [
+          { id: 'h2', type: 'heading', props: { level: 1, text: 'Some' } },
+        ],
+      },
+    ],
+  };
+  const out = compile(doc);
+  assert.ok(!out.html.includes('Some'), 'hidden content must not ship');
+  assert.ok(!out.html.includes('display:none'), 'hiding is omission, not CSS');
+  assert.ok(out.html.includes('Fica'));
+  // The hidden H1 must not count as a second H1 on the page.
+  assert.deepEqual(out.findings.filter((f) => f.code === 'page/multiple-h1'), []);
+});

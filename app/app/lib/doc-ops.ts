@@ -17,6 +17,8 @@ export interface DocNode {
   props?: Record<string, unknown>;
   style?: Record<string, unknown>;
   children?: DocNode[];
+  /** Eye toggle: kept in the document, omitted from every compiled output. */
+  hidden?: boolean;
 }
 
 export interface DocTree {
@@ -262,6 +264,46 @@ export function effectiveStyle(
     if (bucket && key in bucket) value = bucket[key];
   }
   return value;
+}
+
+/**
+ * Flips a node's eye toggle. `false` is stored as absence so documents that
+ * never used the eye stay byte-identical to what they were before it existed.
+ */
+export function toggleHidden(nodes: DocNode[], id: string): DocNode[] {
+  return nodes.map((node) => {
+    if (node.id === id) {
+      const next: DocNode = { ...node };
+      if (next.hidden) delete next.hidden;
+      else next.hidden = true;
+      return next;
+    }
+    return node.children ? { ...node, children: toggleHidden(node.children, id) } : node;
+  });
+}
+
+/**
+ * Replaces a node's entire style set — the paste half of "copiar estilo".
+ * The style is cloned on the way in so the source and target never share
+ * objects, which would make editing one silently edit the other.
+ */
+export function setNodeStyle(
+  nodes: DocNode[],
+  id: string,
+  style: Record<string, unknown> | undefined,
+): DocNode[] {
+  return nodes.map((node) => {
+    if (node.id === id) {
+      const next: DocNode = { ...node };
+      if (style && Object.keys(style).length > 0) {
+        next.style = JSON.parse(JSON.stringify(style)) as Record<string, unknown>;
+      } else {
+        delete next.style;
+      }
+      return next;
+    }
+    return node.children ? { ...node, children: setNodeStyle(node.children, id, style) } : node;
+  });
 }
 
 /** True when `maybeChild` lives anywhere inside `ancestorId`'s subtree. */

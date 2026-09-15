@@ -16,6 +16,8 @@ import {
   pathTo,
   relocateNode,
   removeNode,
+  setNodeStyle,
+  toggleHidden,
   updateProps,
   updateStyle,
   type DocNode,
@@ -127,12 +129,56 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 }
 
-/** Preview widths. "Cheio" fills the canvas; the rest are device-sized. */
+/**
+ * Preview widths, one per device drawing. Width 0 fills the canvas. The icons
+ * are drawn here from scratch — plain strokes, sized for a 28px button.
+ */
+const deviceIcon = (kind: 'monitor' | 'laptop' | 'tablet' | 'phone') => {
+  const shapes: Record<string, React.ReactNode> = {
+    monitor: (
+      <>
+        <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" />
+        <path d="M5.5 14h5M8 11.5V14" />
+      </>
+    ),
+    laptop: (
+      <>
+        <rect x="3" y="3" width="10" height="7.5" rx="1" />
+        <path d="M1.5 13h13" />
+      </>
+    ),
+    tablet: <rect x="3.5" y="1.5" width="9" height="13" rx="1.5" />,
+    phone: (
+      <>
+        <rect x="5" y="1.5" width="6" height="13" rx="1.5" />
+        <path d="M7.2 12.5h1.6" />
+      </>
+    ),
+  };
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+      {shapes[kind]}
+    </svg>
+  );
+};
+
 const DEVICES = [
-  { label: 'Cheio', width: 0 },
-  { label: '1200', width: 1200 },
-  { label: '768', width: 768 },
-  { label: '390', width: 390 },
+  { label: 'Tela cheia', width: 0, icon: 'monitor' as const },
+  { label: 'Notebook (1200px)', width: 1200, icon: 'laptop' as const },
+  { label: 'Tablet (768px)', width: 768, icon: 'tablet' as const },
+  { label: 'Celular (390px)', width: 390, icon: 'phone' as const },
+];
+
+/** What the "Atalhos de teclado" panel lists. One row per gesture. */
+const SHORTCUTS: Array<{ keys: string[]; what: string }> = [
+  { keys: ['Ctrl', 'S'], what: 'Salvar' },
+  { keys: ['Ctrl', 'Shift', 'S'], what: 'Salvar & publicar' },
+  { keys: ['Ctrl', 'Z'], what: 'Desfazer' },
+  { keys: ['Ctrl', 'Shift', 'Z'], what: 'Refazer' },
+  { keys: ['Ctrl', 'D'], what: 'Duplicar o selecionado' },
+  { keys: ['Delete'], what: 'Excluir o selecionado' },
+  { keys: ['Ctrl', 'C'], what: 'Copiar estilo' },
+  { keys: ['Ctrl', 'V'], what: 'Colar estilo' },
 ];
 
 /** Blocks offered by "Adicionar". Order is roughly how often each is reached for. */
@@ -175,6 +221,39 @@ export default function PageEditor() {
   });
   const frame = useRef<HTMLIFrameElement>(null);
   const form = useRef<HTMLFormElement>(null);
+  const [showKeys, setShowKeys] = useState(false);
+
+  // "Salvar" only exists while there is something to save — the reference
+  // behavior. Dirty is: the document differs from the last saved snapshot, or
+  // the title/handle fields were touched.
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(data.doc));
+  const [metaDirty, setMetaDirty] = useState(false);
+  const pendingSnapshot = useRef<string | null>(null);
+  const dirty = metaDirty || JSON.stringify(doc) !== savedSnapshot;
+
+  // Title (native input) and handle (custom element) both bubble `input`, so
+  // one React handler on the form marks the page dirty whatever was typed in.
+  // It must be REACT's onInput, not a native listener: a setState fired from a
+  // native listener mid-event re-renders before React processes the same
+  // event, and the controlled field's first keystroke gets silently reverted.
+  const onFormInput = useCallback((event: React.FormEvent) => {
+    if (event.target !== form.current) setMetaDirty(true);
+  }, []);
+
+  // A successful save (publishing also saves) resets the dirty tracking to
+  // exactly what was submitted.
+  useEffect(() => {
+    if (result?.ok && pendingSnapshot.current !== null) {
+      setSavedSnapshot(pendingSnapshot.current);
+      setMetaDirty(false);
+      pendingSnapshot.current = null;
+    }
+  }, [result]);
+
+  // Copied style travels between blocks via Ctrl+C / Ctrl+V. A ref, not
+  // state: nothing needs to re-render when it changes.
+  const styleClipboard = useRef<Record<string, unknown> | null>(null);
+  const selectedRef = useRef<string | null>(null);
 
   // Undo is a list of documents — the payoff of every tree operation being a
   // pure function. Mutations within 600ms coalesce into one entry, so typing a
@@ -225,40 +304,99 @@ export default function PageEditor() {
     setDoc(next);
   }, []);
 
-  // Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — but never while typing in a field, where
-  // the browser's own text undo is the one the person expects.
+  // Polaris buttons submit forms but cannot carry a name/value pair, so the
+  // intent is stamped onto the form data here instead of living on the button.
+  const act = useCallback(
+    (intent: 'save' | 'publish') => {
+      if (!form.current) return;
+      const fd = new FormData(form.current);
+      fd.set('intent', intent);
+      pendingSnapshot.current = String(fd.get('doc'));
+      submit(fd, { method: 'post' });
+    },
+    [submit],
+  );
+
+  // Block operations reachable from shortcuts and from the canvas toolbar
+  // alike. They read through refs so one stable callback serves both without
+  // re-subscribing listeners on every document change.
+  const shortcutAction = useCallback(
+    (name: string) => {
+      const id = selectedRef.current;
+      if (name === 'save') act('save');
+      if (name === 'publish') act('publish');
+      if (!id) return;
+      const root = docRef.current.root;
+      if (name === 'duplicate') setRoot(duplicateNode(root, id));
+      if (name === 'delete') {
+        setRoot(removeNode(root, id));
+        setSelected(null);
+      }
+      if (name === 'copyStyle') {
+        const node = findNode(root, id);
+        if (node) {
+          styleClipboard.current = JSON.parse(JSON.stringify(node.style ?? {}));
+        }
+      }
+      if (name === 'pasteStyle') {
+        if (styleClipboard.current) setRoot(setNodeStyle(root, id, styleClipboard.current));
+      }
+    },
+    [act, setRoot],
+  );
+
+  // The full shortcut map (also listed in the "Atalhos" panel):
+  //   Ctrl+S salvar · Ctrl+Shift+S salvar & publicar · Ctrl+Z / Ctrl+Shift+Z
+  //   desfazer/refazer · Ctrl+D duplicar · Delete excluir · Ctrl+C/V estilo.
+  // Save works even while typing; everything else defers to the field being
+  // edited, where the browser's own text editing is what the person expects.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey)) return;
+      const ctrl = event.ctrlKey || event.metaKey;
+      const key = event.key.toLowerCase();
+
+      if (ctrl && key === 's') {
+        event.preventDefault();
+        shortcutAction(event.shiftKey ? 'publish' : 'save');
+        return;
+      }
+
       const target = event.target as HTMLElement | null;
       const typing =
         target &&
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
+          target.tagName === 'S-TEXT-FIELD' ||
           target.isContentEditable);
       if (typing) return;
-      const key = event.key.toLowerCase();
+
+      if (!ctrl && (event.key === 'Delete' || event.key === 'Backspace')) {
+        event.preventDefault();
+        shortcutAction('delete');
+        return;
+      }
+      if (!ctrl) return;
+
       if (key === 'z' && !event.shiftKey) {
         event.preventDefault();
         undo();
       } else if ((key === 'z' && event.shiftKey) || key === 'y') {
         event.preventDefault();
         redo();
+      } else if (key === 'd') {
+        event.preventDefault();
+        shortcutAction('duplicate');
+      } else if (key === 'c') {
+        // No preventDefault: copying selected text must keep working.
+        shortcutAction('copyStyle');
+      } else if (key === 'v') {
+        shortcutAction('pasteStyle');
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
-
-  // Polaris buttons submit forms but cannot carry a name/value pair, so the
-  // intent is stamped onto the form data here instead of living on the button.
-  const act = (intent: 'save' | 'publish') => {
-    if (!form.current) return;
-    const fd = new FormData(form.current);
-    fd.set('intent', intent);
-    submit(fd, { method: 'post' });
-  };
+  }, [undo, redo, shortcutAction]);
 
   // The preview is the compiler's own output, rendered in an iframe — the same
   // bytes that get published (I1). The editor build adds node id stamps and the
@@ -305,7 +443,8 @@ export default function PageEditor() {
       }
       if (message.type === 'dvf:key') {
         if (message.key === 'undo') undo();
-        if (message.key === 'redo') redo();
+        else if (message.key === 'redo') redo();
+        else shortcutAction(message.key);
       }
       if (message.type === 'dvf:action') {
         if (message.action === 'duplicate') setRoot(duplicateNode(doc.root, message.id));
@@ -319,10 +458,11 @@ export default function PageEditor() {
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [doc, setRoot, undo, redo]);
+  }, [doc, setRoot, undo, redo, shortcutAction]);
 
   // Editor → canvas: highlight whatever is selected, however it got selected.
   useEffect(() => {
+    selectedRef.current = selected;
     const type = selected ? findNode(doc.root, selected)?.type : null;
     frame.current?.contentWindow?.postMessage(
       { type: 'dvf:selected', id: selected, label: type ? BLOCK_LABELS[type] ?? type : '' },
@@ -344,7 +484,7 @@ export default function PageEditor() {
   };
 
   return (
-    <form ref={form} onSubmit={(e) => e.preventDefault()} style={shell}>
+    <form ref={form} onSubmit={(e) => e.preventDefault()} onInput={onFormInput} style={shell}>
       <input type="hidden" name="doc" value={JSON.stringify(doc)} />
 
       {/* ---- top bar ------------------------------------------------------ */}
@@ -386,23 +526,57 @@ export default function PageEditor() {
             <button
               key={d.label}
               type="button"
+              title={d.label}
+              aria-label={d.label}
+              data-device={d.icon}
               onClick={() => setDevice(i)}
               style={i === device ? deviceActive : deviceIdle}
             >
-              {d.label}
+              {deviceIcon(d.icon)}
             </button>
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
+          <button
+            type="button"
+            title="Atalhos de teclado"
+            aria-label="Atalhos de teclado"
+            onClick={() => setShowKeys((v) => !v)}
+            style={showKeys ? { ...historyOn, background: '#f1f1f1' } : historyOn}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
+              <rect x="1.5" y="4" width="13" height="8" rx="1.5" />
+              <path d="M4 6.8h.01M6.7 6.8h.01M9.4 6.8h.01M12.1 6.8h.01M4.5 9.5h7" />
+            </svg>
+          </button>
+          {showKeys ? (
+            <div style={keysPanel}>
+              <div style={{ ...panelLabel, marginBottom: 10 }}>Atalhos de teclado</div>
+              {SHORTCUTS.map((s) => (
+                <div key={s.what} style={keysRow}>
+                  <span style={{ display: 'flex', gap: 4 }}>
+                    {s.keys.map((k) => (
+                      <kbd key={k} style={kbdChip}>
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                  <span style={{ color: '#616161' }}>{s.what}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {published ? (
             <a href={data.liveUrls[0]} target="_blank" rel="noreferrer" style={liveLink}>
               Ver no ar
             </a>
           ) : null}
-          <s-button disabled={busy || undefined} onClick={() => act('save')}>
-            {busy ? 'Salvando…' : 'Salvar'}
-          </s-button>
+          {dirty || busy ? (
+            <s-button disabled={busy || undefined} onClick={() => act('save')}>
+              {busy ? 'Salvando…' : 'Salvar'}
+            </s-button>
+          ) : null}
           <button type="button" disabled={busy} onClick={() => act('publish')} style={publishButton}>
             {busy ? 'Publicando…' : 'Publicar'}
           </button>
@@ -424,6 +598,7 @@ export default function PageEditor() {
               onRelocate={(id, targetId, position) =>
                 setRoot(relocateNode(doc.root, id, targetId, position))
               }
+              onToggleHidden={(id) => setRoot(toggleHidden(doc.root, id))}
             />
           )}
         </section>
@@ -619,18 +794,41 @@ export default function PageEditor() {
  * means inside it. The same `relocateNode` the canvas uses applies the move,
  * so both gestures obey identical rules.
  */
+/** The eye, open or shut. Drawn inline so hovering can recolor the strokes. */
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" aria-hidden="true">
+      {off ? (
+        <>
+          <path d="M2.5 9.5c1.6 1.7 3.4 2.5 5.5 2.5s3.9-.8 5.5-2.5" />
+          <path d="M3 12.5l1.4-1.6M13 12.5l-1.4-1.6M8 12.2V14" />
+        </>
+      ) : (
+        <>
+          <path d="M1.5 8c1.8-2.7 4-4 6.5-4s4.7 1.3 6.5 4c-1.8 2.7-4 4-6.5 4s-4.7-1.3-6.5-4z" />
+          <circle cx="8" cy="8" r="1.8" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function Tree({
   nodes,
   depth,
   selected,
   onSelect,
   onRelocate,
+  onToggleHidden,
+  parentHidden = false,
 }: {
   nodes: DocNode[];
   depth: number;
   selected: string | null;
   onSelect: (id: string) => void;
   onRelocate: (id: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
+  onToggleHidden: (id: string) => void;
+  parentHidden?: boolean;
 }) {
   const [hint, setHint] = useState<{ id: string; position: string } | null>(null);
 
@@ -681,14 +879,37 @@ function Tree({
               ...treeRow,
               paddingLeft: 8 + depth * 14,
               ...(node.id === selected ? treeRowSelected : {}),
+              ...(node.hidden || parentHidden ? treeRowHidden : {}),
               ...hintStyle(node),
             }}
           >
             <span style={treeIcon}>{CONTAINER_TYPES.has(node.type) ? '▸' : '·'}</span>
-            {BLOCK_LABELS[node.type] ?? node.type}
+            <span style={node.hidden || parentHidden ? { textDecoration: 'line-through' } : undefined}>
+              {BLOCK_LABELS[node.type] ?? node.type}
+            </span>
             {node.type === 'heading' || node.type === 'text' ? (
               <span style={treeHint}> {String(node.props?.text ?? '').slice(0, 18)}</span>
             ) : null}
+            <span
+              role="button"
+              tabIndex={0}
+              data-eye={node.id}
+              title={node.hidden ? 'Mostrar este bloco' : 'Esconder este bloco (não sai na página)'}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleHidden(node.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onToggleHidden(node.id);
+                }
+              }}
+              style={{ ...eyeButton, ...(node.hidden ? eyeOff : {}) }}
+            >
+              <EyeIcon off={Boolean(node.hidden)} />
+            </span>
           </button>
           {node.children ? (
             <Tree
@@ -697,6 +918,8 @@ function Tree({
               selected={selected}
               onSelect={onSelect}
               onRelocate={onRelocate}
+              onToggleHidden={onToggleHidden}
+              parentHidden={parentHidden || Boolean(node.hidden)}
             />
           ) : null}
         </div>
@@ -918,6 +1141,7 @@ function StylePanel({
       {label}
       <input
         style={fieldInput}
+        data-style={key}
         value={ownOr(key)}
         placeholder={hint(key) || '—'}
         onChange={(e) => onChange({ [key]: parseLength(e.target.value) })}
@@ -1150,11 +1374,13 @@ const deviceGroup: React.CSSProperties = {
 const deviceBase: React.CSSProperties = {
   border: 0,
   borderRadius: 6,
-  padding: '5px 10px',
+  padding: '5px 9px',
   fontSize: 12,
   cursor: 'pointer',
   background: 'transparent',
   color: '#616161',
+  display: 'flex',
+  alignItems: 'center',
 };
 const deviceIdle = deviceBase;
 const deviceActive: React.CSSProperties = {
@@ -1264,6 +1490,52 @@ const treeRowSelected: React.CSSProperties = {
 
 const treeIcon: React.CSSProperties = { fontSize: 10, color: '#0a6b38', width: 10 };
 const treeHint: React.CSSProperties = { color: '#8a8a8a', fontWeight: 400, fontSize: 12 };
+
+/** A hidden row reads as switched off: gray all over, label struck through. */
+const treeRowHidden: React.CSSProperties = { color: '#a3a3a3' };
+
+const eyeButton: React.CSSProperties = {
+  marginLeft: 'auto',
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: 2,
+  borderRadius: 4,
+  color: '#8a8a8a',
+  cursor: 'pointer',
+};
+const eyeOff: React.CSSProperties = { color: '#b0b0b0' };
+
+const keysPanel: React.CSSProperties = {
+  position: 'absolute',
+  top: 40,
+  right: 0,
+  zIndex: 30,
+  background: '#fff',
+  border: '1px solid #e3e3e3',
+  borderRadius: 12,
+  boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+  padding: 14,
+  width: 250,
+};
+
+const keysRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  fontSize: 12.5,
+  padding: '4px 0',
+};
+
+const kbdChip: React.CSSProperties = {
+  background: '#f1f1f1',
+  border: '1px solid #e0e0e0',
+  borderRadius: 5,
+  padding: '2px 6px',
+  fontSize: 11,
+  fontFamily: 'inherit',
+  color: '#303030',
+};
 
 const paletteButton: React.CSSProperties = {
   border: '1px solid #e3e3e3',

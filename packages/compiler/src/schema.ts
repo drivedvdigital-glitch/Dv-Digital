@@ -107,6 +107,12 @@ export interface Node {
   props?: Record<string, unknown>;
   style?: ResponsiveStyle;
   children?: Node[];
+  /**
+   * Switched off by the tree panel's eye toggle. A hidden node stays in the
+   * document (the work is not lost) but the compiler emits nothing for it —
+   * not `display:none`, nothing: hidden content must not ship to visitors.
+   */
+  hidden?: boolean;
 }
 
 export interface Doc {

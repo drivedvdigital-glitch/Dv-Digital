@@ -16,7 +16,7 @@ import { BLOCKS, RUNTIME, type RenderContext, type RuntimeModule } from './block
 import { CLASS_PREFIX, StyleSheet } from './css.ts';
 import { tag } from './html.ts';
 import { optimizeHtml } from './html-optimize.ts';
-import { validate, walk, type Doc, type Node } from './schema.ts';
+import { validate, type Doc, type Node } from './schema.ts';
 
 export interface CompileResult {
   html: string;
@@ -103,6 +103,10 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   };
 
   function render(node: Node): string {
+    // The eye toggle: a hidden node (and its whole subtree) simply does not
+    // exist in the output. CSS hiding would still ship the bytes and the
+    // content to every visitor; omission is the only honest "hidden".
+    if (node.hidden) return '';
     nodes++;
     const renderer = BLOCKS[node.type];
     if (!renderer) {
@@ -118,7 +122,17 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   // Page-level checks run once, over everything. They live here rather than in
   // `audit` because this is the only place that sees both the block tree and
   // the inside of author-written HTML.
-  const allNodes = [...walk(doc.root)];
+  // Hidden subtrees are excluded: they are not on the page, so they must not
+  // satisfy (or trigger) any page-level check.
+  const allNodes: Node[] = [];
+  const collectVisible = (list: Node[]) => {
+    for (const node of list) {
+      if (node.hidden) continue;
+      allNodes.push(node);
+      if (node.children) collectVisible(node.children);
+    }
+  };
+  collectVisible(doc.root);
   const blockHeadings = allNodes
     .filter((node) => node.type === 'heading')
     .map((node) => Number(node.props?.level ?? 2));

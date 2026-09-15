@@ -137,18 +137,25 @@ const EDITOR_BRIDGE = `
     el.setAttribute('draggable', 'true');
   });
 
-  // The iframe swallows keystrokes when the canvas has focus, so undo/redo
-  // are forwarded out instead of silently dying here.
+  // The iframe swallows keystrokes when the canvas has focus, so every editor
+  // shortcut is forwarded out instead of silently dying here. The editor owns
+  // what each key means; the bridge only reports.
   document.addEventListener('keydown', function (event) {
-    if (!(event.ctrlKey || event.metaKey)) return;
+    var send = function (name) {
+      event.preventDefault();
+      parent.postMessage({ type: 'dvf:key', key: name }, '*');
+    };
     var key = event.key.toLowerCase();
-    if (key === 'z' && !event.shiftKey) {
-      event.preventDefault();
-      parent.postMessage({ type: 'dvf:key', key: 'undo' }, '*');
-    } else if ((key === 'z' && event.shiftKey) || key === 'y') {
-      event.preventDefault();
-      parent.postMessage({ type: 'dvf:key', key: 'redo' }, '*');
+    if (!(event.ctrlKey || event.metaKey)) {
+      if (event.key === 'Delete' || event.key === 'Backspace') send('delete');
+      return;
     }
+    if (key === 'z' && !event.shiftKey) send('undo');
+    else if ((key === 'z' && event.shiftKey) || key === 'y') send('redo');
+    else if (key === 's') send(event.shiftKey ? 'publish' : 'save');
+    else if (key === 'd') send('duplicate');
+    else if (key === 'c') parent.postMessage({ type: 'dvf:key', key: 'copyStyle' }, '*');
+    else if (key === 'v') parent.postMessage({ type: 'dvf:key', key: 'pasteStyle' }, '*');
   });
 
   window.addEventListener('message', function (event) {

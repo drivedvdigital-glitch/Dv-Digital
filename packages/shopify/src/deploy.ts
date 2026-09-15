@@ -129,16 +129,17 @@ export async function deployPage(
   const order = new Map(stores.map((store, index) => [store.domain, index]));
   targets.sort((a, b) => (order.get(a.store.domain) ?? 0) - (order.get(b.store.domain) ?? 0));
 
-  return {
+  const result: DeployResult = {
     handle: page.handle,
     targets,
     get succeeded() {
-      return this.targets.filter((t) => t.ok);
+      return targets.filter((t) => t.ok);
     },
     get failed() {
-      return this.targets.filter((t) => !t.ok);
+      return targets.filter((t) => !t.ok);
     },
   };
+  return result;
 }
 
 /** One-line-per-store summary, for a CLI or a log. */

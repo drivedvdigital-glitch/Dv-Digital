@@ -656,6 +656,28 @@ Verificado no navegador, 12/12 — incluindo os dois que provam o modelo respons
 de tamanho no ≥768 **não vaza** para o canvas de 390, e limpar o campo faz o valor voltar a
 herdar. Estilos persistem após salvar e recarregar.
 
+### ✅ Rodada de paridade com a referência (15/09) — parte 1: o editor
+
+Feedback por áudio + prints da referência virou uma lista de ajustes. Primeira leva, no editor:
+
+- **Salvar só existe quando há o que salvar** — o botão aparece com a primeira mudança e some
+  depois de salvar (publicar também salva). Publicar continua fixo no canto superior direito.
+- **Atalhos completos**: Ctrl+S salvar, Ctrl+Shift+S salvar & publicar, Ctrl+D duplicar,
+  Delete excluir, **Ctrl+C / Ctrl+V copiam e colam o *estilo*** entre blocos, Ctrl+Z/Shift+Z já
+  existiam. Um painel "Atalhos de teclado" (ícone de teclado na barra) lista todos. Os atalhos
+  funcionam também com o foco dentro do canvas (a ponte encaminha).
+- **Tamanhos de tela com desenhos**: monitor / notebook / tablet / celular, ícones próprios
+  desenhados do zero, no lugar dos números.
+- **Olhinho na árvore**: esconde o bloco. Escondido = cinza e riscado na lista, some do canvas
+  e — o importante — **não sai na página publicada**: o compilador omite o nó por inteiro (nada
+  de `display:none` carregando bytes escondidos). H1 escondido também não conta nas auditorias.
+  Desfazer (Ctrl+Z) desfaz o olhinho como qualquer outra operação.
+
+**Armadilha nova paga**: um `setState` disparado de um listener nativo no meio de um evento de
+input re-renderiza antes de o React processar o mesmo evento — e a primeira tecla digitada num
+campo controlado era silenciosamente revertida. A marcação de "sujo" tinha de ser `onInput` do
+próprio React, não um listener nativo. Verificado dirigindo o app: 13/13.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:
