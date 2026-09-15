@@ -143,9 +143,14 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
   `contact_posted=true`. CSS/JS só quando usado.
 - ✅ **Despublicar no editor**: link ao lado do badge "publicada" (o par de estados que
   o rel. 09 confirmou) — verificado ao vivo na loja real, ida e volta.
-- 📋 Adotados para o plano de produto: nomenclatura `<Recurso> <Campo>`; carrossel como
-  MODO do Product list (não elemento); aviso honesto de limite nomeando a plataforma;
-  fonte por coleção com seleção única; Content (dados) ≠ Layout (grade).
+- 📋 Adotados para o plano de produto (spec COMPLETA com o rel. 11): nomenclatura
+  `<Recurso> <Campo>`; UM bloco de produtos com fonte (Todos | Coleção | Relacionados) ×
+  layout (Grade | Carrossel); aviso honesto de limite nomeando a plataforma; seleção de
+  coleção única; Content (dados) ≠ Layout (grade); alinhamento 9 pontos; card de
+  exemplo funcional como estado inicial (não caixa vazia); "Excluir o produto atual"
+  desabilitado com motivo fora de página de produto.
+- 📏 **Regra promovida ao CLAUDE.md**: desabilitar explicando, nunca esconder (3ª
+  ocorrência independente na referência).
 - 🚫 Não copiar: publicidade no inspetor; dependência de App Embed sem detecção (se
   tivermos integrações: detectar e avisar no elemento).
 

@@ -45,6 +45,15 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
   `allowedActionOrigins` em `app/react-router.config.ts`.
 - Workspace npm: instalar dentro de `app/` quebra tudo (React duplicado). Sempre na raiz.
 
+## Regras de interface (aprendidas da referência, adotadas como nossas)
+
+- **Desabilitar explicando, nunca esconder**: controle indisponível fica visível, cinza,
+  com o motivo escrito ao lado ("Disponível depois de publicar").
+- Estado vazio sempre aponta a rota exata do conserto ("Geral → URL da imagem").
+- Limite de plataforma é dito nomeando a origem ("limite da Shopify") — nunca escondido
+  nem assumido como culpa nossa.
+- Contagens exibidas vêm sempre de dados, nunca hardcoded.
+
 ## Cultura de verificação
 
 Testar **dirigindo o app de verdade** (Playwright contra as rotas, cliques reais), não só teste
