@@ -94,6 +94,9 @@ export function declarations(style: StyleProps): string[] {
     push('border', `${len(style.borderWidth)} solid ${style.borderColor ?? 'currentColor'}`);
   }
 
+  if (style.fontFamily === 'theme-body') push('font-family', 'var(--font-body-family, inherit)');
+  else if (style.fontFamily === 'theme-heading') push('font-family', 'var(--font-heading-family, inherit)');
+  else push('font-family', style.fontFamily);
   push('font-size', len(style.fontSize));
   push('font-weight', style.fontWeight === undefined ? undefined : String(style.fontWeight));
   push('line-height', style.lineHeight === undefined ? undefined : String(style.lineHeight));

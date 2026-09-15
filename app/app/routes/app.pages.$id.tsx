@@ -227,7 +227,7 @@ const SHORTCUTS: Array<{ keys: string[]; what: string }> = [
  * everyday blocks, media, and the specialized ones last.
  */
 const PALETTE_GROUPS: Array<{ name: string; types: string[] }> = [
-  { name: 'Estrutura', types: ['section', 'stack', 'repeater'] },
+  { name: 'Estrutura', types: ['section', 'stack', 'tabs', 'repeater'] },
   { name: 'Básico', types: ['heading', 'text', 'button', 'list', 'divider', 'html'] },
   { name: 'Mídia', types: ['image', 'youtube'] },
   { name: 'Avançado', types: ['accordion', 'countdown'] },
@@ -285,6 +285,22 @@ export default function PageEditor() {
   const form = useRef<HTMLFormElement>(null);
   const [showKeys, setShowKeys] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  // What the theme's font tokens resolve to TODAY, read from the storefront.
+  // Labels the tokens ("fonte-do-corpo (Helvetica)") and feeds the canvas so
+  // the preview renders with the store's real typography.
+  const [themeFonts, setThemeFonts] = useState<{ body: string | null; heading: string | null } | null>(null);
+  const themeFontsRef = useRef<typeof themeFonts>(null);
+  useEffect(() => {
+    fetch('/api/theme-fonts')
+      .then((r) => r.json())
+      .then((fonts) => {
+        themeFontsRef.current = fonts;
+        setThemeFonts(fonts);
+        frame.current?.contentWindow?.postMessage({ type: 'dvf:themeFonts', fonts }, '*');
+      })
+      .catch(() => {});
+  }, []);
 
   // Page settings travel as controlled state + hidden inputs, so they reach
   // every save even while the settings drawer is closed (an unmounted field
@@ -507,6 +523,13 @@ export default function PageEditor() {
         target.open();
         target.write(payload.fragment);
         target.close();
+        // The fresh document lost the theme font variables — re-feed them.
+        if (themeFontsRef.current) {
+          frame.current?.contentWindow?.postMessage(
+            { type: 'dvf:themeFonts', fonts: themeFontsRef.current },
+            '*',
+          );
+        }
         // Re-apply the selection to the fresh document.
         const type = selected ? findNode(doc.root, selected)?.type : null;
         frame.current?.contentWindow?.postMessage(
@@ -542,6 +565,10 @@ export default function PageEditor() {
       // Clicking a theme chrome placeholder opens the drawer where its
       // visibility actually lives.
       if (message.type === 'dvf:chrome') setShowSettings(true);
+      // Double-clicking a tab button in the canvas renames the tab inline.
+      if (message.type === 'dvf:tabRename') {
+        setRoot(updateProps(doc.root, message.id, { title: String(message.title || 'Aba') }));
+      }
       if (message.type === 'dvf:action') {
         if (message.action === 'duplicate') setRoot(duplicateNode(doc.root, message.id));
         if (message.action === 'moveUp') setRoot(moveNode(doc.root, message.id, -1));
@@ -577,6 +604,15 @@ export default function PageEditor() {
   const width = DEVICES[device].width;
   const selectedNode = selected ? findNode(doc.root, selected) : null;
   const crumbs = selected ? pathTo(doc.root, selected) : [];
+  // The tab-items list stays on screen while editing a tab, not only when the
+  // tabs container itself is selected — the row stays inverted as context.
+  const parentOfSelected = crumbs.length > 1 ? crumbs[crumbs.length - 2] : null;
+  const tabsNode =
+    selectedNode?.type === 'tabs'
+      ? selectedNode
+      : selectedNode?.type === 'tab' && parentOfSelected?.type === 'tabs'
+        ? parentOfSelected
+        : null;
 
   const addBlock = (type: string) => {
     const block = newBlock(type);
@@ -871,10 +907,73 @@ export default function PageEditor() {
               </div>
               {tab === 'geral' ? (
                 <>
-                  <Inspector
-                    node={selectedNode}
-                    onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
-                  />
+                  {tabsNode ? (
+                    <>
+                      <div style={{ ...groupLabel, marginTop: 0 }}>Itens de abas</div>
+                      <div style={tabItemsBox}>
+                        {(tabsNode.children ?? []).map((child) => {
+                          const active = selection.includes(child.id);
+                          return (
+                            <div key={child.id} style={active ? tabItemRowOn : tabItemRow} data-tab-item={child.id}>
+                              <button
+                                type="button"
+                                style={{ ...tabItemLabel, color: active ? '#fff' : '#303030' }}
+                                onClick={() => select(child.id)}
+                              >
+                                {String(child.props?.title ?? 'Aba')}
+                              </button>
+                              <button
+                                type="button"
+                                title="Duplicar aba"
+                                style={{ ...tabItemOp, color: active ? '#fff' : '#616161' }}
+                                onClick={() => setRoot(duplicateNode(doc.root, child.id))}
+                              >
+                                ⧉
+                              </button>
+                              <button
+                                type="button"
+                                title="Excluir aba"
+                                style={{ ...tabItemOp, color: active ? '#fff' : '#b42318' }}
+                                onClick={() => {
+                                  setRoot(removeNode(doc.root, child.id));
+                                  if (active) select(tabsNode.id);
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          data-tab-add
+                          style={addItemButton}
+                          onClick={() => {
+                            const item = newBlock('tab');
+                            setRoot(insertNode(doc.root, tabsNode.id, item));
+                            select(item.id);
+                          }}
+                        >
+                          Adicionar aba
+                        </button>
+                      </div>
+                      <div style={{ ...metaLine, marginBottom: 8 }}>
+                        Reordene arrastando na Estrutura. Dica: <strong>duplo clique</strong> no
+                        nome da aba, no canvas, renomeia na hora.
+                      </div>
+                      {selectedNode.type === 'tab' ? (
+                        <Inspector
+                          node={selectedNode}
+                          onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
+                        />
+                      ) : null}
+                    </>
+                  ) : (
+                    <Inspector
+                      node={selectedNode}
+                      onChange={(patch) => setRoot(updateProps(doc.root, selectedNode.id, patch))}
+                    />
+                  )}
 
                   <div style={groupLabel}>Visibilidade</div>
                   <div style={{ ...metaLine, marginBottom: 6 }}>Mostrar este bloco em:</div>
@@ -951,6 +1050,7 @@ export default function PageEditor() {
               ) : (
                 <StylePanel
                   node={selectedNode}
+                  themeFonts={themeFonts}
                   breakpoint={breakpoint}
                   onBreakpoint={(bp) => {
                     setBreakpoint(bp);
@@ -1449,6 +1549,38 @@ function Inspector({
           />
         </label>
       );
+    case 'tab':
+      return (
+        <>
+          <label style={fieldLabel}>
+            Texto do cabeçalho
+            <input
+              style={fieldInput}
+              data-tab-title
+              value={String(p.title ?? '')}
+              onChange={(e) => onChange({ title: e.target.value })}
+            />
+          </label>
+          <label style={fieldLabel}>
+            Âncora (link direto)
+            <input
+              style={fieldInput}
+              data-tab-anchor
+              value={String(p.anchor ?? '')}
+              placeholder="ofertas"
+              onChange={(e) =>
+                onChange({
+                  anchor: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') || undefined,
+                })
+              }
+            />
+          </label>
+          <div style={metaLine}>
+            Com a âncora, o endereço da página + <strong>#ofertas</strong> abre já nesta aba.
+            Funciona na página publicada. O conteúdo da aba são os filhos dela na árvore.
+          </div>
+        </>
+      );
     case 'section':
     case 'stack':
       return (
@@ -1520,11 +1652,13 @@ const BP_LABELS: Record<string, string> = {
  */
 function StylePanel({
   node,
+  themeFonts,
   breakpoint,
   onBreakpoint,
   onChange,
 }: {
   node: DocNode;
+  themeFonts: { body: string | null; heading: string | null } | null;
   breakpoint: 'base' | 'md' | 'lg' | 'xl';
   onBreakpoint: (bp: 'base' | 'md' | 'lg' | 'xl') => void;
   onChange: (patch: Record<string, unknown>) => void;
@@ -1625,6 +1759,7 @@ function StylePanel({
       {label}
       <select
         style={fieldInput}
+        data-style={key}
         value={ownOr(key)}
         onChange={(e) => onChange({ [key]: e.target.value || undefined })}
       >
@@ -1686,6 +1821,19 @@ function StylePanel({
       {isTexty ? (
         <>
           <div style={groupLabel}>Texto</div>
+          {/* Token first, resolved font in parentheses: the person picks the
+              ROLE (body / heading) and sees which font that is today. Change
+              the theme and both follow automatically. */}
+          {choice('Fonte', 'fontFamily', [
+            {
+              value: 'theme-body',
+              label: `fonte-do-corpo${themeFonts?.body ? ` (${themeFonts.body.split(',')[0].trim()})` : ' (do tema)'}`,
+            },
+            {
+              value: 'theme-heading',
+              label: `fonte-de-título${themeFonts?.heading ? ` (${themeFonts.heading.split(',')[0].trim()})` : ' (do tema)'}`,
+            },
+          ])}
           <div style={{ display: 'flex', gap: 8 }}>
             {length('Tamanho', 'fontSize')}
             {choice('Peso', 'fontWeight', [
@@ -1991,6 +2139,63 @@ const animOn: React.CSSProperties = {
   borderColor: '#b6ecd0',
   color: '#0a6b38',
   fontWeight: 600,
+};
+
+// The tab items list: the container owns its add button, and the active row
+// is a FULL color inversion — instantly readable.
+const tabItemsBox: React.CSSProperties = {
+  background: '#f4f4f4',
+  borderRadius: 10,
+  padding: 6,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+};
+
+const tabItemRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 2,
+  background: 'transparent',
+  borderRadius: 8,
+  padding: '2px 4px',
+};
+
+const tabItemRowOn: React.CSSProperties = {
+  ...tabItemRow,
+  background: '#17201c',
+};
+
+const tabItemLabel: React.CSSProperties = {
+  flex: 1,
+  textAlign: 'left',
+  border: 0,
+  background: 'transparent',
+  fontSize: 13,
+  padding: '6px 6px',
+  cursor: 'pointer',
+};
+
+const tabItemOp: React.CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  width: 26,
+  height: 26,
+  fontSize: 13,
+  cursor: 'pointer',
+  lineHeight: 1,
+};
+
+const addItemButton: React.CSSProperties = {
+  border: '1px solid #e3e3e3',
+  background: '#fff',
+  borderRadius: 8,
+  padding: '8px 0',
+  fontSize: 12.5,
+  cursor: 'pointer',
+  color: '#303030',
+  width: '100%',
+  marginTop: 2,
 };
 
 const multiNote: React.CSSProperties = {

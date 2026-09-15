@@ -28,7 +28,7 @@ export interface DocTree {
 }
 
 /** Block types that hold children. Everything else is a leaf. */
-export const CONTAINER_TYPES = new Set(['section', 'stack', 'repeater']);
+export const CONTAINER_TYPES = new Set(['section', 'stack', 'repeater', 'tabs', 'tab']);
 
 /** Short pt-BR labels for the tree panel. */
 export const BLOCK_LABELS: Record<string, string> = {
@@ -41,6 +41,8 @@ export const BLOCK_LABELS: Record<string, string> = {
   divider: 'Divisor',
   list: 'Lista',
   youtube: 'Vídeo YouTube',
+  tabs: 'Abas',
+  tab: 'Aba',
   accordion: 'Sanfona',
   repeater: 'Repetidor',
   countdown: 'Contagem',
@@ -153,7 +155,9 @@ export function insertNode(
     const index = list.findIndex((item) => item.id === selectedId);
     if (index >= 0) {
       const target = list[index];
-      if (CONTAINER_TYPES.has(target.type)) {
+      // A tabs container only holds tabs: anything else goes AFTER it, never
+      // buried inside where the renderer would ignore it.
+      if (CONTAINER_TYPES.has(target.type) && !(target.type === 'tabs' && node.type !== 'tab')) {
         const updated = { ...target, children: [...(target.children ?? []), node] };
         return { list: list.map((item, i) => (i === index ? updated : item)), done: true };
       }
@@ -205,6 +209,21 @@ export function newBlock(type: string): DocNode {
       return { id, type };
     case 'list':
       return { id, type, props: { text: 'Primeiro item\nSegundo item\nTerceiro item', ordered: false } };
+    case 'tabs':
+      return {
+        id,
+        type,
+        children: [1, 2, 3].map((n) => ({
+          id: freshId('tab'),
+          type: 'tab',
+          props: { title: `Aba ${n}` },
+          children: [
+            { id: freshId('text'), type: 'text', props: { text: `Conteúdo da aba ${n}.` } },
+          ],
+        })),
+      };
+    case 'tab':
+      return { id, type, props: { title: 'Nova aba' }, children: [] };
     case 'youtube':
       return { id, type, props: { url: '', title: 'Vídeo' } };
     case 'html':
@@ -362,6 +381,7 @@ export function relocateNode(
       const target = list[index];
       if (position === 'inside') {
         if (!CONTAINER_TYPES.has(target.type)) return list; // leaves reject "inside"
+        if (target.type === 'tabs' && node.type !== 'tab') return list; // tabs hold tabs only
         const updated = { ...target, children: [...(target.children ?? []), node] };
         return list.map((item, i) => (i === index ? updated : item));
       }

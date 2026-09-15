@@ -39,7 +39,7 @@ export interface RenderContext {
   optimizeHtml: (source: string) => string;
 }
 
-export type RuntimeModule = 'countdown' | 'reveal';
+export type RuntimeModule = 'countdown' | 'reveal' | 'tabs';
 
 /**
  * Entrance animations. A closed set, like the style vocabulary: each name maps
@@ -50,6 +50,15 @@ export type RuntimeModule = 'countdown' | 'reveal';
  * No JavaScript → no animation → content still readable.
  */
 export const ANIMATIONS = ['fade', 'rise', 'zoom'] as const;
+
+/**
+ * Tabs base styles. The active tab is a FULL color inversion — instantly
+ * readable, never a subtle border. Emitted only when a tabs block exists.
+ */
+export const TABS_CSS = `.dvf-tabs-list{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;padding:0}
+.dvf-tab-btn{border:1px solid #d0d0d0;background:#fff;color:#17201c;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit;font-size:14px}
+.dvf-tab-btn[aria-selected="true"]{background:#17201c;color:#fff;border-color:#17201c}
+.dvf-tab-panel[hidden]{display:none}`;
 
 export const ANIMATION_CSS = `.dvf-anim{opacity:0;transition:opacity .6s ease,transform .6s ease}
 .dvf-anim[data-dvf-anim="rise"]{transform:translateY(24px)}
@@ -256,6 +265,64 @@ const countdown: Renderer = (node, ctx) => {
 };
 
 /**
+ * Tabs: a container whose `tab` children each contribute one button in the
+ * tablist and one panel. Real ARIA roles; only the first panel ships visible
+ * (a no-JS visitor still reads the first tab's content). The header and the
+ * content stay separately selectable in the editor: the button carries the
+ * tab node's id via data-dvf-tab-for, the panel via the normal id stamp.
+ */
+const tabs: Renderer = (node, ctx) => {
+  const items = (node.children ?? []).filter((child) => child.type === 'tab' && !child.hidden);
+  if (items.length === 0) {
+    return ctx.hint(node, 'Abas — adicione itens em Geral → Itens de abas');
+  }
+
+  const rendered = items.map((item, index) => {
+    const attrs = ctx.baseAttrs(item);
+    const anchor = String(item.props?.anchor ?? '').trim();
+    const inEditor = 'data-dvf-id' in attrs;
+    const button = tag(
+      'button',
+      {
+        class: 'dvf-tab-btn',
+        'data-dvf-tab-btn': '',
+        type: 'button',
+        role: 'tab',
+        'aria-selected': index === 0 ? 'true' : 'false',
+        id: anchor || undefined,
+        'data-dvf-anchor': anchor || undefined,
+        // Editor-only: lets the canvas map a tab button back to its node.
+        'data-dvf-tab-for': inEditor ? item.id : undefined,
+      },
+      escapeText(String(item.props?.title ?? '')),
+    );
+    const panel = tag(
+      'div',
+      {
+        ...attrs,
+        role: 'tabpanel',
+        'data-dvf-tab-panel': '',
+        ...(index === 0 ? {} : { hidden: '' }),
+      },
+      ctx.renderChildren(item.children),
+    );
+    return { button, panel };
+  });
+  const buttons = rendered.map((r) => r.button).join('');
+  const panels = rendered.map((r) => r.panel).join('');
+
+  ctx.requireRuntime('tabs');
+  return tag(
+    'div',
+    { ...ctx.baseAttrs(node), 'data-dvf-tabs': '' },
+    tag('div', { class: 'dvf-tabs-list', role: 'tablist' }, buttons) + panels,
+  );
+};
+
+/** A tab outside a tabs container renders as a plain group — never crashes. */
+const tab: Renderer = (node, ctx) => tag('div', ctx.baseAttrs(node), ctx.renderChildren(node.children));
+
+/**
  * Author-written HTML.
  *
  * Deliberately unescaped — that is what it is for. It is the merchant's own
@@ -284,6 +351,8 @@ export const BLOCKS: Record<string, Renderer> = {
   divider,
   list,
   youtube,
+  tabs,
+  tab,
   accordion,
   repeater,
   countdown,
@@ -311,4 +380,14 @@ if(!("IntersectionObserver" in window)){els.forEach(function(el){el.classList.ad
 var io=new IntersectionObserver(function(es){es.forEach(function(e){
 if(e.isIntersecting){e.target.classList.add("dvf-in");io.unobserve(e.target);}})},{threshold:.15});
 els.forEach(function(el){io.observe(el)});})();`,
+  // Tab switching + anchor deep-link: #<anchor> in the URL opens that tab.
+  tabs: `document.querySelectorAll("[data-dvf-tabs]").forEach(function(root){
+var btns=root.querySelectorAll("[data-dvf-tab-btn]");
+var panels=root.querySelectorAll("[data-dvf-tab-panel]");
+function activate(i){
+btns.forEach(function(b,j){b.setAttribute("aria-selected",j===i?"true":"false")});
+panels.forEach(function(p,j){if(j===i)p.removeAttribute("hidden");else p.setAttribute("hidden","")});}
+btns.forEach(function(b,i){b.addEventListener("click",function(){activate(i)})});
+var h=decodeURIComponent(location.hash.slice(1));
+if(h)btns.forEach(function(b,i){if(b.getAttribute("data-dvf-anchor")===h)activate(i)});});`,
 };

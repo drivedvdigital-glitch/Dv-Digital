@@ -764,6 +764,17 @@ Verificado: 49/49 compilador + 11/11 novo + 13/13 + 5/5 regressão. Registros
 estratégicos (economia deles, pergunta aberta de seções, CRO checklist, lição de i18n)
 no MAPA_DE_LACUNAS.
 
+### ✅ Spec 08 aplicada (15/09) — Abas e Fontes do tema
+
+Dois itens grandes da fila, guiados por frames lidos com zoom: **elemento Abas**
+(lista de itens com inversão de cor, cabeçalho/conteúdo separados, âncora de deep-link
+com runtime, ARIA, duplo-clique-renomeia no canvas — melhor que a referência) e
+**fontes do tema com tokens** (token + fonte resolvida ao vivo da vitrine; compila para
+as variáveis OS 2.0 do tema, conferidas no tema real; canvas com a tipografia
+verdadeira). De quebra, três consertos de UX que os testes expuseram: container de abas
+só aceita abas, a lista de itens permanece ao editar uma aba, e a barra flutuante não
+cobre mais os botões das abas. Verificado: 51/51 + 9/9 novo + 29 regressão.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Três coisas, registradas também em `app/README.md`:

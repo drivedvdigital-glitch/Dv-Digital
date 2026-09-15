@@ -75,6 +75,8 @@ const EDITOR_BRIDGE = `
     var rect = el.getBoundingClientRect();
     toolbar.style.display = 'flex';
     var top = rect.top + window.scrollY - toolbar.offsetHeight - 6;
+    // A tab panel's toolbar would sit exactly over the tab buttons — go below.
+    if (el.hasAttribute('data-dvf-tab-panel')) top = rect.bottom + window.scrollY + 6;
     if (top < window.scrollY) top = rect.bottom + window.scrollY + 6;
     toolbar.style.top = top + 'px';
     toolbar.style.left = Math.max(4, rect.left + window.scrollX) + 'px';
@@ -92,6 +94,16 @@ const EDITOR_BRIDGE = `
     });
     var el = id && document.querySelector('[data-dvf-id="' + id + '"]');
     if (!el) { toolbar.style.display = 'none'; return; }
+    // Selecting something inside a closed tab opens that tab first.
+    var panel = el.closest('[data-dvf-tab-panel]');
+    if (panel && panel.hasAttribute('hidden')) {
+      var rootT = panel.closest('[data-dvf-tabs]');
+      if (rootT) {
+        var idx = [].indexOf.call(rootT.querySelectorAll('[data-dvf-tab-panel]'), panel);
+        var btn = rootT.querySelectorAll('[data-dvf-tab-btn]')[idx];
+        if (btn) activateTab(btn);
+      }
+    }
     el.scrollIntoView({ block: 'nearest' });
     document.getElementById('dvf-label').textContent = label || '';
     positionToolbar(el);
@@ -107,6 +119,20 @@ const EDITOR_BRIDGE = `
       parent.postMessage({ type: 'dvf:chrome' }, '*');
       return;
     }
+    // A tab button switches the tab locally AND selects the tab's node —
+    // the runtime's own listener never fires here (we capture first).
+    var tabBtn = event.target.closest('[data-dvf-tab-btn]');
+    if (tabBtn && !tabBtn.isContentEditable) {
+      event.preventDefault();
+      event.stopPropagation();
+      activateTab(tabBtn);
+      var forId = tabBtn.getAttribute('data-dvf-tab-for');
+      if (forId) {
+        parent.postMessage({ type: 'dvf:select', id: forId, additive: event.ctrlKey || event.metaKey }, '*');
+      }
+      return;
+    }
+    if (event.target.isContentEditable) return;
     var el = event.target.closest('[data-dvf-id]');
     event.preventDefault();
     event.stopPropagation();
@@ -115,6 +141,58 @@ const EDITOR_BRIDGE = `
       id: el ? el.getAttribute('data-dvf-id') : null,
       additive: event.ctrlKey || event.metaKey,
     }, '*');
+  }, true);
+
+  function activateTab(btn) {
+    var root = btn.closest('[data-dvf-tabs]');
+    if (!root) return;
+    var btns = [].slice.call(root.querySelectorAll('[data-dvf-tab-btn]'));
+    var panels = root.querySelectorAll('[data-dvf-tab-panel]');
+    var index = btns.indexOf(btn);
+    btns.forEach(function (b, j) { b.setAttribute('aria-selected', j === index ? 'true' : 'false'); });
+    panels.forEach(function (p, j) {
+      if (j === index) p.removeAttribute('hidden');
+      else p.setAttribute('hidden', '');
+    });
+  }
+
+  // Double-click renames the tab right on the canvas — Enter confirms,
+  // Escape cancels. (The reference makes you dig into the panel for this.)
+  document.addEventListener('dblclick', function (event) {
+    var btn = event.target.closest('[data-dvf-tab-btn]');
+    if (!btn || !btn.getAttribute('data-dvf-tab-for')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    var original = btn.textContent;
+    btn.setAttribute('contenteditable', 'true');
+    btn.focus();
+    var range = document.createRange();
+    range.selectNodeContents(btn);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    function finish(commit) {
+      btn.removeAttribute('contenteditable');
+      btn.removeEventListener('blur', onBlur);
+      btn.removeEventListener('keydown', onKey);
+      if (commit) {
+        parent.postMessage({
+          type: 'dvf:tabRename',
+          id: btn.getAttribute('data-dvf-tab-for'),
+          title: btn.textContent.trim(),
+        }, '*');
+      } else {
+        btn.textContent = original;
+      }
+    }
+    function onBlur() { finish(true); }
+    function onKey(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); btn.blur(); }
+      if (e.key === 'Escape') { finish(false); }
+    }
+    btn.addEventListener('blur', onBlur);
+    btn.addEventListener('keydown', onKey);
   }, true);
 
   // ---- drag to reorder ----------------------------------------------------
@@ -172,6 +250,8 @@ const EDITOR_BRIDGE = `
   // shortcut is forwarded out instead of silently dying here. The editor owns
   // what each key means; the bridge only reports.
   document.addEventListener('keydown', function (event) {
+    // Typing inside an inline rename must never trigger editor shortcuts.
+    if (event.target.isContentEditable) return;
     var send = function (name) {
       event.preventDefault();
       parent.postMessage({ type: 'dvf:key', key: name }, '*');
@@ -227,6 +307,13 @@ const EDITOR_BRIDGE = `
   window.addEventListener('message', function (event) {
     if (event.data && event.data.type === 'dvf:selected') apply(event.data.id, event.data.label, event.data.ids);
     if (event.data && event.data.type === 'dvf:animPreview') animPreview(event.data.id, event.data.name);
+    // The store theme's real font values, so the canvas typography matches
+    // what the published page will render inside the theme.
+    if (event.data && event.data.type === 'dvf:themeFonts') {
+      var fonts = event.data.fonts || {};
+      if (fonts.body) document.documentElement.style.setProperty('--font-body-family', fonts.body);
+      if (fonts.heading) document.documentElement.style.setProperty('--font-heading-family', fonts.heading);
+    }
   });
 })();
 </script>`;

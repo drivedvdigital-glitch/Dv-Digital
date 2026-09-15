@@ -123,10 +123,18 @@ Legenda: ✅ já temos · 🔨 em construção · ⬜ falta · ❌ decidimos nã
 - Caminho de mídia deles é frágil (3 falhas em 3 vídeos) — nossa futura biblioteca de
   mídia deve nascer melhor: upload aplica direto.
 
-### Fila (consolidada dos 7 relatórios, por valor)
+### Da spec 08 (frames de Abas + Fontes) — implementado em 15/09
 
-- ⬜ **Tabs (abas)** — requer runtime próprio.
-- ⬜ **Fontes do tema com tokens** no seletor de tipografia.
+- ✅ **Elemento Abas**: itens com lista própria (duplicar/excluir/adicionar, seleção por
+  inversão total de cor), cabeçalho e conteúdo separados na árvore, âncora de deep-link
+  (#ancora abre a aba na página publicada), ARIA real, runtime/CSS só quando usados —
+  e **duplo clique no canvas renomeia a aba** (melhor que a referência).
+- ✅ **Fontes do tema com tokens**: "fonte-do-corpo (Helvetica)" / "fonte-de-título
+  (Archivo)" — nomes resolvidos ao vivo da vitrine; compila para as variáveis do tema;
+  o canvas injeta os valores reais (o título renderiza Archivo no editor, igual ao ar).
+
+### Fila (consolidada, por valor)
+
 - ⬜ **Biblioteca de mídia com upload** (melhor que a deles: upload já aplica).
 - ⬜ **Galeria de templates** (com fricção proporcional no aplicar + prova social).
 - ⬜ **Zoom do canvas** + indicador "1440px, 58%".

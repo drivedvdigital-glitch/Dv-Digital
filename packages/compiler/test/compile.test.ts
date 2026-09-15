@@ -376,3 +376,51 @@ test('unconfigured blocks: editor shows the exact route, published output ships 
   assert.ok(editor.html.includes('Geral → Link do vídeo'), editor.html);
   assert.ok(editor.html.includes('data-dvf-id="i1"'), 'hint stays selectable in the canvas');
 });
+
+test('tabs: real ARIA markup, first panel visible, anchor deep-link, opt-in CSS/JS', () => {
+  const doc: Doc = {
+    version: 1,
+    root: [
+      {
+        id: 't1',
+        type: 'tabs',
+        children: [
+          { id: 'ta', type: 'tab', props: { title: 'Detalhes', anchor: 'detalhes' }, children: [
+            { id: 'p1', type: 'text', props: { text: 'Conteúdo A' } },
+          ] },
+          { id: 'tb', type: 'tab', props: { title: 'Medidas' }, children: [] },
+          { id: 'tc', type: 'tab', props: { title: 'Oculta' }, hidden: true, children: [] },
+        ],
+      },
+    ],
+  };
+  const out = compile(doc);
+  assert.ok(out.html.includes('role="tablist"'));
+  assert.equal((out.html.match(/role="tab"/g) ?? []).length, 2, 'hidden tab must not render');
+  assert.ok(out.html.includes('aria-selected="true"'));
+  assert.ok(/<div[^>]*role="tabpanel"[^>]*hidden/.test(out.html), 'second panel ships hidden');
+  assert.ok(out.html.includes('id="detalhes"') && out.html.includes('data-dvf-anchor="detalhes"'));
+  assert.ok(out.css.includes('.dvf-tab-btn'), 'tabs CSS shipped');
+  assert.ok(out.js.includes('data-dvf-tabs'), 'tabs runtime shipped');
+  assert.ok(!out.html.includes('data-dvf-tab-for'), 'editor mapping must not leak to published output');
+
+  const editor = compile(doc, { nodeIds: true, editorHints: true });
+  assert.ok(editor.html.includes('data-dvf-tab-for="ta"'), 'editor build maps buttons to nodes');
+
+  const plain = compile({ version: 1, root: [{ id: 'h', type: 'heading', props: { level: 1, text: 'x' } }] });
+  assert.ok(!plain.css.includes('dvf-tab'), 'no tabs CSS without tabs');
+});
+
+test('theme font tokens compile to the theme variables; custom stacks pass through', () => {
+  const { css } = compile({
+    version: 1,
+    root: [
+      { id: 'a', type: 'heading', props: { level: 1, text: 'x' }, style: { base: { fontFamily: 'theme-heading' } } },
+      { id: 'b', type: 'text', props: { text: 'y' }, style: { base: { fontFamily: 'theme-body' } } },
+      { id: 'c', type: 'text', props: { text: 'z' }, style: { base: { fontFamily: 'Georgia, serif' } } },
+    ],
+  });
+  assert.ok(css.includes('font-family:var(--font-heading-family, inherit)'), css);
+  assert.ok(css.includes('font-family:var(--font-body-family, inherit)'), css);
+  assert.ok(css.includes('font-family:Georgia, serif'), css);
+});

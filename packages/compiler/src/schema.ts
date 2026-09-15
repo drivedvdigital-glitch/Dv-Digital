@@ -87,6 +87,13 @@ export interface StyleProps {
   borderColor?: string;
 
   // Type.
+  /**
+   * 'theme-body' | 'theme-heading' compile to the theme's own font variables
+   * (--font-body-family / --font-heading-family) — the page reuses the
+   * store's identity instead of competing with it. Any other string is used
+   * as a literal font stack.
+   */
+  fontFamily?: string;
   fontSize?: Length;
   fontWeight?: number;
   lineHeight?: number;
@@ -112,6 +119,8 @@ export type BlockType =
   | 'divider'
   | 'list'
   | 'youtube'
+  | 'tabs'
+  | 'tab'
   | 'accordion'
   | 'repeater'
   | 'countdown'
