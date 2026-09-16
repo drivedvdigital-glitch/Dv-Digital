@@ -317,7 +317,6 @@ export default function PagesList() {
       <UiStyle />
       <div style={pageWrap}>
         <header style={listHead}>
-          <img src="/mark.svg" alt="" width={30} height={30} />
           <div>
             <h1 style={listTitle}>Páginas</h1>
             {/* Counted from the data on screen, never hardcoded. */}
@@ -563,17 +562,18 @@ const pageShell: React.CSSProperties = {
   color: 'var(--dv-ink)',
 };
 
+// Full width, like the admin's own index pages (Produtos, Pedidos): a narrow
+// card floating in the middle of a wide frame reads as a demo, not a tool.
 const pageWrap: React.CSSProperties = {
-  maxWidth: 1120,
-  margin: '0 auto',
-  padding: '24px 24px 48px',
+  width: '100%',
+  padding: '20px 24px 48px',
 };
 
 const listHead: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 12,
-  marginBottom: 16,
+  marginBottom: 14,
 };
 
 const listTitle: React.CSSProperties = {
@@ -618,7 +618,7 @@ const tabCount: React.CSSProperties = {
   lineHeight: '16px',
 };
 
-const searchWrap: React.CSSProperties = { position: 'relative', width: 260, paddingBottom: 6 };
+const searchWrap: React.CSSProperties = { position: 'relative', width: 320, paddingBottom: 6 };
 const searchIcon: React.CSSProperties = { position: 'absolute', left: 9, top: 8, color: 'var(--dv-ink-3)', pointerEvents: 'none' };
 const searchInput: React.CSSProperties = { paddingLeft: 30 };
 
@@ -671,14 +671,14 @@ const th: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 500,
   color: 'var(--dv-ink-2)',
-  padding: '8px 12px',
+  padding: '8px 16px',
   borderBottom: '1px solid var(--dv-edge)',
   background: 'var(--dv-sfc-sub)',
   whiteSpace: 'nowrap',
 };
 
 const td: React.CSSProperties = {
-  padding: '10px 12px',
+  padding: '12px 16px',
   borderBottom: '1px solid var(--dv-edge-soft)',
   verticalAlign: 'middle',
 };

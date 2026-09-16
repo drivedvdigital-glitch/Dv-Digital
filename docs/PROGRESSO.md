@@ -1116,6 +1116,14 @@ muitas vezes seguidas — a checagem passou a esperar mais entre tentativas. Fic
 o `layout/theme.dvfly-product.liquid` é compartilhado pelas páginas de produto da loja e
 não é removido ao excluir uma página.
 
+### ✅ Lista em largura total (16/09)
+
+Dentro do admin, a lista era um cartão estreito boiando no meio de uma tela larga — o ar
+de demonstração que o usuário apontou. As listagens do próprio admin (Produtos, Pedidos)
+ocupam a largura toda: agora a nossa também, alinhada à esquerda, sem o logo repetindo o
+que a barra do admin já mostra, com células mais respiradas e a busca mais larga.
+Verificado: print a 1680 px, flow7 e flow18 verdes.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
