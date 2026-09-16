@@ -53,10 +53,22 @@ de manter tudo de pé.
 
 1. **Um endereço (domínio ou subdomínio) apontando para o IP da VM.** A Shopify só abre o
    app dentro do admin por HTTPS, e HTTPS precisa de um nome, não de um IP.
-   - Você já tem o `megakciok.shop` na Shopify: em **Configurações → Domínios → DNS**, crie
-     um registro **A** com nome `app` apontando para o IP da VM. Fica
-     `app.megakciok.shop` — de graça, e em minutos.
-   - Serve qualquer outro domínio seu.
+
+   O registro A se cria **onde o DNS do domínio mora**, que nem sempre é onde ele foi
+   comprado. Na página do domínio, dentro da Shopify, a linha embaixo do nome diz:
+   *"Gerenciado por Cloudflare"*, *"Gerenciado pela Shopify"*, etc.
+
+   - **DNS na Cloudflare** (o caso do `megakciok.shop`): em
+     [dash.cloudflare.com](https://dash.cloudflare.com) → o domínio → **DNS → Records →
+     Add record**. Tipo **A**, Name `app`, IPv4 o IP da VM, e — isto é o que decide se vai
+     funcionar — **Proxy status em "DNS only"** (a nuvenzinha CINZA, não a laranja).
+     Com a nuvem laranja, quem responde na porta 443 é a Cloudflare, não a sua VM: o Caddy
+     não consegue emitir o certificado e, dependendo do modo de SSL da conta, o navegador
+     entra em laço de redirecionamento. Cinza = o nome aponta direto para a VM, que é o que
+     este desenho espera.
+   - **DNS na Shopify**: na página do domínio, **Configurações do domínio → Configurações de
+     DNS → Adicionar registro personalizado → Registro A**, nome `app`, valor o IP da VM.
+   - Em qualquer caso: **não mexa no registro A da raiz** — é ele que faz a loja abrir.
 2. **Portas 80 e 443 abertas** no painel do provedor da VM (o firewall do Windows o
    instalador abre sozinho).
 3. As **credenciais do app** na Shopify (Dev Dashboard → seu app → *Client credentials*).
