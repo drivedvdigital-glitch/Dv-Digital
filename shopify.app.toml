@@ -13,10 +13,13 @@ client_id = "90c1e96f2c78ab7b88750d387691d07f"
 name = "D&VFly"
 handle = "dvfly"
 
-# Troque pelo endereço público onde o app está hospedado (HTTPS, sem caminho).
-# É este endereço que o admin da Shopify abre dentro do iframe e para o qual
-# os webhooks abaixo (URIs relativas) são entregues.
-application_url = "https://SEU-ENDERECO-PUBLICO"
+# O endereço público onde o app está hospedado (HTTPS, sem caminho). É este
+# endereço que o admin da Shopify abre dentro do iframe e para o qual os
+# webhooks abaixo (URIs relativas) são entregues.
+#
+# Aponta para a VM Windows (registro A na Cloudflare, "DNS only"). Cuidado ao
+# reler: o domínio do APP é megaAkciok (dois "a"); o da LOJA é megakciok.
+application_url = "https://app.megaakciok.shop"
 embedded = true
 
 [build]
@@ -38,7 +41,7 @@ use_legacy_install_flow = false
 
 [auth]
 # Exigido pela Shopify mesmo com instalação gerenciada (nunca é usado).
-redirect_urls = ["https://SEU-ENDERECO-PUBLICO/app"]
+redirect_urls = ["https://app.megaakciok.shop/app"]
 
 [webhooks]
 api_version = "2026-07"
