@@ -9,12 +9,32 @@
 {$DVFLY_DOMAIN} {
 	encode zstd gzip
 
-	# O app responde /healthz sem autenticação; é por onde se olha se está de pé.
-	reverse_proxy app:3000 {
+	reverse_proxy {
+		# O endereço do app é resolvido A CADA requisição, no DNS do Docker.
+		# Publicar recria o container: por um instante o nome "app" não existe,
+		# e um destino fixo vira 502 (medido: 1,3 s de erro por publicação).
+		# Resolvendo na hora, a requisição espera o nome voltar.
+		dynamic a {
+			name app
+			port 3000
+			refresh 1s
+			resolvers 127.0.0.11
+		}
+
 		header_up X-Forwarded-Proto {scheme}
 		header_up X-Forwarded-For {remote_host}
-		health_uri /healthz
-		health_interval 30s
+
+		# Nada de checagem ATIVA de saúde aqui. Com um único destino ela só
+		# atrapalha: a primeira checagem cai enquanto o app ainda sobe, o
+		# destino fica marcado como morto até a próxima rodada e todo mundo
+		# leva 503 nesse meio-tempo (medido: 30 s de 503 depois de publicar).
+		# Quem responde "está de pé?" é o /healthz, e quem vigia é o
+		# healthcheck do container, no docker-compose.yml.
+		#
+		# Aqui vale o contrário: uma requisição que chega durante o reinício
+		# ESPERA o app voltar em vez de falhar.
+		lb_try_duration 15s
+		lb_try_interval 500ms
 	}
 
 	log {

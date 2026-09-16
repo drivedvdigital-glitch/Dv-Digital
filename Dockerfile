@@ -32,6 +32,11 @@ COPY . .
 ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
 RUN npm run build
 
+# Fora tudo que só servia para compilar (vite, typescript, tipos): a imagem cai
+# pela metade, e numa VPS isso é disco e tempo de download a cada publicação.
+# O CLI do Prisma fica: é ele que aplica as migrations no start.
+RUN npm prune --omit=dev
+
 # ---- 2. runtime -------------------------------------------------------------
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app

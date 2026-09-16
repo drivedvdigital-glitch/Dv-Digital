@@ -151,11 +151,21 @@ nano .env     # preencha DVFLY_DOMAIN, POSTGRES_PASSWORD, as duas da Shopify e a
 
 ```bash
 docker compose up -d --build
-docker compose ps        # os três têm que estar "running"
+docker compose ps        # os três "running"; o app diz "(healthy)" em até 1 min
 curl -s https://dvfly.seudominio.com.br/healthz
 ```
 
 O app aplica as migrations sozinho a cada start — não existe passo manual de banco.
+
+O que esperar, medido nesta bancada com a pilha real subida (Docker + Postgres + Caddy):
+
+| | |
+|---|---|
+| Primeiro `up` | o Postgres fica saudável, **só então** o app sobe, aplica a migration e serve |
+| Imagem | ~730 MB (o que compila é podado; sobra o CLI do Prisma, que aplica as migrations) |
+| HTTPS | o Caddy pega o certificado sozinho; `http://` responde 308 para `https://` |
+| Publicar uma versão nova | **0 requisições perdidas** — quem chega durante a troca espera o app voltar |
+| Banco | sobrevive a publicação e a reinício (vive num volume, não na imagem) |
 
 ### 4. Daí em diante: publicar uma versão nova
 
@@ -163,6 +173,13 @@ Na sua máquina Windows, crie o arquivo `publicar-vm.txt` na pasta do projeto co
 linha** — `usuario@ip-ou-dominio` — e dê duplo clique em **`PUBLICAR-DVFLY-VM.cmd`**. Ele
 envia o código para o GitHub e manda a VM puxar e reconstruir. O banco fica intacto: ele
 vive num volume do Docker, não dentro da imagem.
+
+### O ícone do app
+
+`docs/marca/app-icon-1200-escuro.png` (1200×1200, PNG) é o arquivo do campo **Ícone do app**
+no Dev Dashboard. É a marca simplificada, que é a que continua legível nos ~40 px em que a
+Shopify mostra o ícone — a marca cheia, de 25 losangos, vira poeira nesse tamanho. Há também
+a versão de fundo claro e as duas com a marca cheia, na mesma pasta.
 
 ### Backup (faça)
 
@@ -234,6 +251,8 @@ Confira no fim: `https://seu-endereco/healthz` deve mostrar `"lojas"` maior que 
 | Tudo dá 400 ao salvar/publicar | o proxy não está mandando `X-Forwarded-Proto` | na VM é o `Caddyfile` (já vem certo); atrás de outro proxy, configure isso |
 | Vercel: `Query engine library not found` | o motor do Prisma não veio para a função | confirme que o build rodou `prisma generate` (está no `npm run build`) e refaça o deploy sem cache |
 | A loja diz que o app não está instalado | o `application_url` da Shopify ainda aponta para o túnel antigo | refaça o passo **Ligar na Shopify** |
+| VM: `docker compose ps` mostra o app reiniciando sem parar | o app recusou subir; quase sempre falta variável no `.env` | `docker compose logs app` — a primeira linha diz qual |
+| VM: 502 por alguns segundos ao publicar | não deveria acontecer (o Caddy resolve o endereço do app a cada requisição e espera) | confira se o `Caddyfile` da VM é o do repositório, com o bloco `dynamic a` |
 
 ---
 

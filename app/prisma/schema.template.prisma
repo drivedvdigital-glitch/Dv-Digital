@@ -7,14 +7,7 @@
 // a serverless filesystem is thrown away between deployments).
 //
 // The models below are shared by both, byte for byte.
-generator client {
-  provider = "prisma-client-js"
-  // `native` is the machine that runs `prisma generate`; the second target is
-  // the one Vercel's Node runtime uses. Without it, a build made on the CI
-  // image deploys a query engine the function cannot load, and every page dies
-  // with "Query engine library not found" — at runtime, not at build time.
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
-}
+// <<GENERATOR>>
 
 // <<DATASOURCE>>
 

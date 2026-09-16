@@ -48,6 +48,26 @@ export function providerFor(url) {
   );
 }
 
+/**
+ * The client generator.
+ *
+ * `binaryTargets` is the environment-specific part: Prisma ships a query engine
+ * compiled for one platform, and a build made here must carry the engine of the
+ * machine that will RUN it. On Vercel that machine is not this one, so the
+ * extra target goes in; on a VM (or a laptop) the image is built and run on the
+ * same platform, and shipping the extra engine is ~50 MB of dead weight in
+ * every deployment.
+ */
+export function generatorBlock(forVercel) {
+  const targets = forVercel ? '["native", "rhel-openssl-3.0.x"]' : '["native"]';
+  return [
+    'generator client {',
+    '  provider = "prisma-client-js"',
+    `  binaryTargets = ${targets}`,
+    '}',
+  ].join('\n');
+}
+
 export function datasourceBlock(provider, hasDirectUrl) {
   const lines = [
     'datasource db {',
@@ -63,22 +83,30 @@ export function datasourceBlock(provider, hasDirectUrl) {
   return lines.join('\n');
 }
 
-export function renderSchema(url, hasDirectUrl) {
+export function renderSchema(url, hasDirectUrl, forVercel = false) {
   const provider = providerFor(url);
   const source = readFileSync(template, 'utf8');
-  if (!source.includes('// <<DATASOURCE>>')) {
-    throw new Error('schema.template.prisma perdeu o marcador // <<DATASOURCE>>.');
+  for (const marker of ['// <<GENERATOR>>', '// <<DATASOURCE>>']) {
+    if (!source.includes(marker)) {
+      throw new Error(`schema.template.prisma perdeu o marcador ${marker}.`);
+    }
   }
   return {
     provider,
-    schema: source.replace('// <<DATASOURCE>>', datasourceBlock(provider, hasDirectUrl)),
+    schema: source
+      .replace('// <<GENERATOR>>', generatorBlock(forVercel))
+      .replace('// <<DATASOURCE>>', datasourceBlock(provider, hasDirectUrl)),
   };
 }
 
 // Only writes when run directly, so the functions above stay testable.
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const url = envDatabaseUrl();
-  const { provider, schema } = renderSchema(url, Boolean(process.env.DATABASE_URL_DIRECT?.trim()));
+  const { provider, schema } = renderSchema(
+    url,
+    Boolean(process.env.DATABASE_URL_DIRECT?.trim()),
+    process.env.VERCEL === '1',
+  );
   // Rewriting an identical file would touch its mtime and make Prisma and
   // Vite redo work for nothing.
   if (!existsSync(target) || readFileSync(target, 'utf8') !== schema) {

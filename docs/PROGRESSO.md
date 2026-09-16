@@ -1245,12 +1245,39 @@ aparece como erro sem nome dentro do admin.
 - 102 testes, typecheck, build, e o `docker compose config` valida.
 
 **O que não deu para verificar aqui, dito na cara:** o `docker build` não completa neste
-ambiente — os containers não têm saída para o `registry.npmjs.org` (o `npm ci` morre no
-meio). O caminho da VM está escrito e validado na configuração, mas a imagem só será provada
-na primeira vez que você rodar `docker compose up -d --build` na VM.
+ambiente com a rede normal — os containers não alcançam o `registry.npmjs.org`. (Resolvido
+no mesmo dia passando a proxy do sandbox; veja a entrada seguinte, onde a pilha inteira roda.)
 
 **Guia:** `docs/HOSPEDAGEM.md` — as duas estradas, passo a passo, com a tabela de erros
 comuns e a nota honesta sobre o plano Hobby da Vercel ser para uso não comercial.
+
+### ✅ A pilha da VM provada de ponta a ponta — e dois defeitos consertados (16/09)
+
+O usuário escolheu a VM. Antes de ele encostar na máquina dele, a pilha inteira subiu **aqui**
+(Docker + Postgres 16 + Caddy). Os containers deste ambiente não alcançam o `registry.npmjs.org`;
+a imagem foi construída passando a proxy e a CA do sandbox num `Dockerfile.test` descartável —
+o que muda é só a rede, o resto da imagem é o arquivo do repositório.
+
+O que a prova pegou (e que nenhuma leitura de código pegaria):
+
+1. **503 por 30 s depois de publicar.** O `Caddyfile` fazia checagem ATIVA de saúde. Com um
+   destino só, a primeira checagem cai enquanto o app ainda sobe e o destino fica marcado como
+   morto até a rodada seguinte — 30 segundos de 503 para todo mundo. Tirada. Quem vigia agora é
+   o `healthcheck` do container (bate no `/healthz`, que só dá 200 com o banco respondendo).
+2. **1,3 s de 502 a cada publicação** (medido com uma requisição a cada 200 ms durante um
+   `up -d --build`): ao recriar o container, o nome `app` some do DNS do Docker e o Caddy não
+   repete requisição que falha em DNS. Conserto: `dynamic a` — o endereço é resolvido a cada
+   requisição, com `lb_try_duration`. Nova medição: **0 falhas em 120 amostras**.
+
+Também medido e conferido: HTTPS automático (certificado emitido pelo Caddy, `http` → 308),
+as migrations aplicadas sozinhas no start (log do container), o banco **sobrevivendo** a
+reinício e a recriação do container, e o app **recusando subir** em produção sem
+`DVFLY_TOKEN_KEY` — com a mensagem que diz o que fazer.
+
+A imagem saiu de **899 MB para 733 MB**: `npm prune --omit=dev` depois do build (o CLI do
+Prisma virou dependência de verdade, porque é ele que aplica as migrations no start) e o motor
+extra do Prisma (`rhel-openssl-3.0.x`, que só a Vercel usa) passou a entrar **só quando
+`VERCEL=1`** — o bloco `generator` também é gerado agora, pela mesma regra do datasource.
 
 ### ✅ A logo virou marca do app (16/09)
 
