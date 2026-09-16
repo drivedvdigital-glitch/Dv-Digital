@@ -22,5 +22,11 @@
     "db:deploy": "npm run db:deploy --workspace @dvfly/app",
     "gerar-chave": "node scripts/generate-key.mjs",
     "migrar-dados": "node --experimental-strip-types --experimental-sqlite scripts/import-local-database.mjs"
+  },
+  "allowScripts": {
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "prisma": true,
+    "esbuild": true
   }
 }

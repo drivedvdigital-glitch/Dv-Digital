@@ -20,24 +20,17 @@
  *
  * The generated file is NOT in git. One source of truth, no drift, and no
  * chance of a machine committing its own datasource.
+ *
+ * This module only DECIDES; `db-schema.mjs` is what writes. Nothing here has a
+ * side effect on import.
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const template = join(appDir, 'prisma', 'schema.template.prisma');
-const target = join(appDir, 'prisma', 'schema.prisma');
-
-/** `.env` is the developer's file; the environment wins over it, as on a host. */
-function envDatabaseUrl() {
-  if (process.env.DATABASE_URL?.trim()) return process.env.DATABASE_URL.trim();
-  const file = join(appDir, '.env');
-  if (!existsSync(file)) return '';
-  const match = /^\s*DATABASE_URL\s*=\s*"?([^"\r\n]*)"?/m.exec(readFileSync(file, 'utf8'));
-  return match?.[1]?.trim() ?? '';
-}
 
 export function providerFor(url) {
   if (/^postgres(ql)?:\/\//i.test(url)) return 'postgresql';
@@ -97,20 +90,4 @@ export function renderSchema(url, hasDirectUrl, forVercel = false) {
       .replace('// <<GENERATOR>>', generatorBlock(forVercel))
       .replace('// <<DATASOURCE>>', datasourceBlock(provider, hasDirectUrl)),
   };
-}
-
-// Only writes when run directly, so the functions above stay testable.
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
-  const url = envDatabaseUrl();
-  const { provider, schema } = renderSchema(
-    url,
-    Boolean(process.env.DATABASE_URL_DIRECT?.trim()),
-    process.env.VERCEL === '1',
-  );
-  // Rewriting an identical file would touch its mtime and make Prisma and
-  // Vite redo work for nothing.
-  if (!existsSync(target) || readFileSync(target, 'utf8') !== schema) {
-    writeFileSync(target, schema);
-  }
-  console.log(`[dvfly] banco: ${provider}`);
 }

@@ -1251,6 +1251,36 @@ no mesmo dia passando a proxy do sandbox; veja a entrada seguinte, onde a pilha 
 **Guia:** `docs/HOSPEDAGEM.md` — as duas estradas, passo a passo, com a tabela de erros
 comuns e a nota honesta sobre o plano Hobby da Vercel ser para uso não comercial.
 
+### 🔴→✅ O instalador parou na VM: um `if` que só é verdade no Linux (16/09)
+
+Primeira execução real na VM, e parou em `npm run setup` com
+*"Could not find Prisma Schema"*. O passo anterior, `npm run db:schema`, tinha saído **com
+sucesso e sem escrever nada**.
+
+A causa, inteira numa linha:
+
+```js
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {   // ERRADO
+```
+
+No Linux isso é verdade. No Windows o argumento é `C:\dvfly\app\scripts\prisma-schema.mjs`
+e a url é `file:///C:/dvfly/app/scripts/prisma-schema.mjs` — **nunca** iguais. O script
+carregava, não executava nada, saía 0, e a falha aparecia dois comandos depois, com o nome de
+um arquivo que ninguém tinha sido avisado que era gerado.
+
+Conserto pela raiz, não pelo remendo: o arquivo que existe para ser executado parou de
+adivinhar se está sendo executado. `prisma-schema.mjs` virou biblioteca pura (sem efeito no
+import) e `db-schema.mjs` é o que escreve — e agora **diz** o que escreveu, porque um passo
+silencioso é o que faz a falha aparecer longe da causa.
+
+Junto, uma coisa que a tela da VM mostrou e que ainda não mordia: o npm de lá (11.17) já
+avisa que `prisma`, `@prisma/*` e `esbuild` têm script de instalação **não aprovado**. Hoje é
+só aviso; no npm 12 passa a bloquear — e a VM pararia de compilar sozinha, num dia qualquer,
+sem ninguém ter mexido em nada. O campo `allowScripts` na raiz já aprova os quatro.
+
+Verificado aqui: a cadeia inteira que a VM roda (`setup` → `build` → `db:deploy`), 102 testes,
+typecheck. A armadilha do `argv[1]` está no CLAUDE.md.
+
 ### ✅ A VM é Windows: instalação nativa, num comando (16/09)
 
 O print da VM mudou o plano: é **Windows**, acessada por Área de Trabalho Remota, e está

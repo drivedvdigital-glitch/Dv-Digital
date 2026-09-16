@@ -6,7 +6,7 @@
     "dev": "react-router dev",
     "build": "npm run db:schema && prisma generate && react-router build",
     "start": "node server.mjs",
-    "db:schema": "node scripts/prisma-schema.mjs",
+    "db:schema": "node scripts/db-schema.mjs",
     "db:deploy": "node scripts/db-sync.mjs",
     "db:setup": "node scripts/ensure-env.mjs && npm run db:schema && prisma generate && npm run db:deploy",
     "vercel-build": "npm run build && npm run db:deploy"
