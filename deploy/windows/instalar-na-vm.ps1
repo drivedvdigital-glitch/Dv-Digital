@@ -255,6 +255,7 @@ function RegistrarTarefa($nome, $programa, $argumentos, $pasta) {
     Write-Host "   $nome registrada e iniciada."
 }
 
+$node = (Get-Command node).Source
 $caddy = (Get-Command caddy).Source
 $pastaApp = Join-Path $Raiz 'app'
 
@@ -265,6 +266,10 @@ $pastaApp = Join-Path $Raiz 'app'
 # O app escuta so em 127.0.0.1 - quem fala com o mundo e o Caddy, com TLS.
 # Sem isso, daria para chegar nele pela porta $Porta sem passar pelo HTTPS.
 $Runner = Join-Path $PastaCaddy 'rodar-app.gerado.cmd'
+# O caminho COMPLETO do node, nao o nome: o servico de Tarefas do Windows
+# guarda o ambiente de quando ELE subiu, que nesta VM foi antes de o Node ser
+# instalado. Chamar "node" ali da "nao reconhecido", a tarefa morre na hora e o
+# app nunca aparece - sem nada no lugar onde alguem procuraria.
 $runnerConteudo = @"
 @echo off
 rem Escrito pelo instalador. Nao edite: e reescrito a cada instalacao.
@@ -272,7 +277,7 @@ set NODE_ENV=production
 set HOST=127.0.0.1
 set PORT=$Porta
 cd /d "$pastaApp"
-node server.mjs
+"$node" server.mjs
 "@
 Set-Content -Path $Runner -Value $runnerConteudo -Encoding ASCII
 
@@ -339,6 +344,14 @@ if ($ok) {
     Write-Host '  Para publicar uma versao nova: clique em ATUALIZAR DVFly, na area de trabalho.'
 } else {
     Write-Host '  O app nao respondeu.' -ForegroundColor Red
+    foreach ($tarefa in 'DVFly App', 'DVFly HTTPS') {
+        $info = Get-ScheduledTaskInfo -TaskName $tarefa -ErrorAction SilentlyContinue
+        if ($info) {
+            Write-Host ("    " + $tarefa + ': ultimo resultado ' + $info.LastTaskResult)
+        }
+    }
+    Write-Host '  (resultado 0 = rodou; 1 ou 267011 = o processo nao chegou a subir)'
+    Write-Host ''
     Write-Host '  Veja o que ele disse:'
     Write-Host '    Get-ScheduledTask "DVFly App" | Get-ScheduledTaskInfo'
     Write-Host "    cd $Raiz\app ; node server.mjs"

@@ -25,12 +25,13 @@
  * side effect on import.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const template = join(appDir, 'prisma', 'schema.template.prisma');
+const target = join(appDir, 'prisma', 'schema.prisma');
 
 export function providerFor(url) {
   if (/^postgres(ql)?:\/\//i.test(url)) return 'postgresql';
@@ -90,4 +91,35 @@ export function renderSchema(url, hasDirectUrl, forVercel = false) {
       .replace('// <<GENERATOR>>', generatorBlock(forVercel))
       .replace('// <<DATASOURCE>>', datasourceBlock(provider, hasDirectUrl)),
   };
+}
+
+/** `.env` is the developer's file; the environment wins over it, as on a host. */
+export function databaseUrl() {
+  if (process.env.DATABASE_URL?.trim()) return process.env.DATABASE_URL.trim();
+  const file = join(appDir, '.env');
+  if (!existsSync(file)) return '';
+  const match = /^\s*DATABASE_URL\s*=\s*"?([^"\r\n]*)"?/m.exec(readFileSync(file, 'utf8'));
+  return match?.[1]?.trim() ?? '';
+}
+
+/**
+ * Writes `prisma/schema.prisma` for the database currently configured.
+ *
+ * Every command that touches Prisma calls this first, because the schema on
+ * disk carries the PROVIDER: pointing DATABASE_URL at Postgres while the file
+ * still says `sqlite` fails with "the URL must start with the protocol file:",
+ * which names neither the real problem nor the file to fix.
+ */
+export function writeSchema() {
+  const { provider, schema } = renderSchema(
+    databaseUrl(),
+    Boolean(process.env.DATABASE_URL_DIRECT?.trim()),
+    process.env.VERCEL === '1',
+  );
+  // Rewriting an identical file would touch its mtime and make Prisma and Vite
+  // redo work for nothing.
+  if (!existsSync(target) || readFileSync(target, 'utf8') !== schema) {
+    writeFileSync(target, schema);
+  }
+  return { provider, path: target };
 }
