@@ -54,6 +54,12 @@ export interface OptimizeResult {
     imagesTouched: number;
     scriptsFound: number;
     /**
+     * `rem` lengths resolved to the pixels they meant in the author's file.
+     * The one rewrite this pass makes to the author's own values, and the
+     * reason is in `rebaseRem`.
+     */
+    remRebased: number;
+    /**
      * Heading levels found, in document order. Reported as data rather than as
      * findings because "exactly one H1" is a property of the page, not of one
      * block — a page with three HTML blocks must not be scolded three times.
@@ -66,6 +72,126 @@ export interface OptimizeResult {
      */
     interactiveElements: number;
   };
+}
+
+/** What `1rem` means in a page that declares nothing: the browser default. */
+const DEFAULT_ROOT_PX = 16;
+
+/**
+ * Reads what the author's own markup says a `rem` is worth.
+ *
+ * A standalone page that writes `html{font-size:62.5%}` means `2rem` = 20px;
+ * one that says nothing means 16px. We need this because the value cannot be
+ * preserved on the storefront (see `rebaseRem`): the theme owns `<html>`.
+ */
+export function authorRootPx(css: string): number {
+  let px = DEFAULT_ROOT_PX;
+  const rules = /(?:^|[{}；;])\s*(?::root|html)\s*\{([^}]*)\}/gi;
+  for (const rule of css.matchAll(rules)) {
+    const match = /(?:^|;)\s*font-size\s*:\s*([^;]+)/i.exec(rule[1]);
+    if (!match) continue;
+    const value = match[1].trim();
+    const number = parseFloat(value);
+    if (!Number.isFinite(number)) continue;
+    if (value.endsWith('%')) px = (DEFAULT_ROOT_PX * number) / 100;
+    else if (value.endsWith('px')) px = number;
+    else if (value.endsWith('em')) px = DEFAULT_ROOT_PX * number; // rem and em are the same at the root
+    else if (value.endsWith('pt')) px = (number * 96) / 72;
+  }
+  return px;
+}
+
+/** A `rem` length, ignoring matches that are part of a longer identifier. */
+const REM_VALUE = /(?<![\w.#%-])(-?(?:\d+\.?\d*|\.\d+))rem\b/g;
+
+const px = (value: number): string => `${Number(value.toFixed(4))}px`;
+
+/**
+ * Converts `rem` lengths into the pixels they meant in the author's own file.
+ *
+ * `rem` is resolved against `<html>`, and on the storefront `<html>` belongs to
+ * the theme: the store measured on 16/09 sets `font-size:62.5%`, so every
+ * `5.2rem` the author wrote came out at 52px instead of 83.2px — the whole page
+ * rendered at 62.5% of its design. There is no CSS that re-roots `rem` for a
+ * subtree, so the only way to publish the size the author designed is to
+ * resolve it here, while we still know what it was worth.
+ *
+ * At-rule preludes are left alone on purpose: `@media (min-width:48rem)` is
+ * always measured against the initial 16px, in both places, so it is already
+ * right.
+ */
+export function rebaseRem(css: string, rootPx: number): { css: string; count: number } {
+  let out = '';
+  let buffer = '';
+  let count = 0;
+  let i = 0;
+
+  /** Index just past the string that starts at `from`. */
+  const endOfString = (from: number): number => {
+    const quote = css[from];
+    let j = from + 1;
+    while (j < css.length && css[j] !== quote) j += css[j] === '\\' ? 2 : 1;
+    return Math.min(j + 1, css.length);
+  };
+
+  const flush = () => {
+    out += buffer.replace(REM_VALUE, (_, number) => {
+      count++;
+      return px(parseFloat(number) * rootPx);
+    });
+    buffer = '';
+  };
+  const copy = (end: number) => {
+    flush();
+    out += css.slice(i, end);
+    i = end;
+  };
+
+  while (i < css.length) {
+    const char = css[i];
+    if (char === '/' && css[i + 1] === '*') {
+      const close = css.indexOf('*/', i + 2);
+      copy(close === -1 ? css.length : close + 2);
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      copy(endOfString(i));
+      continue;
+    }
+    if (char === '@') {
+      // The prelude, up to and including the `{` that opens the block or the
+      // `;` that ends the at-rule — and neither can be inside a string or a
+      // function: `@import url('…css2?family=X;wght@0,600')` has both.
+      let j = i + 1;
+      let depth = 0;
+      while (j < css.length) {
+        const c = css[j];
+        if (c === '"' || c === "'") {
+          j = endOfString(j);
+          continue;
+        }
+        if (c === '(') depth++;
+        else if (c === ')') depth--;
+        else if (depth === 0 && (c === '{' || c === ';')) {
+          j++;
+          break;
+        }
+        j++;
+      }
+      copy(Math.min(j, css.length));
+      continue;
+    }
+    if (css.startsWith('url(', i)) {
+      let j = i + 4;
+      while (j < css.length && css[j] !== ')') j = css[j] === '"' || css[j] === "'" ? endOfString(j) : j + 1;
+      copy(Math.min(j + 1, css.length));
+      continue;
+    }
+    buffer += char;
+    i++;
+  }
+  flush();
+  return { css: out, count };
 }
 
 /** Splits a `style` attribute into declarations, dropping empty fragments. */
@@ -163,6 +289,7 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     styleBlocksScoped: 0,
     imagesTouched: 0,
     scriptsFound: 0,
+    remRebased: 0,
     headingLevels: [] as number[],
     interactiveElements: 0,
   };
@@ -173,6 +300,11 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     blockTextElements: { script: true, style: true, pre: true, textarea: true },
   });
 
+  // What a `rem` was worth in the author's file. Read before anything is
+  // rewritten, because scoping turns his `html{...}` into `.dvf-page{...}`.
+  const styleBlocks = root.querySelectorAll('style');
+  const rootPx = authorRootPx(styleBlocks.map((style) => style.innerHTML).join('\n'));
+
   // --- 1. Inline styles stay exactly where the author put them -------------
   //
   // They used to be hoisted into the shared stylesheet, which saved bytes and
@@ -181,19 +313,28 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
   // author's own `#lp .price` — and to the theme. A landing page pasted here
   // on 16/09 came out with images at full width and margins gone, and it was
   // this pass. What the author pastes is what gets published.
+  //
+  // The single exception is the `rem`, and it exists to keep that promise
+  // rather than to break it: see `rebaseRem`.
   for (const element of root.querySelectorAll('[style]')) {
     const raw = element.getAttribute('style') ?? '';
     if (parseInlineStyle(raw).length === 0) {
       element.removeAttribute('style');
       continue;
     }
+    const rebased = rebaseRem(raw, rootPx);
+    if (rebased.count > 0) {
+      element.setAttribute('style', rebased.css);
+      stats.remRebased += rebased.count;
+    }
     stats.inlineStylesKept++;
   }
 
   // --- 2. Scope <style> blocks so neither side can reach the other ----------
-  for (const style of root.querySelectorAll('style')) {
-    const scoped = scopeCss(style.innerHTML, scope);
-    style.set_content(scoped);
+  for (const style of styleBlocks) {
+    const rebased = rebaseRem(style.innerHTML, rootPx);
+    stats.remRebased += rebased.count;
+    style.set_content(scopeCss(rebased.css, scope));
     stats.styleBlocksScoped++;
   }
 

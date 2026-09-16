@@ -23,3 +23,50 @@ export function themeEditorUrl(domain: string, template: string, previewPath?: s
   if (previewPath) params.set('previewPath', previewPath);
   return `https://admin.shopify.com/store/${handle}/themes/current/editor?${params.toString()}`;
 }
+
+/** The shape `/api/theme-style` answers with (mirrors ThemeStyle, client-safe). */
+export interface ThemeStyleData {
+  body: string | null;
+  heading: string | null;
+  links: string[];
+  css: string;
+}
+
+/**
+ * The store theme's styling as a document head, for anything that shows a page
+ * before it is published: the editor canvas and the full-page preview.
+ *
+ * The theme comes first, exactly as the storefront loads it — its stylesheets,
+ * then its settings block — so the same cascade decides there and here. Without
+ * it, the preview renders our blocks over the browser's defaults: measured on
+ * 16/09 as 470 computed-style differences on a single page (Times New Roman for
+ * the theme's font, headings at half size, a divider with 8px of margin where
+ * the store gives it 70px).
+ *
+ * A theme that hides its page until its own JavaScript runs would leave the
+ * preview blank, since none of the theme's scripts are loaded here — the last
+ * rule keeps the document visible whatever the theme's veil says.
+ */
+export function themeHead(theme: ThemeStyleData | null): string {
+  if (!theme) return '';
+  const links = theme.links
+    .filter((url) => url.startsWith('https://'))
+    .map((url) => `<link rel="stylesheet" href="${url.replace(/"/g, '&quot;')}">`)
+    .join('');
+  const settings = theme.css ? `<style>${theme.css}</style>` : '';
+  // A theme old enough not to emit a settings block still tells us its fonts,
+  // and the font tokens in the style vocabulary compile to these variables.
+  const font = (value: string | null) => (value && !/[<>{};]/.test(value) ? value : null);
+  const vars = settings
+    ? ''
+    : [
+        font(theme.body) && `--font-body-family:${font(theme.body)}`,
+        font(theme.heading) && `--font-heading-family:${font(theme.heading)}`,
+      ]
+        .filter(Boolean)
+        .join(';');
+  const fallback = vars ? `<style>:root{${vars}}</style>` : '';
+  const veil =
+    links || settings ? '<style>html,body{opacity:1!important;visibility:visible!important}</style>' : '';
+  return links + settings + fallback + veil;
+}

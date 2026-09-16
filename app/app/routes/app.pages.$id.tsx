@@ -11,7 +11,14 @@ import {
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 
 import { COMPILER_VERSION, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
-import { PAGE_BODY_LIMIT_BYTES, SOLO_SUFFIX, TEMPLATE_LIMIT_BYTES, themeEditorUrl } from '../lib/shared.ts';
+import {
+  PAGE_BODY_LIMIT_BYTES,
+  SOLO_SUFFIX,
+  TEMPLATE_LIMIT_BYTES,
+  themeEditorUrl,
+  themeHead,
+  type ThemeStyleData,
+} from '../lib/shared.ts';
 import { db } from '../lib/db.server.ts';
 import {
   BLOCK_LABELS,
@@ -661,18 +668,22 @@ export default function PageEditor() {
   const [paletteQuery, setPaletteQuery] = useState('');
   const [uiTheme, toggleUiTheme] = useUiTheme();
 
-  // What the theme's font tokens resolve to TODAY, read from the storefront.
-  // Labels the tokens ("fonte-do-corpo (Helvetica)") and feeds the canvas so
-  // the preview renders with the store's real typography.
-  const [themeFonts, setThemeFonts] = useState<{ body: string | null; heading: string | null } | null>(null);
-  const themeFontsRef = useRef<typeof themeFonts>(null);
+  // The store theme's own styling, read from the storefront. It labels the font
+  // tokens ("fonte-do-corpo (Helvetica)") and, above all, it is what the canvas
+  // renders against: without the theme's stylesheets the preview shows our
+  // blocks over the browser's defaults, which is not what the visitor will see.
+  const [themeTick, setThemeTick] = useState(0);
+  const [themeStyle, setThemeStyle] = useState<ThemeStyleData | null>(null);
+  const themeStyleRef = useRef<ThemeStyleData | null>(null);
   useEffect(() => {
-    fetch(`/api/theme-fonts${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`)
+    fetch(`/api/theme-style${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`)
       .then((r) => r.json())
-      .then((fonts) => {
-        themeFontsRef.current = fonts;
-        setThemeFonts(fonts);
-        frame.current?.contentWindow?.postMessage({ type: 'dvf:themeFonts', fonts }, '*');
+      .then((style: ThemeStyleData) => {
+        themeStyleRef.current = style;
+        setThemeStyle(style);
+        // The canvas already on screen was written without the theme; rewrite
+        // it by nudging the preview effect (the document is rebuilt there).
+        setThemeTick((tick) => tick + 1);
       })
       .catch(() => {});
   }, []);
@@ -930,15 +941,11 @@ export default function PageEditor() {
       const target = frame.current?.contentDocument;
       if (target) {
         target.open();
-        target.write(payload.fragment);
+        // The theme first, exactly as the storefront loads it: its stylesheets
+        // and its settings block, then our compiled page. Same order as the
+        // real thing, so the same cascade decides.
+        target.write(themeHead(themeStyleRef.current) + payload.fragment);
         target.close();
-        // The fresh document lost the theme font variables — re-feed them.
-        if (themeFontsRef.current) {
-          frame.current?.contentWindow?.postMessage(
-            { type: 'dvf:themeFonts', fonts: themeFontsRef.current },
-            '*',
-          );
-        }
         // Re-apply the CURRENT selection to the fresh document — read from
         // the ref, since the person may have clicked elsewhere meanwhile.
         const ids = selectionRef.current;
@@ -958,7 +965,8 @@ export default function PageEditor() {
       stale = true;
       clearTimeout(timer);
     };
-  }, [doc, data.page.id, showChrome, pageType, productContentAbove]);
+    // `themeTick` re-renders the canvas once the theme's styling arrives.
+  }, [doc, data.page.id, showChrome, pageType, productContentAbove, themeTick]);
 
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
@@ -1742,7 +1750,7 @@ export default function PageEditor() {
               ) : (
                 <StylePanel
                   node={selectedNode}
-                  themeFonts={themeFonts}
+                  themeFonts={themeStyle}
                   breakpoint={breakpoint}
                   onBreakpoint={(bp) => {
                     setBreakpoint(bp);

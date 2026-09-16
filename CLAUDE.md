@@ -58,6 +58,14 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 - **HTML colado é do autor**: nunca mover `style=""` para classe (a classe perde na cascata
   para o CSS do próprio autor e para o tema) nem deixar nosso reset alcançar o que está
   dentro de `[data-dvf-raw]`. Medir com o render comparado, não no olho.
+- **Medir sempre COM o tema da loja por cima.** Documento nu mente: o tema tem
+  `html{font-size:62.5%}` (todo `rem` do autor encolhe 37,5%), `body{letter-spacing;line-height}`
+  que desce para tudo, e classes (`.price`) que colidem com as do autor. Isolar com
+  especificidade de **uma classe** — ganha do tema, perde do autor. `all:revert` apaga
+  também atributo de apresentação (`<img width>`, `<svg viewBox>`): esses elementos ficam de
+  fora e são limpos propriedade a propriedade.
+- **O canvas do editor tem que carregar o CSS do tema** (`api.theme-style` →
+  `themeHead()`), senão o editor mostra Times New Roman e o visitante vê outra página.
 - Túnel dev: origem `https` × servidor `http` dispara o CSRF do React Router →
   `allowedActionOrigins` em `app/react-router.config.ts`. O `react-router dev` copia o
   `app/.env` INTEIRO para `process.env` antes de ler esse arquivo: uma variável vazia

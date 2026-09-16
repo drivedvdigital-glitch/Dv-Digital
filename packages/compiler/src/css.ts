@@ -125,6 +125,42 @@ interface Rule {
 }
 
 /**
+ * Elements whose size can come from an HTML attribute (`<img width>`,
+ * `<svg viewBox>`, `<td width>`) rather than from CSS. A blanket `all:revert`
+ * erases those, so they are reset one property at a time instead.
+ */
+const GEOMETRY_TAGS = 'img,svg,canvas,video,iframe,embed,object,table,thead,tbody,tfoot,tr,td,th,col,colgroup';
+
+/** Everything a theme paints onto those elements — and nothing that sizes them. */
+const GEOMETRY_SAFE_RESET = [
+  'margin',
+  'padding',
+  'border',
+  'border-radius',
+  'border-collapse',
+  'border-spacing',
+  'background',
+  'box-shadow',
+  'max-width',
+  'max-height',
+  'min-width',
+  'min-height',
+  'vertical-align',
+  'object-fit',
+  'display',
+  'float',
+  'opacity',
+  'filter',
+  'color',
+  'font',
+  'letter-spacing',
+  'line-height',
+  'text-align',
+]
+  .map((property) => `${property}:revert`)
+  .join(';');
+
+/**
  * Collects styles across the page and hands back deduplicated class names.
  */
 export class StyleSheet {
@@ -196,8 +232,12 @@ export class StyleSheet {
   /**
    * Emits the stylesheet. `base` rules first, then each breakpoint in ascending
    * min-width order, so the cascade reads top to bottom exactly as authored.
+   *
+   * `hasRaw` says whether the page carries pasted HTML; the isolation rules
+   * that protect it cost ~700 bytes and have nothing to do on a page built
+   * only from blocks.
    */
-  toCss(tokens?: Record<string, string>): string {
+  toCss(tokens?: Record<string, string>, hasRaw = false): string {
     const chunks: string[] = [];
 
     if (tokens && Object.keys(tokens).length > 0) {
@@ -207,16 +247,39 @@ export class StyleSheet {
       chunks.push(`.${CLASS_PREFIX}-page{${vars}}`);
     }
 
-    // A single reset, scoped to our own subtree so the theme is untouched —
-    // and undone inside pasted HTML, where the author's own CSS is the law.
-    // Our `img{max-width:100%}` was capping images the author had sized
-    // himself; `revert` hands them back to the browser default.
+    // Our own reset, scoped to our own subtree so the theme is untouched — and
+    // stopping at the edge of pasted HTML, which is the author's to style.
+    // `:where()` keeps everything here at one class of specificity (0,1,0).
+    const raw = `[data-${CLASS_PREFIX}-raw]`;
+    const ours = `:where(:not(${raw} *))`;
     chunks.push(
-      `.${CLASS_PREFIX}-page *,.${CLASS_PREFIX}-page *::before,.${CLASS_PREFIX}-page *::after{box-sizing:border-box}`,
-      `.${CLASS_PREFIX}-page img{max-width:100%;height:auto}`,
-      `[data-${CLASS_PREFIX}-raw] *,[data-${CLASS_PREFIX}-raw] *::before,[data-${CLASS_PREFIX}-raw] *::after{box-sizing:revert}`,
-      `[data-${CLASS_PREFIX}-raw] img{max-width:revert;height:revert}`,
+      `.${CLASS_PREFIX}-page,.${CLASS_PREFIX}-page :where(*)${ours},.${CLASS_PREFIX}-page :where(*)${ours}::before,.${CLASS_PREFIX}-page :where(*)${ours}::after{box-sizing:border-box}`,
+      `.${CLASS_PREFIX}-page :where(img)${ours}{max-width:100%;height:auto}`,
     );
+
+    // Pasted HTML is the author's territory, and the theme is not invited.
+    //
+    // Measured on the store on 16/09: the same landing page rendered 1474
+    // computed-style differences from the author's own file. The theme's
+    // `h1{letter-spacing}` reached in, its `.price` collided with a class of
+    // the same name, and its `body{letter-spacing;line-height}` was inherited
+    // by everything. These rules carry exactly one class of specificity: enough
+    // to beat the theme (element and single-class rules, which load earlier),
+    // never enough to beat the author's own CSS, which is scoped with
+    // `.dvf-page` in front of it and is emitted after this sheet.
+    if (hasRaw) {
+      chunks.push(
+        `:where(${raw}){letter-spacing:normal;word-spacing:normal;line-height:normal;text-transform:none;font-style:normal;font-weight:400;font-size:medium}`,
+        // `all:revert` is the whole reset in one declaration — but it also
+        // reverts presentation attributes, and `<img width>`, `<svg viewBox>`
+        // and `<td width>` are exactly that: the icons collapse to nothing and
+        // images lose the aspect ratio that keeps the page from jumping. Those
+        // elements get the same treatment property by property, geometry left
+        // untouched.
+        `${raw} :where(*):where(:not(${GEOMETRY_TAGS},svg *)){all:revert}`,
+        `${raw} :where(${GEOMETRY_TAGS},svg *){${GEOMETRY_SAFE_RESET}}`,
+      );
+    }
 
     for (const bp of BREAKPOINT_ORDER) {
       const bucket = this.rules.get(bp);

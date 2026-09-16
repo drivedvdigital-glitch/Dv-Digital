@@ -45,6 +45,7 @@ export interface CompileResult {
       styleBlocksScoped: number;
       imagesTouched: number;
       scriptsFound: number;
+      remRebased: number;
     };
   };
   /** Problems found in author-written HTML while compiling. */
@@ -84,6 +85,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     styleBlocksScoped: 0,
     imagesTouched: 0,
     scriptsFound: 0,
+    remRebased: 0,
   };
   /** Contributions from author HTML, for the page-level checks below. */
   const htmlHeadings: number[] = [];
@@ -133,6 +135,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       htmlOptimization.styleBlocksScoped += result.stats.styleBlocksScoped;
       htmlOptimization.imagesTouched += result.stats.imagesTouched;
       htmlOptimization.scriptsFound += result.stats.scriptsFound;
+      htmlOptimization.remRebased += result.stats.remRebased;
       htmlHeadings.push(...result.stats.headingLevels);
       htmlInteractive += result.stats.interactiveElements;
       return result.html;
@@ -208,7 +211,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   const html = tag('div', { class: `${CLASS_PREFIX}-page` }, body);
   // Feature CSS ships only when the matching blocks exist on the page.
   const css =
-    sheet.toCss(doc.tokens) +
+    sheet.toCss(doc.tokens, body.includes(`data-${CLASS_PREFIX}-raw`)) +
     (runtimes.has('reveal') ? '\n' + ANIMATION_CSS : '') +
     (runtimes.has('tabs') ? '\n' + TABS_CSS : '') +
     (runtimes.has('contact') ? '\n' + FORM_CSS : '');

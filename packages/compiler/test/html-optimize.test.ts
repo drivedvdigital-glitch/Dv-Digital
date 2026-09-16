@@ -60,6 +60,35 @@ test('an empty style attribute is removed without counting', () => {
   assert.equal(result.stats.inlineStylesKept, 0);
 });
 
+// --- rem: the one value that cannot be published as written ----------------
+
+test('rem lengths are resolved to the pixels they meant in the author file', () => {
+  // The store measured on 16/09 sets html{font-size:62.5%}: published as
+  // written, `5.2rem` would render at 52px instead of 83.2px.
+  const result = run('<style>.h{font-size:5.2rem;margin:0 0 1.5rem}</style><p class="h" style="padding:2rem">x</p>');
+  assert.match(result.html, /font-size:83.2px;margin:0 0 24px/);
+  assert.match(result.html, /style="padding:32px"/);
+  assert.equal(result.stats.remRebased, 3);
+});
+
+test("the author's own root font-size is what a rem is worth", () => {
+  const result = run('<style>html{font-size:62.5%}.h{font-size:5.2rem}</style><p class="h">x</p>');
+  assert.match(result.html, /font-size:52px/);
+});
+
+test('a media query keeps its rem, because it is already measured the same way', () => {
+  const result = run('<style>@media (min-width:48rem){.h{width:10rem}}</style>');
+  assert.match(result.html, /@media \(min-width:48rem\)/);
+  assert.match(result.html, /width:160px/);
+});
+
+test('rem inside a string or a url is not a length', () => {
+  const result = run('<style>.a{background:url(3rem.png);content:"2rem"}</style>');
+  assert.match(result.html, /url\(3rem\.png\)/);
+  assert.match(result.html, /content:"2rem"/);
+  assert.equal(result.stats.remRebased, 0);
+});
+
 // --- scoping author CSS ----------------------------------------------------
 
 test('author selectors are confined to our subtree', () => {
@@ -185,9 +214,26 @@ test('an html block goes through the compiler with its inline styles intact', ()
   const result = compile(docWith('<p style="color:red">x</p>'));
   assert.match(result.html, /style="color:red"/);
   assert.equal(result.stats.htmlOptimization.inlineStylesKept, 1);
-  // Our own reset steps back inside the author's territory.
+  // Our own reset steps back inside the author's territory — and so does the
+  // theme's, which is what the `all:revert` rule is for.
   assert.match(result.html, /data-dvf-raw/);
-  assert.match(result.css, /\[data-dvf-raw\] img\{max-width:revert;height:revert\}/);
+  assert.match(result.css, /\[data-dvf-raw\] :where\(\*\):where\(:not\([^)]*svg \*\)\)\{all:revert\}/);
+  // Both rules carry exactly one class of specificity: enough to beat the
+  // theme, not enough to beat the author's own CSS.
+  assert.match(result.css, /:where\(\[data-dvf-raw\]\)\{letter-spacing:normal/);
+  // And our own reset stops at the edge of the pasted markup.
+  assert.match(result.css, /\.dvf-page :where\(img\):where\(:not\(\[data-dvf-raw\] \*\)\)\{max-width:100%/);
+  // Geometry that comes from HTML attributes is never reverted away.
+  assert.match(result.css, /\[data-dvf-raw\] :where\(img,[^)]*\)\{margin:revert/);
+  assert.doesNotMatch(result.css, /\[data-dvf-raw\] :where\(img[^{]*\{[^}]*(?:^|;)width:revert/);
+});
+
+test('a page without pasted HTML does not carry the isolation rules', () => {
+  const result = compile({
+    version: 1,
+    root: [{ id: 't', type: 'text', props: { text: 'oi' } }],
+  });
+  assert.doesNotMatch(result.css, /all:revert/);
 });
 
 test('raw:true publishes the markup untouched', () => {
@@ -231,9 +277,11 @@ test('a realistic advertorial page is published faithfully, scoped and audited',
   assert.match(result.html, /style="[^"]*:/);
   assert.doesNotMatch(result.css, /(^|\})body\{/);
 
-  // Every inline style the author wrote is still there, character for character.
+  // Every inline style the author wrote is still there, character for
+  // character (this fixture writes no `rem`, the one value that is resolved).
   const inline = (html: string) => (html.match(/style="[^"]*"/g) ?? []).sort();
   assert.deepEqual(inline(result.html), inline(source), 'no inline style may be rewritten');
+  assert.equal(htmlOptimization.remRebased, 0);
 
   // And the problems in the source are surfaced rather than shipped quietly.
   const codes = result.findings.map((f) => f.code);

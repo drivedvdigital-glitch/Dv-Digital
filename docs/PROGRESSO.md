@@ -1153,6 +1153,53 @@ testes (52 + 45), typecheck, flows 7, 9, 10, 12, 13, 15 e 20 verdes. Perda assum
 colado não encolhe mais por dedução de estilos repetidos — a barra de status deixou de
 prometer isso e mostra só as regras de CSS.
 
+### ✅ O tema entra na conta: editor igual à loja, HTML colado imune ao tema (16/09)
+
+Pedido: "quero que vc agora ver os outros elementos" — depois do conserto do HTML colado,
+olhar os demais blocos. Medição, não olho: uma página com **todos os 16 blocos** renderizada
+em dois contextos — o canvas do editor e a **página de produto real da loja**, com o
+`base.css` do tema e o bloco `<style data-shopify>` de configurações, comparando o estilo
+computado de 69 elementos.
+
+**Achado 1 — o canvas mentia: 455 diferenças a 1200 px e 514 a 420 px.** O editor mostrava
+Times New Roman onde a loja mostra Archivo/Helvetica, títulos com metade do tamanho, o
+divisor com 8 px de margem onde o tema dá **70 px**, `<summary>` com triângulo que na loja
+não existe e `<button>` com a cara do navegador. O editor só alimentava as duas variáveis de
+fonte do tema — e nada as usava.
+
+Conserto: **o canvas carrega o CSS do tema da loja**, na mesma ordem da vitrine (folhas do
+tema, bloco de configurações, depois a nossa página). A rota `api.theme-fonts` virou
+`api.theme-style` e devolve também as folhas (https, nunca script) e o CSS que a própria
+Shopify marca como do tema. A pré-visualização de página inteira ganhou o mesmo tratamento.
+Best-effort: loja fora do ar → o editor segue funcionando como antes. Medido depois:
+**0 diferenças** nas duas larguras.
+
+**Achado 2 — o HTML colado, dentro do tema, saía com 1474 diferenças** do arquivo do autor
+(a medição do conserto anterior tinha sido contra um documento nu, sem tema). Três causas:
+
+1. **`rem`.** O tema define `html{font-size:62.5%}` (10 px). Cada `5.2rem` que o autor
+   escreveu saía a **52 px em vez de 83.2 px** — a página inteira a 62,5% do tamanho
+   desenhado. Não existe CSS que re-enraíze `rem` num pedaço da página, então o valor é
+   resolvido no compilador, com a raiz que o arquivo do autor implica (16 px, ou o que o
+   `html{font-size}` dele disser). Preludes de `@media` ficam intactos: ali `rem` já vale o
+   mesmo nos dois lados. Contado em `remRebased`.
+2. **Herança do tema.** `body{letter-spacing:.06rem;line-height:1.8}` descia para tudo.
+3. **Colisão de classes.** A `.price` do autor levava as regras da `.price` do tema.
+
+Conserto: duas regras com **exatamente uma classe de especificidade** — o suficiente para
+ganhar do tema (regras de elemento e de classe, que carregam antes) e nunca o bastante para
+ganhar do CSS do próprio autor (que sai depois e já leva `.dvf-page` na frente):
+`:where([data-dvf-raw])` corta a herança e `[data-dvf-raw] :where(*)…{all:revert}` apaga o
+tema lá dentro. `<svg>`, `<img>` e `<table>` ficam fora do `all:revert` e recebem a mesma
+limpeza propriedade a propriedade: `revert` também apaga **atributo de apresentação**, e
+`width`/`height`/`viewBox` são isso — os ícones do autor sumiam e a imagem perdia a proporção.
+As regras só entram na página que tem HTML colado (~700 B).
+
+Verificado: **0 diferenças** em 1200 px e 420 px contra o arquivo do autor, dentro do tema
+real, e 0 também num documento nu (a medição anterior segue valendo). 102 testes (57 + 45),
+typecheck, build, `checks-auth` inteiro contra o servidor de produção, flows 7, 9, 10, 12,
+13, 15, 20 e o novo 25 (o canvas com o tema) verdes.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

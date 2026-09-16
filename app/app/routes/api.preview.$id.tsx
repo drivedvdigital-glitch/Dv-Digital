@@ -343,13 +343,6 @@ const EDITOR_BRIDGE = `
     if (event.source !== window.parent) return;
     if (event.data && event.data.type === 'dvf:selected') apply(event.data.id, event.data.label, event.data.ids);
     if (event.data && event.data.type === 'dvf:animPreview') animPreview(event.data.id, event.data.name);
-    // The store theme's real font values, so the canvas typography matches
-    // what the published page will render inside the theme.
-    if (event.data && event.data.type === 'dvf:themeFonts') {
-      var fonts = event.data.fonts || {};
-      if (fonts.body) document.documentElement.style.setProperty('--font-body-family', fonts.body);
-      if (fonts.heading) document.documentElement.style.setProperty('--font-heading-family', fonts.heading);
-    }
   });
 })();
 </script>`;

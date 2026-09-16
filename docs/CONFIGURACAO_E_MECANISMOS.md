@@ -225,7 +225,7 @@ Estado: ✅ corrigido nesta entrega · 🟡 parcial · ⬜ pendente (ver seção
 | 9 | Excluir na lista deixa a página no ar | `app._index.tsx` | ✅ despublica antes; rascunho fica na Shopify |
 | 10 | Lista publica em loja de produção sem a confirmação que o editor exige | `app._index.tsx` | ✅ recusa com o caminho |
 | 11 | Teto de 256 KB só no CLI; body de 64 KB não conhecido | `bin/build.ts` | ✅ `limits.ts` + checagem no publish + barra de status |
-| 12 | Fontes do tema sempre da primeira loja; resposta sem teto | `api.theme-fonts.tsx` | ✅ por `?shop=`, cache por loja, 512 KB |
+| 12 | Fontes do tema sempre da primeira loja; resposta sem teto | `api.theme-style.tsx` | ✅ por `?shop=`, cache por loja, 512 KB |
 | 13 | `publishedAt` nunca atualiza ao republicar | editor action | ✅ |
 | 14 | `postMessage` sem checar `event.source` nos dois lados | editor + bridge | ✅ |
 | 15 | Preview compila entrada sem limite | `api.preview.$id.tsx` | ✅ 413 acima de 2 MB |
@@ -302,7 +302,7 @@ que viraram linha aqui:
    navegação), verifica HS256 com o client secret e as claims (`exp`, `nbf`, `aud`, `iss`
    × `dest`), devolve o domínio da loja. 401 em qualquer falha.
 3. Chamado em `app.tsx` (loader), nas actions/loaders de `app._index`, `app.pages.$id`,
-   `api.preview.$id`, `api.theme-fonts`, `api.pages.$id.export`, `preview.$id`.
+   `api.preview.$id`, `api.theme-style`, `api.pages.$id.export`, `preview.$id`.
 4. `ensureStore(shop)` passa a receber o domínio **verificado**, não o `?shop=`.
 5. Navegações internas (`Link`) dentro do admin: o App Bridge reescreve para manter o token
    na primeira carga; a partir daí as chamadas de dados vão por `fetch` com header.
