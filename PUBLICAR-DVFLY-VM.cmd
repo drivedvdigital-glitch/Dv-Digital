@@ -1,77 +1,54 @@
 @echo off
 rem ============================================================
-rem  D&VFly - publica uma versao nova na SUA VM.
+rem  D&VFly - manda a versao nova para a VM.
 rem
-rem  O que acontece: o codigo desta pasta vai para o GitHub e a
-rem  VM e mandada puxar essa versao e reconstruir os containers.
-rem  O banco fica intacto (vive num volume, nao na imagem).
+rem  Sao dois passos, e este arquivo faz o primeiro:
+rem    1. AQUI: envia o codigo desta pasta para o GitHub.
+rem    2. NA VM: clique no atalho "ATUALIZAR DVFly" (area de
+rem       trabalho). Ele puxa, compila e reinicia - o banco e o
+rem       .env da VM nao sao tocados.
 rem
-rem  Antes da primeira vez: docs/HOSPEDAGEM.md, secao "Minha VM".
-rem  O endereco da VM fica em publicar-vm.txt (ao lado deste
-rem  arquivo), numa linha so, assim:  usuario@ip-ou-dominio
+rem  Enquanto o passo 2 nao acontecer, o que esta no ar continua
+rem  exatamente como esta. Fechar este computador nao derruba nada.
+rem
+rem  Primeira instalacao da VM: docs\HOSPEDAGEM.md
 rem ============================================================
 setlocal
 cd /d "%~dp0"
 
-if not exist "publicar-vm.txt" goto falta_config
-set /p DVFLY_VM=<publicar-vm.txt
-
 echo.
-echo  == DVFly: publicando em %DVFLY_VM% ...
+echo  == DVFly: enviando o codigo para o GitHub...
 echo.
 
 where git >nul 2>nul
 if errorlevel 1 goto falta_git
-where ssh >nul 2>nul
-if errorlevel 1 goto falta_ssh
 
-echo  1/2 - enviando o codigo para o GitHub...
 git push origin claude/dvfly-pagefly-research-skqx9r
 if errorlevel 1 goto falha_push
 
 echo.
-echo  2/2 - mandando a VM puxar e reconstruir...
-ssh %DVFLY_VM% "cd ~/dvfly && git pull --ff-only && docker compose up -d --build && docker compose ps"
-if errorlevel 1 goto falha_ssh_run
-
+echo  == Codigo enviado.
 echo.
-echo  == Pronto. A versao nova esta no ar.
-echo  Confira a saude em: https://SEU-DOMINIO/healthz
+echo  AGORA, NA VM (Conexao de Area de Trabalho Remota):
+echo    duplo clique em "ATUALIZAR DVFly", na area de trabalho.
+echo.
+echo  Ele mostra o que esta fazendo e avisa quando a versao nova
+echo  estiver no ar. Leva menos de um minuto.
 echo.
 pause
 exit /b 0
-
-:falta_config
-echo  Falta o arquivo publicar-vm.txt com o endereco da VM.
-echo  Crie um bloco de notas com UMA linha, por exemplo:
-echo.
-echo     root@203.0.113.10
-echo.
-echo  e salve como publicar-vm.txt nesta pasta.
-pause
-exit /b 1
 
 :falta_git
 echo  O Git nao esta instalado. Instale de https://git-scm.com
 pause
 exit /b 1
 
-:falta_ssh
-echo  O comando ssh nao existe nesta maquina. No Windows 10/11 ele
-echo  se instala em Configuracoes - Aplicativos - Recursos
-echo  opcionais - Cliente OpenSSH.
-pause
-exit /b 1
-
 :falha_push
 echo.
-echo  Nao consegui enviar o codigo para o GitHub. Manda um print.
-pause
-exit /b 1
-
-:falha_ssh_run
+echo  Nao consegui enviar o codigo para o GitHub. O texto acima diz
+echo  o motivo - manda um print desta janela.
 echo.
-echo  A VM recusou ou a reconstrucao falhou. O texto acima diz o
-echo  motivo - manda um print desta janela inteira.
+echo  Se falou em "rejected" ou "non-fast-forward", rode antes:
+echo     git pull --rebase origin claude/dvfly-pagefly-research-skqx9r
 pause
 exit /b 1

@@ -3,7 +3,7 @@ packages/*/out/
 .DS_Store
 app/build/
 app/.react-router/
-app/prisma/dev.db*
+app/prisma/*.db*
 app/.env
 # Generated from prisma/schema.template.prisma by app/scripts/prisma-schema.mjs
 app/prisma/schema.prisma

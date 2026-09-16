@@ -14,33 +14,118 @@ O que muda, em uma tabela:
 | Atualiza quando | a cada `INICIAR-DVFLY` | **só quando você roda `PUBLICAR-DVFLY`** |
 | Token das lojas | texto puro no arquivo local | **criptografado** (AES-256-GCM) |
 
-Duas estradas. Escolha uma e siga só a seção dela.
+Três estradas. Escolha uma e siga só a seção dela.
 
-- **[Vercel](#vercel)** — sem servidor para cuidar; publica com um comando.
-- **[Minha VM](#minha-vm)** — controle total, Docker, banco na mesma máquina.
+- **[VM Windows](#vm-windows)** — a sua VM de hoje (acesso por Área de Trabalho Remota).
+  Um comando instala tudo; publicar é um duplo clique lá dentro.
+- **[Vercel](#vercel)** — sem servidor para cuidar; publica com um comando daqui.
+- **[VM Linux com Docker](#vm-linux-com-docker)** — três containers, banco Postgres.
 
 O fim é o mesmo: a seção **[Ligar na Shopify](#ligar-na-shopify)**, que vale para as duas.
 
 ---
 
-## Antes de qualquer coisa: três valores
+## Antes de qualquer coisa
 
-Anote estes três; as duas estradas pedem os mesmos.
+Todas as estradas pedem as **credenciais do app na Shopify**: no
+[Dev Dashboard](https://shopify.dev/dashboard), dentro do seu app, em *Client credentials*.
+O `client_id` também está no `shopify.app.toml`; o secret **nunca** fica em arquivo do
+projeto.
 
-1. **SHOPIFY_CLIENT_ID** e **SHOPIFY_CLIENT_SECRET** — no [Dev Dashboard](https://shopify.dev/dashboard)
-   da Shopify, dentro do seu app, em *Client credentials*. O `client_id` também está em
-   `shopify.app.toml`; o secret **nunca** fica em arquivo do projeto.
-2. **DVFLY_TOKEN_KEY** — gere na sua máquina, na pasta do projeto:
+Duas coisas o instalador da VM Windows resolve sozinho, e as outras estradas pedem à mão:
 
-   ```
-   npm run gerar-chave
-   ```
+- **DVFLY_TOKEN_KEY** — a chave que criptografa o acesso às suas lojas dentro do banco. A
+  documentação da própria Shopify pede que o token de cada loja seja guardado criptografado:
+  sem isso, um vazamento do banco entrega a loja inteira. Gere com `npm run gerar-chave`.
+  **Guarde a chave** — trocá-la obriga cada loja a abrir o app de novo.
+- **DATABASE_URL** — onde fica o banco. Um arquivo SQLite na VM Windows; um Postgres nas
+  outras duas.
 
-   É a chave que criptografa o acesso às suas lojas dentro do banco — a documentação da
-   própria Shopify pede que o token de cada loja seja guardado criptografado, porque um
-   vazamento do banco, sem isso, entrega a loja inteira. **Guarde a chave.** Trocá-la depois
-   obriga cada loja a abrir o app de novo para renovar o acesso.
-3. **DATABASE_URL** — o endereço do Postgres. Cada estrada cria o dela abaixo.
+---
+
+## VM Windows
+
+É a VM que você já tem: acesso por **Conexão de Área de Trabalho Remota**, Windows limpo.
+Nada de Docker aqui — Node, Git e Caddy instalados direto na máquina, e o Windows cuidando
+de manter tudo de pé.
+
+### O que você precisa antes
+
+1. **Um endereço (domínio ou subdomínio) apontando para o IP da VM.** A Shopify só abre o
+   app dentro do admin por HTTPS, e HTTPS precisa de um nome, não de um IP.
+   - Você já tem o `megakciok.shop` na Shopify: em **Configurações → Domínios → DNS**, crie
+     um registro **A** com nome `app` apontando para o IP da VM. Fica
+     `app.megakciok.shop` — de graça, e em minutos.
+   - Serve qualquer outro domínio seu.
+2. **Portas 80 e 443 abertas** no painel do provedor da VM (o firewall do Windows o
+   instalador abre sozinho).
+3. As **credenciais do app** na Shopify (Dev Dashboard → seu app → *Client credentials*).
+
+### Instalar (uma vez)
+
+Dentro da VM, clique no Iniciar, escreva **PowerShell**, clique com o **botão direito** em
+*Windows PowerShell* e escolha **Executar como administrador**. Cole esta linha e dê Enter:
+
+```powershell
+irm https://raw.githubusercontent.com/drivedvdigital-glitch/Dv-Digital/claude/dvfly-pagefly-research-skqx9r/deploy/windows/instalar-na-vm.ps1 | iex
+```
+
+Ele faz tudo sozinho e para duas vezes para perguntar: **o domínio** e as **credenciais da
+Shopify**. O resto — instalar Git, Node e Caddy, baixar o código, criar o banco, compilar,
+gerar a chave de criptografia, abrir as portas, registrar as tarefas que sobem no boot — é
+automático. Leva uns 10 minutos.
+
+No fim ele mostra o estado do app. Se aparecer `"banco":"ok"`, está no ar.
+
+Pode rodar de novo quantas vezes quiser: o que já existe é reaproveitado, o banco não é
+tocado e as respostas ficam guardadas (Enter mantém o que está lá).
+
+### O que fica instalado
+
+| | |
+|---|---|
+| Código | `C:\dvfly` |
+| Banco | `C:\dvfly\app\prisma\dvfly.db` (SQLite — um arquivo) |
+| Segredos | `C:\dvfly\app\.env` (nunca vai para o GitHub) |
+| Tarefa **DVFly App** | sobe no boot, reergue sozinha em 1 min se cair |
+| Tarefa **DVFly HTTPS** | o Caddy, com certificado automático |
+| Atalho **ATUALIZAR DVFly** | na área de trabalho |
+
+O app escuta só em `127.0.0.1`: quem fala com a internet é o Caddy, com TLS. Não dá para
+chegar nele pela porta 3000 sem passar pelo HTTPS.
+
+> **Sobre o banco.** Aqui é SQLite: um arquivo, zero instalação, e dá conta de um servidor
+> com um processo — que é o seu caso. O backup é copiar esse arquivo. Se um dia o volume
+> crescer ou você quiser o app em mais de uma máquina, troque a `DATABASE_URL` do `.env`
+> por um Postgres e rode `npm run migrar-dados`: o app já fala os dois.
+
+### Publicar uma versão nova
+
+1. **Na sua máquina:** duplo clique em `PUBLICAR-DVFLY-VM.cmd` (envia o código para o GitHub).
+2. **Na VM:** duplo clique em **ATUALIZAR DVFly**, na área de trabalho.
+
+Se a versão nova não compilar, **o app antigo continua no ar** — a troca só acontece depois
+que a compilação passa.
+
+### Backup (faça)
+
+Na VM, no PowerShell:
+
+```powershell
+Copy-Item C:\dvfly\app\prisma\dvfly.db "$env:USERPROFILE\Desktop\dvfly-$(Get-Date -Format yyyy-MM-dd).db"
+```
+
+Copie esse arquivo para fora da VM de vez em quando. É o seu trabalho inteiro.
+
+### Quando algo dá errado na VM
+
+| Sintoma | O que fazer |
+|---|---|
+| O instalador parou com erro vermelho | leia a última linha — ela diz o que falta. Rode o instalador de novo depois de resolver |
+| `https://seu-dominio/healthz` não abre | o domínio ainda não aponta para a VM (leva minutos), ou as portas 80/443 estão fechadas no painel do provedor |
+| O app não responde | no PowerShell: `cd C:\dvfly\app` e `node server.mjs` — ele roda na sua frente e mostra o erro |
+| Quero ver as tarefas | `Get-ScheduledTask "DVFly *" \| Get-ScheduledTaskInfo` |
+| Reiniciar tudo | `Restart-ScheduledTask "DVFly App"` e `Restart-ScheduledTask "DVFly HTTPS"` |
 
 ---
 
@@ -117,10 +202,12 @@ Enquanto você não rodar esse arquivo, o que está no ar fica exatamente como e
 
 ---
 
-## Minha VM
+## VM Linux com Docker
 
 Três containers: o app, o Postgres e o Caddy (que cuida do HTTPS sozinho). Serve qualquer
-VM com Docker — Hostinger, Contabo, Oracle Cloud, uma máquina em casa com IP fixo.
+VM **Linux** com Docker — Hostinger, Contabo, Oracle Cloud, uma máquina em casa com IP fixo.
+(Se a sua VM é Windows, vá para **[VM Windows](#vm-windows)**: Docker no Windows exige
+virtualização aninhada, que a maioria das VMs de hospedagem não tem.)
 
 ### 1. Preparar a VM
 

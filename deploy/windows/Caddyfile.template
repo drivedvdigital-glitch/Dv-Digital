@@ -1,0 +1,44 @@
+# HTTPS do D&VFly na VM Windows.
+#
+# O instalador escreve este arquivo com o dominio no lugar do {{DOMINIO}} e o
+# salva como Caddyfile.gerado. Nao edite o gerado: ele e reescrito a cada
+# instalacao. Para mudar algo, mude o modelo e rode o instalador de novo.
+#
+# O Caddy pede e renova o certificado sozinho. A Shopify so abre o app dentro
+# do admin por HTTPS, e um certificado vencido derruba tudo sem aviso.
+{{DOMINIO}} {
+	encode zstd gzip
+
+	reverse_proxy 127.0.0.1:{{PORTA}} {
+		# Sem isto o servidor enxerga http onde o navegador mandou https, e o
+		# CSRF do React Router recusa todo Salvar e Publicar com 400.
+		# (Armadilha ja paga - veja app/server.mjs.)
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+
+		# Uma requisicao que chega durante a reinicializacao do app espera ele
+		# voltar em vez de falhar. Medido na bancada: publicar sem isto custava
+		# alguns segundos de erro para quem estivesse usando.
+		lb_try_duration 15s
+		lb_try_interval 500ms
+	}
+
+	log {
+		output file dvfly-acessos.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		# A primeira abertura do app carrega ?id_token=... na URL. Um token,
+		# por mais curto que seja o prazo dele, nao tem lugar num log.
+		format filter {
+			wrap console
+			fields {
+				request>uri query {
+					delete id_token
+					delete session
+					delete hmac
+				}
+			}
+		}
+	}
+}

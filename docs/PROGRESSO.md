@@ -1251,6 +1251,45 @@ no mesmo dia passando a proxy do sandbox; veja a entrada seguinte, onde a pilha 
 **Guia:** `docs/HOSPEDAGEM.md` — as duas estradas, passo a passo, com a tabela de erros
 comuns e a nota honesta sobre o plano Hobby da Vercel ser para uso não comercial.
 
+### ✅ A VM é Windows: instalação nativa, num comando (16/09)
+
+O print da VM mudou o plano: é **Windows**, acessada por Área de Trabalho Remota, e está
+limpa. Docker no Windows exige virtualização aninhada — a maioria das VMs de hospedagem não
+tem, e Docker Desktop em servidor é licença e dor de cabeça. Então a VM ganhou caminho
+próprio, **nativo**: Node, Git e Caddy instalados na máquina pelo winget, e o Windows
+mantendo tudo de pé.
+
+`deploy/windows/instalar-na-vm.ps1` faz a instalação inteira e pergunta só duas coisas (o
+domínio e as credenciais da Shopify): instala o que falta, baixa o código em `C:\dvfly`,
+gera a chave de criptografia, escreve o `.env`, compila, prepara o banco, escreve o
+`Caddyfile` com o domínio, abre 80/443 no firewall e registra **duas tarefas do Windows**
+(app e HTTPS) que sobem no boot e se reerguem sozinhas em 1 minuto se caírem. Roda quantas
+vezes quiser: o que já existe é reaproveitado e o banco não é tocado.
+
+Três decisões, ditas na cara:
+
+- **Banco é SQLite** nesta estrada — um arquivo, zero instalação, e suficiente para um
+  servidor de um processo. Trocar para Postgres depois é uma linha no `.env` mais
+  `npm run migrar-dados`. (O caminho do Postgres continua provado no Linux/Docker.)
+- **O app escuta só em `127.0.0.1`**: quem fala com a internet é o Caddy, com TLS. Sem isso
+  dava para chegar no app pela 3000 sem passar pelo HTTPS. Conferido: de fora, a porta não
+  responde.
+- **As variáveis vivem no processo do app**, não na máquina. Um `NODE_ENV=production` global
+  mudaria o comportamento dos outros programas que já moram nessa VM (AdsPower,
+  flow-worker) sem ninguém entender por quê.
+
+Verificado sem ter Windows aqui, que é o que dá para verificar honestamente: os dois scripts
+passam pelo **parser do PowerShell**, as funções de verdade (leitura do `.env`, modelo do
+`Caddyfile`, leitura da porta) foram **extraídas por AST e testadas** contra dados reais (9
+checagens), e o app foi rodado **exatamente na configuração da VM** (produção + SQLite +
+chave + `HOST=127.0.0.1`), respondendo `banco: ok` e recusando conexão de fora. Três
+armadilhas do Windows foram consertadas antes de sair: `Write-Host` com dois argumentos
+posicionais (erro no 5.1), `--disable-interactivity` (não existe em winget antigo) e o
+`NODE_ENV` global.
+
+O que só a VM prova: winget, tarefas agendadas e o certificado do Caddy. É a primeira coisa
+que o instalador mostra na tela.
+
 ### ✅ A pilha da VM provada de ponta a ponta — e dois defeitos consertados (16/09)
 
 O usuário escolheu a VM. Antes de ele encostar na máquina dele, a pilha inteira subiu **aqui**
