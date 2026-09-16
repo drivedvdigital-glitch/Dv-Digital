@@ -11,7 +11,7 @@ import {
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 
 import { COMPILER_VERSION, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
-import { PAGE_BODY_LIMIT_BYTES, SOLO_SUFFIX, TEMPLATE_LIMIT_BYTES } from '../lib/shared.ts';
+import { PAGE_BODY_LIMIT_BYTES, SOLO_SUFFIX, TEMPLATE_LIMIT_BYTES, themeEditorUrl } from '../lib/shared.ts';
 import { db } from '../lib/db.server.ts';
 import {
   BLOCK_LABELS,
@@ -112,6 +112,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     })),
     deployedStoreIds: page.deployments.map((d) => d.storeId),
     liveStoreIds: live.map((d) => d.storeId),
+    // What is live on each store decides which theme template to open.
+    liveKinds: Object.fromEntries(live.map((d) => [d.storeId, deploymentKind(d.shopifyGid)])),
     productLinks: page.productLinks.map((l) => ({
       id: l.id,
       storeId: l.storeId,
@@ -2017,6 +2019,56 @@ export default function PageEditor() {
                 {showChrome ? 'padrão do tema' : `page.${SOLO_SUFFIX}`}
               </div>
             )}
+
+            {/* The theme editor is where the merchant hides or reorders the
+                theme's sections around this page. It only knows the template
+                once it exists on the store — so, before publishing, the link
+                is gray with the reason, not missing. */}
+            <div style={{ ...groupLabel, marginTop: 14 }}>Editor de temas</div>
+            <div style={{ ...metaLine, marginBottom: 6 }}>
+              Abre o editor de temas da Shopify já neste modelo, para esconder ou reordenar as
+              seções do tema em volta do conteúdo. Cada loja tem o seu.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-theme-editor>
+              {data.stores.map((store) => {
+                const kind = data.liveKinds[store.id];
+                if (!kind) {
+                  return (
+                    <span
+                      key={store.id}
+                      className="dv-btn dv-plain"
+                      aria-disabled="true"
+                      title="Disponível depois de publicar nesta loja"
+                      style={{ justifyContent: 'flex-start', paddingLeft: 0 }}
+                      data-theme-editor-off={store.id}
+                    >
+                      <Icon name="external" />
+                      {store.label} — disponível depois de publicar
+                    </span>
+                  );
+                }
+                const firstProduct = data.productLinks.find((l) => l.storeId === store.id);
+                const href =
+                  kind === 'product'
+                    ? themeEditorUrl(store.domain, `product.${data.productSuffix}`, firstProduct ? `/products/${firstProduct.productHandle}` : undefined)
+                    : themeEditorUrl(store.domain, showChrome ? 'page' : `page.${SOLO_SUFFIX}`, `/pages/${data.page.handle}`);
+                return (
+                  <a
+                    key={store.id}
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="dv-btn dv-plain"
+                    style={{ justifyContent: 'flex-start', paddingLeft: 0, color: 'var(--dv-link)' }}
+                    title="Abre o editor de temas da Shopify numa aba nova, neste modelo"
+                    data-theme-editor-link={store.id}
+                  >
+                    <Icon name="external" />
+                    Ir para o editor de temas — {store.label}
+                  </a>
+                );
+              })}
+            </div>
           </div>
         </div>
       ) : null}

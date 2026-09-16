@@ -1078,6 +1078,21 @@ Na máquina do usuário o `npm run setup` e o Windows deixam arquivos do projeto
 mudanças em `git stash` (recuperáveis) antes de puxar, e segue. Quem já está com o launcher
 antigo puxa uma vez à mão: `git stash` + `git pull --rebase origin claude/dvfly-pagefly-research-skqx9r`.
 
+### ✅ "Ir para o editor de temas" nas Configurações da página (16/09)
+
+Pedido, com o primeiro teste real dentro do admin: o atalho que a referência tem para abrir
+o editor de temas da Shopify já no modelo da página, onde o lojista esconde ou reordena as
+seções do tema em volta do conteúdo — e que só existe depois de publicar. Feito: seção
+"Editor de temas" nas configurações, uma linha por loja: cinza com "disponível depois de
+publicar" enquanto não há nada no ar naquela loja; link depois, para
+`admin.shopify.com/store/<loja>/themes/current/editor?template=<modelo>&previewPath=…` —
+`product.dvfly-<id>` com o primeiro produto vinculado como preview para página de produto,
+`page` ou `page.dvfly-solo` com `/pages/<url>` para página normal (o que está no ar em cada
+loja decide, não o tipo atual). `themes/current` dispensa buscar o id do tema. Verificado:
+flow23 4/4 (página normal no ar → link certo; rascunho → cinza com motivo; vira Produto,
+vincula, publica na loja real → `template` igual ao nome do modelo e `previewPath` do
+produto; exclusão limpa).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
