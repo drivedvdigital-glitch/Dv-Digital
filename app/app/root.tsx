@@ -104,6 +104,34 @@ export function ErrorBoundary() {
     detail = showDetail ? String(error) : '';
   }
 
+  // The browser could not reach the server at all: the dev tunnel dropped or
+  // changed address, or the server was restarting. Nothing in the app is
+  // wrong, and a reload is the whole fix — so the screen says that, not
+  // "Failed to fetch".
+  const offline = error instanceof Error && /failed to fetch|networkerror|load failed|network request failed/i.test(error.message);
+  if (offline) {
+    return (
+      <s-page heading="Sem conexão com o servidor do DVFly">
+        <s-banner tone="warning" heading="O navegador não conseguiu falar com o servidor">
+          <s-paragraph>
+            Isso acontece quando o túnel cai ou muda de endereço, ou quando o servidor está
+            reiniciando (por exemplo, logo depois de atualizar o código). Recarregue a página.
+            Se continuar, confira na janela do DVFly se o endereço público mudou e cole o novo
+            no App URL do app na Shopify.
+          </s-paragraph>
+          <s-button variant="primary" onClick={() => window.location.reload()}>
+            Recarregar
+          </s-button>
+        </s-banner>
+        {detail ? (
+          <s-section heading="Detalhe técnico">
+            <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: 0 }}>{detail}</pre>
+          </s-section>
+        ) : null}
+      </s-page>
+    );
+  }
+
   return (
     <s-page heading="Algo deu errado">
       <s-banner tone="critical" heading={message}>
