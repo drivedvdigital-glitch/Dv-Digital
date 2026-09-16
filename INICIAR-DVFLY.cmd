@@ -19,8 +19,23 @@ echo  == DVFly: atualizando o codigo...
 rem Sempre a branch de trabalho, e com rebase: um merge local silencioso
 rem e o que deixa a maquina com um historico que ninguem mais tem.
 git checkout -q claude/dvfly-pagefly-research-skqx9r
+rem Arquivos do projeto alterados nesta maquina (o npm mexe no package-lock,
+rem o Windows troca fim de linha) travariam o rebase. Ficam guardados no
+rem "git stash" - nada se perde, "git stash list" mostra - e o codigo entra.
+git diff --quiet
+if errorlevel 1 goto guardar
+:puxar
 git pull --rebase origin claude/dvfly-pagefly-research-skqx9r
 if errorlevel 1 goto falha_git
+goto preparar
+
+:guardar
+echo  Achei mudancas locais em arquivos do projeto. Guardando em "git stash"
+echo  para o codigo novo entrar. Nada e apagado.
+git stash push -m "DVFly: mudanca local guardada automaticamente"
+goto puxar
+
+:preparar
 
 echo.
 echo  == DVFly: preparando dependencias e banco...

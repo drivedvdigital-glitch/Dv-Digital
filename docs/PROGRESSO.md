@@ -1071,6 +1071,13 @@ como "não definida" (`?.trim() ||`). Prova: mesmo POST com `Origin:
 https://abc.trycloudflare.com` deu 400 antes e passa depois. Lição para o CLAUDE.md: o
 `.env` chega inteiro ao processo de dev, valor vazio incluído.
 
+### ✅ Launcher travava com "You have unstaged changes" (16/09)
+
+Na máquina do usuário o `npm run setup` e o Windows deixam arquivos do projeto alterados
+(package-lock, fim de linha), e o `git pull --rebase` recusa. O launcher agora guarda essas
+mudanças em `git stash` (recuperáveis) antes de puxar, e segue. Quem já está com o launcher
+antigo puxa uma vez à mão: `git stash` + `git pull --rebase origin claude/dvfly-pagefly-research-skqx9r`.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
