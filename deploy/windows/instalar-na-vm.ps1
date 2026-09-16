@@ -131,10 +131,17 @@ function IpsDoDominio($dominio) {
 }
 
 function Perguntar($rotulo, $atual, $exemplo) {
-    if ($atual -ne '') {
-        Write-Host "   $rotulo ja configurado. Enter mantem o que esta la."
+    Write-Host ''
+    if ($exemplo -ne '') {
+        Write-Host "   $rotulo  $exemplo" -ForegroundColor Cyan
+    } else {
+        Write-Host "   $rotulo" -ForegroundColor Cyan
     }
-    $resposta = Read-Host "   $rotulo $exemplo"
+    if ($atual -ne '') {
+        Write-Host "   (ja configurado - Enter mantem o que esta la)"
+    }
+    # A seta deixa claro que a janela esta ESPERANDO, e nao travada.
+    $resposta = Read-Host '   digite e pressione Enter'
     if ($resposta.Trim() -eq '') { return $atual }
     return $resposta.Trim()
 }
@@ -147,7 +154,7 @@ $Chave = ValorDoEnv 'DVFLY_TOKEN_KEY'
 Write-Host ''
 Write-Host '   O dominio e o endereco publico do app. Precisa ja estar apontando'
 Write-Host '   para o IP desta VM (registro A no seu provedor de dominio).'
-$Dominio = Perguntar 'Dominio' $Dominio '(ex.: app.seudominio.com):'
+$Dominio = Perguntar 'Dominio do app' $Dominio '(ex.: app.seudominio.com)'
 if ($Dominio -eq '') { throw 'Sem dominio nao da para ter HTTPS, e a Shopify so abre o app por HTTPS.' }
 
 # O erro numero 1 desta instalacao e rodar antes de o DNS apontar: o Caddy nao
@@ -171,8 +178,8 @@ if ($ipPublico -eq '') {
     if (-not (Confirmar 'Continuar mesmo assim?')) { throw 'Instalacao interrompida. Ajuste o registro A e rode de novo.' }
 }
 
-$ClientId = Perguntar 'Client ID da Shopify' $ClientId ':'
-$ClientSecret = Perguntar 'Client secret da Shopify' $ClientSecret ':'
+$ClientId = Perguntar 'Client ID da Shopify' $ClientId '(Dev Dashboard - Client credentials)'
+$ClientSecret = Perguntar 'Client secret da Shopify' $ClientSecret '(comeca com shpss_)'
 if ($ClientId -eq '' -or $ClientSecret -eq '') {
     throw 'Sem as credenciais do app, o D&VFly nao consegue falar com a Shopify. Elas estao no Dev Dashboard, em Client credentials.'
 }
