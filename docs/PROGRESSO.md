@@ -1049,6 +1049,16 @@ do canvas virou SVG (flow20), a aba Estilo agora tem dois ícones — pincel + d
 (flow13), e o modo escuro é conferido por luminância em vez do rgb exato do token antigo
 (flow17).
 
+### ✅ `INICIAR-DVFLY.cmd` fechava na hora (16/09)
+
+Causa: na revisão de 15/09 a mensagem de erro do `git pull` ganhou um parêntese — "(sem
+internet, ou mudanca local nao salva)" — dentro de um bloco `if errorlevel 1 ( ... )`. O
+cmd.exe fecha o bloco no primeiro `)` que encontra, mesmo dentro de um `echo`; o resto vira
+erro de sintaxe e o arquivo inteiro aborta antes da primeira linha rodar — a janela some
+"instantaneamente". Conserto: blocos por `goto` (sem parênteses), ASCII puro, fim de linha
+CRLF forçado por `.gitattributes`. Como o próprio launcher faz o `git pull`, quem já está com
+a versão quebrada precisa puxar uma vez à mão (comando no chat).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
