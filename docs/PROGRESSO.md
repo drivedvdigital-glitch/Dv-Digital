@@ -1093,6 +1093,29 @@ flow23 4/4 (página normal no ar → link certo; rascunho → cinza com motivo; 
 vincula, publica na loja real → `template` igual ao nome do modelo e `previewPath` do
 produto; exclusão limpa).
 
+### ✅ Cabeçalho e rodapé desligáveis também na página de produto (16/09)
+
+Pedido, com o teste real: o mesmo botão da referência que tira o cabeçalho e o rodapé **só
+daquela página de produto** — porque escondê-los no editor de temas tira da loja inteira.
+Na revisão de ontem eu tinha deixado o checkbox cinza para produto ("usa o layout do tema").
+Agora funciona: desligado, o modelo `product.dvfly-<id>` ganha `layout: theme.dvfly-product`,
+um layout que o app **deriva do `layout/theme.liquid` da própria loja** removendo só as tags
+`{% sections 'header-group' %}` / `footer-group` / `header` / `footer` / `announcement-bar`
+— o resto (CSS, scripts, seções de produto) fica exatamente como o tema desenhou. Tema sem
+essas tags cai no layout mínimo do D&VFly. O layout é regravado a cada publicação que o usa
+(atualização do tema chega nele) e vai **antes** do modelo, em chamada própria: a Shopify
+valida o `layout` do modelo contra os arquivos que o tema já tem, e no mesmo lote ele ainda
+não existia — foi a primeira tentativa falhando em silêncio. Religar remove só o **nosso**
+layout do modelo (um `layout` que o tema tenha declarado fica).
+
+Verificado na loja real (flow24): produto vinculado publicado com o checkbox desligado →
+sem cabeçalho e sem rodapé, com o CSS do tema e as seções de produto presentes e o conteúdo
+lá; religar e republicar → cabeçalho e rodapé voltam; excluir → produto volta ao padrão.
+Três testes novos do pacote (45). Detalhe do teste: a vitrine devolve **429** se conferida
+muitas vezes seguidas — a checagem passou a esperar mais entre tentativas. Fica na fila I3:
+o `layout/theme.dvfly-product.liquid` é compartilhado pelas páginas de produto da loja e
+não é removido ao excluir uma página.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

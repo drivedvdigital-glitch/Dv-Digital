@@ -122,6 +122,8 @@ export interface ProductDeployInput {
   /** Compiled fragment: <style> + markup + optional <script>. */
   fragment: string;
   contentAbove?: boolean;
+  /** Theme header and footer on this page (default true). */
+  chrome?: boolean;
   /** Product ids to point at the template, keyed by store domain. */
   productsByDomain: Record<string, string[] | undefined>;
 }
@@ -153,6 +155,7 @@ export async function deployProductPage(
       title: input.title,
       fragment: input.fragment,
       contentAbove: input.contentAbove,
+      chrome: input.chrome,
     });
     const products = input.productsByDomain[store.domain] ?? [];
     const failedProducts: Array<{ id: string; error: string }> = [];

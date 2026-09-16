@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import { ShopifyError } from '../src/client.ts';
 import {
+  chromelessLayout,
   composeProductTemplate,
   productSectionLiquid,
   productSectionType,
@@ -116,6 +117,17 @@ describe('composeProductTemplate', () => {
     );
   });
 
+  it('binds our chrome-less layout when asked, and only removes OUR layout when not', () => {
+    const off = JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, { ...input, chrome: false }));
+    assert.equal(off.layout, 'theme.dvfly-product');
+    // Republished with chrome back on: our layout goes, the theme default returns.
+    const on = JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, { ...input, chrome: true }, JSON.stringify(off)));
+    assert.equal(on.layout, undefined);
+    // A layout the theme itself declared is kept.
+    const themed = JSON.stringify({ layout: 'theme.alt', sections: { main: { type: 'main-product' } }, order: ['main'] });
+    assert.equal(JSON.parse(composeProductTemplate(themed, input)).layout, 'theme.alt');
+  });
+
   it('falls back to the theme default when the existing copy is unreadable or empty', () => {
     assert.deepEqual(
       JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, '{ broken')).order,
@@ -125,6 +137,25 @@ describe('composeProductTemplate', () => {
       JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, '{ "sections": {}, "order": [] }')).order,
       ['main', 'related', 'dvfly'],
     );
+  });
+});
+
+describe('chromelessLayout', () => {
+  it("strips the theme's header/footer section tags and keeps everything else", () => {
+    const theme = `<!doctype html><html><head>{{ content_for_header }}<link href="{{ 'base.css' | asset_url }}"></head>
+<body>{% sections 'header-group' %}
+<main>{{ content_for_layout }}</main>
+{% sections 'footer-group' %}{%- section 'announcement-bar' -%}</body></html>`;
+    const out = chromelessLayout(theme);
+    assert.ok(!/header-group|footer-group|announcement-bar/.test(out.replace(/\{%-? comment[\s\S]*?endcomment -?%\}/g, '')));
+    assert.ok(out.includes("{{ 'base.css' | asset_url }}"), 'theme assets must survive');
+    assert.ok(out.includes('{{ content_for_layout }}'));
+    assert.ok(out.includes('{{ content_for_header }}'));
+  });
+
+  it('falls back to the minimal layout when the theme uses no known tags, or is missing', () => {
+    assert.ok(chromelessLayout('<html>{{ content_for_layout }}</html>').includes('<body style="margin:0">'));
+    assert.ok(chromelessLayout(null).includes('{{ content_for_header }}'));
   });
 });
 

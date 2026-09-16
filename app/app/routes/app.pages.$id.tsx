@@ -293,7 +293,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       : '';
 
   if (pageType === 'product') {
-    return publishProductPage({ pageId, title, fragment, bytes: fragmentBytes, rows, versionId: version.id, productContentAbove, allowProduction, retiredNote });
+    return publishProductPage({ pageId, title, fragment, bytes: fragmentBytes, rows, versionId: version.id, productContentAbove, showChrome, allowProduction, retiredNote });
   }
 
   // Each store's page from the last publish, so a renamed handle updates the
@@ -378,6 +378,7 @@ async function publishProductPage(input: {
   rows: Awaited<ReturnType<typeof db.store.findMany>>;
   versionId: string;
   productContentAbove: boolean;
+  showChrome: boolean;
   allowProduction: boolean;
   retiredNote: string;
 }) {
@@ -393,6 +394,7 @@ async function publishProductPage(input: {
         title: input.title,
         fragment: input.fragment,
         contentAbove: input.productContentAbove,
+        chrome: input.showChrome,
         productsByDomain,
       },
       { allowProduction: input.allowProduction, clientFor: clientForStore },
@@ -907,9 +909,7 @@ export default function PageEditor() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             doc,
-            // A product page renders inside the theme's product template, so
-            // its chrome is always there; the checkbox is disabled for it.
-            chrome: pageType === 'product' ? true : showChrome,
+            chrome: showChrome,
             // Where the theme's own product sections sit relative to our content.
             productSections: pageType === 'product' ? (productContentAbove ? 'below' : 'above') : null,
           }),
@@ -1970,14 +1970,11 @@ export default function PageEditor() {
             )}
 
             <div style={{ ...groupLabel, marginTop: 14 }}>Seções do tema</div>
-            <label
-              style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start', opacity: pageType === 'product' ? 0.6 : 1 }}
-            >
+            <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
               <input
                 type="checkbox"
                 data-settings="showChrome"
-                checked={pageType === 'product' ? true : showChrome}
-                disabled={pageType === 'product' || undefined}
+                checked={showChrome}
                 onChange={(e) => setShowChrome(e.target.checked)}
                 style={{ marginTop: 2 }}
               />
@@ -1985,7 +1982,7 @@ export default function PageEditor() {
                 Mostrar cabeçalho e rodapé do tema
                 <span style={{ ...metaLine, display: 'block' }}>
                   {pageType === 'product'
-                    ? 'Página de produto usa o layout do tema: o cabeçalho e o rodapé da loja aparecem sempre. Disponível em páginas normais.'
+                    ? 'Desligado, só ESTA página de produto perde o cabeçalho e o rodapé — a loja continua com eles. (Escondê-los no editor de temas tiraria da loja inteira.) As seções de produto do tema continuam iguais. Vale a partir da próxima publicação.'
                     : 'Desligado, a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e o rodapé da loja — bom para landing pages. A mudança vale a partir da próxima publicação.'}
                 </span>
               </span>
