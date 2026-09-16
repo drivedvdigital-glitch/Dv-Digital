@@ -13,9 +13,13 @@ import type { Config } from '@react-router/dev/config';
  * wildcard to a real host would let any page on that tunnel domain post to
  * the app's actions.
  */
+// `react-router dev` copies app/.env into process.env before this file runs,
+// so an EMPTY `DVFLY_DEV_ORIGINS=""` (the .env.example default) must count as
+// "not set" — otherwise the allow list is empty and every action through the
+// tunnel dies with 400 inside the admin. That was the 16/09 "Bad Request".
 const isProduction = process.env.NODE_ENV === 'production';
 const allowedActionOrigins = (
-  process.env.DVFLY_DEV_ORIGINS ?? (isProduction ? '' : '*.trycloudflare.com')
+  process.env.DVFLY_DEV_ORIGINS?.trim() || (isProduction ? '' : '*.trycloudflare.com')
 )
   .split(',')
   .map((s) => s.trim())

@@ -1059,6 +1059,18 @@ erro de sintaxe e o arquivo inteiro aborta antes da primeira linha rodar — a j
 CRLF forçado por `.gitattributes`. Como o próprio launcher faz o `git pull`, quem já está com
 a versão quebrada precisa puxar uma vez à mão (comando no chat).
 
+### ✅ "Bad Request" ao abrir dentro do admin pelo túnel (16/09)
+
+Primeiro teste real dentro do admin da Shopify: a tela abre e qualquer ação (criar, salvar)
+devolve **400 Bad Request** vindo de `singleFetchAction` — o CSRF do React Router. Causa
+reproduzida localmente: o `react-router dev` copia **todo** o `app/.env` para
+`process.env` antes de ler `react-router.config.ts`, e a linha `DVFLY_DEV_ORIGINS=""`
+(vazia, herdada do `.env.example`) passava no `??` como "definida" — lista de origens
+permitidas vazia, túnel `https` × servidor `http` recusado. Conserto: string vazia conta
+como "não definida" (`?.trim() ||`). Prova: mesmo POST com `Origin:
+https://abc.trycloudflare.com` deu 400 antes e passa depois. Lição para o CLAUDE.md: o
+`.env` chega inteiro ao processo de dev, valor vazio incluído.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

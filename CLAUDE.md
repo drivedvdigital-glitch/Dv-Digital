@@ -56,7 +56,9 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   `app/README.md`.
 - Efeito colateral dentro de updater do `setState` corrompe em StrictMode (updaters rodam 2×).
 - Túnel dev: origem `https` × servidor `http` dispara o CSRF do React Router →
-  `allowedActionOrigins` em `app/react-router.config.ts`.
+  `allowedActionOrigins` em `app/react-router.config.ts`. O `react-router dev` copia o
+  `app/.env` INTEIRO para `process.env` antes de ler esse arquivo: uma variável vazia
+  (`X=""`) chega como string vazia, não como ausente — tratar com `|| padrão`, nunca `??`.
 - Workspace npm: instalar dentro de `app/` quebra tudo (React duplicado). Sempre na raiz.
 
 ## Regras de interface (aprendidas da referência, adotadas como nossas)
