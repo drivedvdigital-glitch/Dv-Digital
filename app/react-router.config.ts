@@ -1,4 +1,5 @@
 import type { Config } from '@react-router/dev/config';
+import { vercelPreset } from '@vercel/react-router/vite';
 
 /**
  * React Router refuses action POSTs whose `Origin` header does not match the
@@ -25,7 +26,16 @@ const allowedActionOrigins = (
   .map((s) => s.trim())
   .filter(Boolean);
 
+/**
+ * On Vercel the build has to produce Vercel Functions instead of the Node
+ * server bundle that `app/server.mjs` serves. The preset does that, and Vercel
+ * sets `VERCEL=1` in its build — so the same repository builds for a VM
+ * (Docker + server.mjs) and for Vercel without a flag to remember.
+ */
+const onVercel = process.env.VERCEL === '1';
+
 export default {
   ssr: true,
   allowedActionOrigins,
+  ...(onVercel ? { presets: [vercelPreset()] } : {}),
 } satisfies Config;

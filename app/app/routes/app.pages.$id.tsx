@@ -1131,7 +1131,9 @@ export default function PageEditor() {
           >
             <Icon name="back" />
           </Link>
-          <img src="/mark.svg" alt="" width={22} height={22} style={{ marginLeft: 2 }} />
+          {/* A marca cheia tem 25 losangos e vira poeira a 22 px; aqui vai a
+              simplificação de 3×3 — o mesmo desenho, legível pequeno. */}
+          <img src="/favicon.svg" alt="" width={22} height={22} style={{ marginLeft: 2 }} />
           <input name="title" defaultValue={data.page.title} style={titleInput} aria-label="Título da página" />
           <span style={published ? pillSuccess : pillNeutral} data-status>
             {published ? 'publicada' : 'rascunho'}

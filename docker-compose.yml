@@ -1,0 +1,65 @@
+# D&VFly na sua VM: três containers e nada para configurar à mão.
+#
+#   caddy     HTTPS automático (certificado da Let's Encrypt, renovado sozinho)
+#   app       o D&VFly (app/server.mjs), atrás do Caddy
+#   postgres  o banco, num volume que sobrevive a qualquer publicação
+#
+# Antes do primeiro `docker compose up -d`, crie o arquivo `.env` ao lado deste
+# (há um modelo em `.env.deploy.example`) e aponte o seu domínio para o IP da
+# VM. O resto é automático: o Caddy pede o certificado, o app aplica as
+# migrations pendentes e sobe.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      # O domínio que aponta para esta VM. É ele que vai no application_url
+      # do shopify.app.toml.
+      DVFLY_DOMAIN: ${DVFLY_DOMAIN:?defina DVFLY_DOMAIN no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://dvfly:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@postgres:5432/dvfly
+      SHOPIFY_CLIENT_ID: ${SHOPIFY_CLIENT_ID:?defina SHOPIFY_CLIENT_ID no .env}
+      SHOPIFY_CLIENT_SECRET: ${SHOPIFY_CLIENT_SECRET:?defina SHOPIFY_CLIENT_SECRET no .env}
+      DVFLY_TOKEN_KEY: ${DVFLY_TOKEN_KEY:?gere uma com `npm run gerar-chave`}
+      DVFLY_ALLOWED_SHOPS: ${DVFLY_ALLOWED_SHOPS:-}
+      SHOPIFY_API_VERSION: ${SHOPIFY_API_VERSION:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dvfly
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: dvfly
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # O app só sobe depois que o banco aceita conexão — senão a primeira
+      # publicação falha por um segundo de diferença.
+      test: ['CMD-SHELL', 'pg_isready -U dvfly -d dvfly']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

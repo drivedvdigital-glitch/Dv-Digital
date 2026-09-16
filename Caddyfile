@@ -1,0 +1,36 @@
+# HTTPS do D&VFly na VM.
+#
+# O Caddy pede e renova o certificado sozinho — a Shopify só abre o app dentro
+# do admin por HTTPS, e um certificado vencido derruba o app inteiro sem aviso.
+#
+# `X-Forwarded-Proto` é o que faz o servidor enxergar https onde a conexão
+# interna é http. Sem isso o CSRF do React Router recusa todo Salvar e
+# Publicar com 400 (armadilha já paga — veja app/server.mjs).
+{$DVFLY_DOMAIN} {
+	encode zstd gzip
+
+	# O app responde /healthz sem autenticação; é por onde se olha se está de pé.
+	reverse_proxy app:3000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+		health_uri /healthz
+		health_interval 30s
+	}
+
+	log {
+		output stdout
+		# A primeira abertura do app carrega ?id_token=… na URL. Um token, por
+		# mais curto que seja o prazo dele, não tem lugar num log: o filtro
+		# apaga os parâmetros sensíveis antes de a linha ser escrita.
+		format filter {
+			wrap console
+			fields {
+				request>uri query {
+					delete id_token
+					delete session
+					delete hmac
+				}
+			}
+		}
+	}
+}

@@ -18,6 +18,7 @@ import type { Store } from '../../../packages/shopify/src/deploy.ts';
 
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
+import { open, seal } from './secrets.server.ts';
 
 export {
   deployPage,
@@ -46,7 +47,9 @@ export async function appCredentials(): Promise<{ clientId: string; clientSecret
     where: { clientId: { not: null }, clientSecret: { not: null } },
     orderBy: { createdAt: 'asc' },
   });
-  return any?.clientId && any.clientSecret ? { clientId: any.clientId, clientSecret: any.clientSecret } : null;
+  return any?.clientId && any.clientSecret
+    ? { clientId: any.clientId, clientSecret: open(any.clientSecret)! }
+    : null;
 }
 
 /**
@@ -77,7 +80,14 @@ export async function ensureStore(shop: string): Promise<StoreRow | null> {
     // secret has one home, and it is not the database.
     const fromEnvironment = Boolean(config.shopifyClientId && config.shopifyClientSecret);
     return await db.store.create({
-      data: { domain, label: name, ...(fromEnvironment ? {} : credentials), isProduction: true },
+      data: {
+        domain,
+        label: name,
+        ...(fromEnvironment
+          ? {}
+          : { clientId: credentials.clientId, clientSecret: seal(credentials.clientSecret) }),
+        isProduction: true,
+      },
     });
   } catch {
     // Wrong shop or the app is not installed there; nothing to register.
@@ -102,13 +112,19 @@ export function storeUnusableReason(row: StoreRow): string | null {
   return null;
 }
 
-/** Database row to the shape the deploy package expects. */
+/**
+ * Database row to the shape the deploy package expects.
+ *
+ * This is the ONE place a stored credential is opened: everything that talks to
+ * Shopify goes through here, so nothing downstream ever sees the sealed form —
+ * and nothing downstream can forget to open it.
+ */
 export function toStore(row: StoreRow): Store {
   return {
     domain: row.domain,
-    accessToken: row.accessToken,
+    accessToken: open(row.accessToken),
     clientId: row.clientId ?? config.shopifyClientId ?? '',
-    clientSecret: row.clientSecret ?? config.shopifyClientSecret ?? '',
+    clientSecret: open(row.clientSecret) ?? config.shopifyClientSecret ?? '',
     label: row.label,
     isProduction: row.isProduction,
     apiVersion: config.shopifyApiVersion,

@@ -3,6 +3,11 @@
 > Guia de 15/09/2026, escrito a partir da documentação oficial em `shopify.dev` (lida na
 > fonte, versão de setembro de 2026) e do que o código faz. Onde a doc é omissa, está dito.
 
+> **Hospedagem primeiro.** Este guia liga uma loja ao app. Se o app ainda roda na sua
+> máquina (localhost + túnel), o endereço muda a cada início e a loja perde o app quando
+> você fecha a janela. Para colocá-lo num servidor — com endereço fixo, banco Postgres e
+> token criptografado —, siga antes **[docs/HOSPEDAGEM.md](HOSPEDAGEM.md)**.
+
 ## O que muda em relação a antes
 
 Até aqui o app falava com as lojas pelo **client credentials grant** — que só funciona para

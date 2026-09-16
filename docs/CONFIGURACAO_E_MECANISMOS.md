@@ -315,7 +315,10 @@ que viraram linha aqui:
 **P0.2 Credenciais.** **Feito**: `clientId/clientSecret` viraram opcionais; lojas instaladas
 guardam só o **access token offline delas** (`Store.accessToken`, com `tokenExpiresAt` quando
 a Shopify o der expirável). O caminho de dev só copia o par para a linha quando o `.env` não
-o tem. Cifrar esse token em repouso continua na fila (P1) — hoje o banco é o segredo.
+o tem. **Fechado em 16/09**: o token e o client secret vão para o banco **criptografados**
+(AES-256-GCM, `secrets.server.ts`, chave em `DVFLY_TOKEN_KEY`), como a documentação de
+hospedagem da Shopify exige; em produção o app não sobe sem a chave. Linhas antigas em texto
+puro continuam sendo lidas e são re-lacradas na próxima instalação.
 
 **P0.3 `shopify.app.toml` + `shopify app deploy`.** **Feito**: arquivo na raiz com
 `client_id`, `embedded`, `[access_scopes] scopes = "write_content,write_themes,write_products"`
@@ -354,7 +357,9 @@ draggable>` no Firefox.
 
 | Variável | Lida em | Obrigatória? | Default |
 |---|---|---|---|
-| `DATABASE_URL` | Prisma | sim | `file:./dev.db` (relativo a `app/prisma/`) |
+| `DATABASE_URL` | Prisma, `app/scripts/prisma-schema.mjs` | sim | `file:./dev.db` (relativo a `app/prisma/`). `postgres://…` no servidor — o provider do schema é escolhido por este valor |
+| `DATABASE_URL_DIRECT` | `app/scripts/prisma-schema.mjs` (vira `directUrl`) | não | endereço direto do Postgres, para as migrations quando a conexão principal é por pooler (Neon, Supabase) |
+| `DVFLY_TOKEN_KEY` | `config.server.ts` → `secrets.server.ts` | **sim em produção** | 32 bytes em base64 (`npm run gerar-chave`); criptografa `Store.accessToken` e `Store.clientSecret` em repouso (AES-256-GCM) |
 | `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET` | `config.server.ts` | **sim em produção**; em dev cai para a primeira `Store` | — |
 | `SHOPIFY_API_VERSION` | `config.server.ts` (validada `AAAA-MM`) | não | `2026-07` |
 | `DVFLY_DEV_ORIGINS` | `react-router.config.ts` — **no build**, não em tempo de execução | não | `*.trycloudflare.com` fora de produção; vazio em produção |

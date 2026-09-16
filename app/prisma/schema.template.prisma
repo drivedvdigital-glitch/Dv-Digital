@@ -1,12 +1,22 @@
 // Data model for D&VFly. See docs/ARQUITETURA.md section 4.
+//
+// THIS IS THE SOURCE FILE. `prisma/schema.prisma` is generated from it by
+// `app/scripts/prisma-schema.mjs` and is not in git: the datasource block is
+// the one thing that differs between a laptop (SQLite file, zero setup) and a
+// server (Postgres, which is the only kind of database a hosted app can have —
+// a serverless filesystem is thrown away between deployments).
+//
+// The models below are shared by both, byte for byte.
 generator client {
   provider = "prisma-client-js"
+  // `native` is the machine that runs `prisma generate`; the second target is
+  // the one Vercel's Node runtime uses. Without it, a build made on the CI
+  // image deploys a query engine the function cannot load, and every page dies
+  // with "Query engine library not found" — at runtime, not at build time.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
+// <<DATASOURCE>>
 
 /// A Shopify store this installation can publish to.
 ///

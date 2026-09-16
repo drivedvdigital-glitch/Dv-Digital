@@ -9,6 +9,9 @@ export default [
   ]),
   route('api/preview/:id', 'routes/api.preview.$id.tsx'),
   route('api/pages/:id/export', 'routes/api.pages.$id.export.tsx'),
+  // Saúde do processo, sem autenticação por desenho (o proxy e o painel do
+  // servidor perguntam, e nenhum dos dois tem token da Shopify).
+  route('healthz', 'routes/healthz.tsx'),
   route('api/theme-style', 'routes/api.theme-style.tsx'),
   route('api/products', 'routes/api.products.tsx'),
   route('preview/:id', 'routes/preview.$id.tsx'),

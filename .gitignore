@@ -5,3 +5,8 @@ app/build/
 app/.react-router/
 app/prisma/dev.db*
 app/.env
+# Generated from prisma/schema.template.prisma by app/scripts/prisma-schema.mjs
+app/prisma/schema.prisma
+# Criado pelo preset da Vercel durante o build local
+app/.vercel/
+.vercel/

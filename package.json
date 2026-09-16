@@ -18,6 +18,9 @@
     "build": "npm run build --workspace @dvfly/app",
     "start": "npm run start --workspace @dvfly/app",
     "typecheck": "tsc --noEmit -p app",
-    "test": "npm run test --workspace @dvfly/compiler && npm run test --workspace @dvfly/shopify"
+    "test": "npm run test --workspace @dvfly/compiler && npm run test --workspace @dvfly/shopify",
+    "db:deploy": "npm run db:deploy --workspace @dvfly/app",
+    "gerar-chave": "node scripts/generate-key.mjs",
+    "migrar-dados": "node --experimental-strip-types --experimental-sqlite scripts/import-local-database.mjs"
   }
 }

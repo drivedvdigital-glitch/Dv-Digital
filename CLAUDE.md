@@ -24,6 +24,9 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
 | `npm test` | testes do compilador + do pacote Shopify |
 | `npm run typecheck` | `tsc` do app |
 | `npm run build` / `npm start` | build de produção e servidor próprio `app/server.mjs` (`trust proxy`; `NODE_ENV=production`, credenciais no ambiente) |
+| `PUBLICAR-DVFLY.cmd` / `PUBLICAR-DVFLY-VM.cmd` | publica uma versão nova no servidor (Vercel / VM). O que está no ar só muda aqui |
+| `npm run gerar-chave` | gera a `DVFLY_TOKEN_KEY` (criptografa o acesso das lojas no banco) |
+| `npm run migrar-dados` | copia o banco local (SQLite) para o Postgres do servidor |
 | `npm run fix:duplicados` | remove `node_modules` órfão (React duplicado) |
 
 Configuração: toda variável de ambiente é lida em `app/app/lib/config.server.ts` (lista em
@@ -38,7 +41,10 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 - `packages/shopify/` — instalação gerenciada + token exchange (`session.ts`; client credentials
   só para lojas da própria organização em dev), `upsertPage` pela id lembrada, deploy multi-loja
   com lojas independentes, templates de produto por página.
-- `app/` — React Router 7 + Prisma/SQLite. Telas próprias (tokens `--dv-*`, claro/escuro); editor
+- `app/` — React Router 7 + Prisma (**SQLite na sua máquina, Postgres no servidor** — o
+  provider sai de `DATABASE_URL` via `app/scripts/prisma-schema.mjs`; `prisma/schema.prisma`
+  é gerado e não versionado, o template é a fonte). Hospedar: `docs/HOSPEDAGEM.md`.
+  Telas próprias (tokens `--dv-*`, claro/escuro); editor
   em tela cheia (árvore / canvas / inspetor). **Toda rota de tela/dados chama `requireShop`**
   (ID token da Shopify; exceções por desenho: `/bounce`, webhooks com HMAC, `/` que só
   redireciona); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só
@@ -71,6 +77,12 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   `app/.env` INTEIRO para `process.env` antes de ler esse arquivo: uma variável vazia
   (`X=""`) chega como string vazia, não como ausente — tratar com `|| padrão`, nunca `??`.
 - Workspace npm: instalar dentro de `app/` quebra tudo (React duplicado). Sempre na raiz.
+- **Cliente do Prisma é gerado por provider**: um client gerado para SQLite não fala com
+  Postgres (o `/healthz` acusa `banco: erro`). O `npm run build` regenera — buildar com a
+  `DATABASE_URL` do destino, sempre.
+- **Segredo de loja nunca em texto puro no banco** (exigência da doc de hospedagem da
+  Shopify): entra por `seal()` e sai por `toStore()`/`appCredentials()`. Em produção o app
+  se recusa a subir sem `DVFLY_TOKEN_KEY`.
 
 ## Regras de interface (aprendidas da referência, adotadas como nossas)
 

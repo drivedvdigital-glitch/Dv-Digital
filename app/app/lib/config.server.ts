@@ -64,6 +64,14 @@ export const config = {
   shopifyClientSecret: process.env.SHOPIFY_CLIENT_SECRET?.trim() || null,
 
   /**
+   * Key that encrypts the store credentials at rest (32 bytes, base64 — see
+   * secrets.server.ts). Optional on a laptop, required on a host: Shopify's
+   * hosting guidance asks for encrypted tokens, and a managed database is
+   * exactly the kind that gets dumped, backed up and handed around.
+   */
+  tokenKey: process.env.DVFLY_TOKEN_KEY?.trim() || null,
+
+  /**
    * Shops allowed to open (and so install) the app, as myshopify domains,
    * comma-separated. Empty means any shop Shopify lets install it — right for
    * a custom-distribution app, which Shopify already ties to one store or
@@ -87,5 +95,13 @@ if (config.isProduction && (!config.shopifyClientId || !config.shopifyClientSecr
   throw new Error(
     'Em produção, SHOPIFY_CLIENT_ID e SHOPIFY_CLIENT_SECRET precisam estar no ambiente — ' +
       'o app não usa credenciais do banco como fonte primária fora do desenvolvimento.',
+  );
+}
+
+if (config.isProduction && !config.tokenKey) {
+  throw new Error(
+    'Em produção, DVFLY_TOKEN_KEY precisa estar no ambiente: é ela que criptografa o token ' +
+      'de cada loja no banco. Gere uma com `npm run gerar-chave` e guarde no painel do servidor ' +
+      '(veja docs/HOSPEDAGEM.md). Sem ela, um vazamento do banco entrega as lojas.',
   );
 }

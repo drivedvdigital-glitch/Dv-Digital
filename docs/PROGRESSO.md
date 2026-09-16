@@ -1200,6 +1200,68 @@ real, e 0 também num documento nu (a medição anterior segue valendo). 102 tes
 typecheck, build, `checks-auth` inteiro contra o servidor de produção, flows 7, 9, 10, 12,
 13, 15, 20 e o novo 25 (o canvas com o tema) verdes.
 
+### ✅ Pronto para sair do localhost: Postgres, token criptografado e dois caminhos de deploy (16/09)
+
+Pedido: *"subir o servidor do app da Shopify para sair de localhost… se eu fecho aqui ele lá
+na Shopify cai… ter um banco de dados… LEIA O DOCUMENTO DA SHOPIFY"*. A documentação de
+hospedagem da Shopify foi lida na fonte e mandou três coisas: **HTTPS com endereço fixo**,
+**banco que não seja arquivo** (num host serverless o disco é jogado fora a cada publicação)
+e **token de acesso criptografado no banco** ("in case their database is compromised").
+
+**Banco.** O `schema.prisma` virou gerado: `app/scripts/prisma-schema.mjs` lê a `DATABASE_URL`
+e escreve o datasource — `file:` vira SQLite (sua máquina, zero instalação), `postgres://`
+vira Postgres (servidor). O template é a fonte, o gerado não é versionado, e não existe um
+segundo schema para sair do sincronismo. Migrations de verdade (`prisma migrate deploy`) no
+Postgres; `db push` no SQLite descartável. `app/scripts/db-sync.mjs` escolhe sozinho, e é
+chamado pelo build da Vercel e pelo start do container: **não existe passo manual de banco**.
+
+**Segredo.** `secrets.server.ts`: AES-256-GCM com `DVFLY_TOKEN_KEY` (32 bytes,
+`npm run gerar-chave`). O `accessToken` e o `clientSecret` entram lacrados e saem abertos num
+único lugar (`toStore`), linhas antigas em texto puro continuam funcionando, e **em produção o
+app se recusa a subir sem a chave**. Provado: valor lacrado não contém o token, abre igual,
+adulterado é recusado.
+
+**Dois caminhos, o mesmo repositório.** Vercel (preset `@vercel/react-router`, ligado só
+quando `VERCEL=1`, banco Postgres do marketplace) e VM própria (`Dockerfile` + `docker-compose`
+com Postgres e Caddy, HTTPS automático, migrations no start). Publicar uma versão nova é um
+duplo clique: `PUBLICAR-DVFLY.cmd` (Vercel) ou `PUBLICAR-DVFLY-VM.cmd` (VM) — e **só isso**
+muda o que está no ar.
+
+**O que já existia vai junto.** `npm run migrar-dados` copia o banco local para o servidor
+(lojas, páginas, versões, publicações), idempotente, criptografando os segredos na entrada e
+sem apagar nada da máquina.
+
+**Saúde.** `/healthz`, sem autenticação por desenho: banco, credenciais presentes, nº de
+lojas, ambiente. É o que responde "o deploy foi, mas o banco não" — a falha que, sem isso,
+aparece como erro sem nome dentro do admin.
+
+**Verificado de verdade** (Postgres 16 rodando aqui, não no papel):
+
+- app em **modo produção contra Postgres**: `/healthz` ok, `checks-auth` inteiro (11 passos:
+  CSRF atrás de proxy, bounce, 401 com header de retry, token forjado, loader sem segredo).
+- `npm run migrar-dados` levou 1 loja, 1 página, 13 versões e 1 publicação do SQLite para o
+  Postgres; conferido no `psql` que o `clientSecret` chegou como `dvf1.…` — **criptografado**.
+- fluxos 7, 12 e 13 (criar, salvar, exportar, importar, excluir) verdes **contra o Postgres**.
+- 102 testes, typecheck, build, e o `docker compose config` valida.
+
+**O que não deu para verificar aqui, dito na cara:** o `docker build` não completa neste
+ambiente — os containers não têm saída para o `registry.npmjs.org` (o `npm ci` morre no
+meio). O caminho da VM está escrito e validado na configuração, mas a imagem só será provada
+na primeira vez que você rodar `docker compose up -d --build` na VM.
+
+**Guia:** `docs/HOSPEDAGEM.md` — as duas estradas, passo a passo, com a tabela de erros
+comuns e a nota honesta sobre o plano Hobby da Vercel ser para uso não comercial.
+
+### ✅ A logo virou marca do app (16/09)
+
+A logo enviada (o losango de 25 peças) foi redesenhada **por regra, não à mão**: grade 5×5
+girada 45°, peça crescendo do vértice de cima para o de baixo, medidas tiradas da imagem
+(passo 13,2% do lado, peça de 4,2% a 11,4%). Saem três arquivos do mesmo gerador:
+`app/public/mark.svg` (marca cheia), `app/public/favicon.svg` (a simplificação 3×3, que é o
+que sobrevive a 16 px — e agora também o que o editor mostra a 22 px, onde 25 peças viravam
+poeira) e `docs/marca/app-icon-1200.png`, para o campo de ícone do app no Dev Dashboard.
+O `viewBox` é cortado na caixa real do desenho, calculada, não chutada.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

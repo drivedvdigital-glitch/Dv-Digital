@@ -21,6 +21,7 @@ import { exchangeToken, SessionTokenError, verifySessionToken } from '../../../p
 
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
+import { seal } from './secrets.server.ts';
 import { appCredentials, ensureStore, SHOP_DOMAIN, storeUsable } from './shopify.server.ts';
 
 export interface RequestShop {
@@ -154,7 +155,7 @@ export async function installStore(request: RequestShop): Promise<StoreRow | nul
     create: {
       domain,
       label,
-      accessToken: token.accessToken,
+      accessToken: seal(token.accessToken),
       tokenExpiresAt,
       scopes: token.scope,
       installedAt: new Date(),
@@ -162,7 +163,7 @@ export async function installStore(request: RequestShop): Promise<StoreRow | nul
     },
     update: {
       label,
-      accessToken: token.accessToken,
+      accessToken: seal(token.accessToken),
       tokenExpiresAt,
       scopes: token.scope,
       installedAt: new Date(),

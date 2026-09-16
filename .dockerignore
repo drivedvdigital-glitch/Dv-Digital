@@ -1,0 +1,19 @@
+# O que NÃO entra na imagem. Menos bytes no contexto, build mais rápido — e,
+# acima de tudo, nenhum segredo e nenhum banco local dentro do servidor.
+.git
+node_modules
+**/node_modules
+app/build
+app/.react-router
+app/.env
+app/prisma/dev.db*
+app/prisma/schema.prisma
+.env
+.vercel
+docs
+*.md
+!package.json
+INICIAR-DVFLY.cmd
+PUBLICAR-DVFLY.cmd
+PUBLICAR-DVFLY-VM.cmd
+publicar-vm.txt
