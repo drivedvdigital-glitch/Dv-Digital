@@ -1251,6 +1251,38 @@ no mesmo dia passando a proxy do sandbox; veja a entrada seguinte, onde a pilha 
 **Guia:** `docs/HOSPEDAGEM.md` — as duas estradas, passo a passo, com a tabela de erros
 comuns e a nota honesta sobre o plano Hobby da Vercel ser para uso não comercial.
 
+### 🔴→✅ Três vezes a mesma armadilha: caminho do Windows × URL de arquivo (16/09)
+
+A primeira instalação real na VM Windows quebrou três vezes seguidas, e as três eram a mesma
+coisa escrita de jeitos diferentes — código que o Linux aceita e o Windows não. Vale registrar
+as três porque nenhuma delas aparece em teste unitário nem em CI Linux:
+
+1. **`db:schema` "passou" sem escrever nada.** O arquivo decidia se estava sendo executado com
+   `import.meta.url === \`file://${process.argv[1]}\``. No Windows o argumento é
+   `C:\dvfly\app\scripts\prisma-schema.mjs` e a url é
+   `file:///C:/dvfly/app/scripts/prisma-schema.mjs` — nunca iguais. Saía 0, e a falha aparecia
+   dois comandos depois: *"Could not find Prisma Schema"*. Conserto pela raiz: biblioteca pura
+   (`prisma-schema.mjs`) × arquivo que executa (`db-schema.mjs`), e este **diz** o que escreveu.
+2. **As tarefas subiram e o app nunca respondeu.** O runner chamava `node` pelo nome, e o
+   serviço de Tarefas do Windows entrega aos filhos o ambiente de quando **ele** subiu — nessa
+   VM, antes de o Node existir. A tarefa morria com "não reconhecido", mensagem que ninguém vê:
+   saída de tarefa agendada não vai para lugar nenhum. Agora o caminho do node é absoluto, e
+   quando o app não responde o instalador imprime o `LastTaskResult` de cada tarefa com a
+   legenda dos números.
+3. **`node server.mjs` na mão: `ERR_UNSUPPORTED_ESM_URL_SCHEME`, "Received protocol 'c:'".**
+   O servidor fazia `await import(caminhoAbsoluto)`; o loader de ESM lê a letra do drive como
+   esquema de URL. No Linux um caminho POSIX absoluto é aceito por acaso, então a linha
+   atravessou todos os testes. Agora é `new URL('./build/server/index.js', import.meta.url).href`.
+
+Junto, duas arestas que apareceram no caminho: `db:deploy` sozinho herdava o provider que o
+último build tivesse deixado no `schema.prisma` (agora o comando que precisa do schema é quem o
+escreve), e o npm 11.17 da VM já avisa que `prisma`/`esbuild` têm script de instalação não
+aprovado — no npm 12 isso **bloqueia**, e a VM pararia de compilar sozinha; o campo
+`allowScripts` na raiz já aprova os quatro.
+
+A lição, que está no CLAUDE.md: **caminho de arquivo não é URL de arquivo**, e o Linux esconde
+isso nas três formas acima.
+
 ### 🔴→✅ O instalador parou na VM: um `if` que só é verdade no Linux (16/09)
 
 Primeira execução real na VM, e parou em `npm run setup` com

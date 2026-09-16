@@ -77,10 +77,14 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   `app/.env` INTEIRO para `process.env` antes de ler esse arquivo: uma variável vazia
   (`X=""`) chega como string vazia, não como ausente — tratar com `|| padrão`, nunca `??`.
 - Workspace npm: instalar dentro de `app/` quebra tudo (React duplicado). Sempre na raiz.
-- **`import.meta.url === \`file://${process.argv[1]}\`` é FALSO no Windows** (lá o argumento
-  é `C:\x\y.mjs` e a url é `file:///C:/x/y.mjs`): o script não roda, não fala nada e sai 0.
-  Arquivo feito para ser executado não adivinha se está sendo executado — separe biblioteca
-  de CLI (`prisma-schema.mjs` × `db-schema.mjs`).
+- **Windows: caminho de arquivo ≠ URL de arquivo.** Mordeu três vezes no mesmo dia, sempre
+  em código que o Linux aceita:
+  1. `import.meta.url === \`file://${process.argv[1]}\`` é sempre FALSO lá (`C:\x\y.mjs` ×
+     `file:///C:/x/y.mjs`) — o script não roda, não fala nada e sai 0. Arquivo feito para ser
+     executado não adivinha se está sendo executado: separe biblioteca de CLI.
+  2. `await import('C:\...')` morre com `ERR_UNSUPPORTED_ESM_URL_SCHEME` (o loader lê a letra
+     do drive como esquema) — use `new URL('./x.js', import.meta.url).href`.
+  3. Tarefa agendada não herda o PATH de agora: chame o executável pelo **caminho completo**.
 - **npm 12 vai BLOQUEAR script de instalação** não aprovado (hoje só avisa): o campo
   `allowScripts` na raiz já aprova `prisma`, `@prisma/*` e `esbuild`. Dependência nova com
   postinstall entra ali, senão a VM para de compilar no dia em que o npm subir de versão.

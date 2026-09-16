@@ -20,9 +20,16 @@ import compression from 'compression';
 import express from 'express';
 import morgan from 'morgan';
 
+/** A real filesystem path — what express.static needs. */
 const here = (path) => fileURLToPath(new URL(path, import.meta.url));
 const port = Number(process.env.PORT ?? 3000);
-const build = await import(here('./build/server/index.js'));
+
+// A URL, not a path: on Windows `import('C:\\dvfly\\app\\build\\...')` dies with
+// ERR_UNSUPPORTED_ESM_URL_SCHEME ("Received protocol 'c:'"), because the ESM
+// loader reads the drive letter as a scheme. Linux never shows this — an
+// absolute POSIX path happens to be accepted — so it is the kind of line that
+// only fails on the machine that serves the merchant.
+const build = await import(new URL('./build/server/index.js', import.meta.url).href);
 
 const app = express();
 app.disable('x-powered-by');
