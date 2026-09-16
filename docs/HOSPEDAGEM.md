@@ -71,7 +71,9 @@ irm https://raw.githubusercontent.com/drivedvdigital-glitch/Dv-Digital/claude/dv
 ```
 
 Ele faz tudo sozinho e para duas vezes para perguntar: **o domínio** e as **credenciais da
-Shopify**. O resto — instalar Git, Node e Caddy, baixar o código, criar o banco, compilar,
+Shopify**. Logo depois do domínio, ele **confere se o endereço já aponta para esta VM** — se
+o DNS ainda não propagou, ele avisa na hora em vez de deixar você descobrir mais tarde que o
+certificado não saiu. O resto — instalar Git, Node e Caddy, baixar o código, criar o banco, compilar,
 gerar a chave de criptografia, abrir as portas, registrar as tarefas que sobem no boot — é
 automático. Leva uns 10 minutos.
 

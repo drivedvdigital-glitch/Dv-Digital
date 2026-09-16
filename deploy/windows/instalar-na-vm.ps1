@@ -101,6 +101,35 @@ function ValorDoEnv($chave) {
     return ''
 }
 
+function Confirmar($pergunta) {
+    $resposta = Read-Host "   $pergunta (s/N)"
+    return ($resposta.Trim().ToLower() -eq 's')
+}
+
+# O IP com que esta VM aparece para o mundo. Tres fontes: se a primeira estiver
+# fora do ar, a conferencia nao pode virar um falso alarme.
+function IpPublico() {
+    foreach ($url in @('https://api.ipify.org', 'https://ifconfig.me/ip', 'https://icanhazip.com')) {
+        try {
+            $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 8
+            $ip = $r.Content.Trim()
+            if ($ip -match '^\d{1,3}(\.\d{1,3}){3}$') { return $ip }
+        } catch {
+            # tenta a proxima
+        }
+    }
+    return ''
+}
+
+function IpsDoDominio($dominio) {
+    try {
+        $enderecos = [System.Net.Dns]::GetHostAddresses($dominio)
+        return @($enderecos | Where-Object { $_.AddressFamily -eq 'InterNetwork' } | ForEach-Object { $_.IPAddressToString })
+    } catch {
+        return @()
+    }
+}
+
 function Perguntar($rotulo, $atual, $exemplo) {
     if ($atual -ne '') {
         Write-Host "   $rotulo ja configurado. Enter mantem o que esta la."
@@ -120,6 +149,27 @@ Write-Host '   O dominio e o endereco publico do app. Precisa ja estar apontando
 Write-Host '   para o IP desta VM (registro A no seu provedor de dominio).'
 $Dominio = Perguntar 'Dominio' $Dominio '(ex.: app.seudominio.com):'
 if ($Dominio -eq '') { throw 'Sem dominio nao da para ter HTTPS, e a Shopify so abre o app por HTTPS.' }
+
+# O erro numero 1 desta instalacao e rodar antes de o DNS apontar: o Caddy nao
+# consegue o certificado, o app sobe, e de fora nada abre - sem nenhuma pista.
+# Melhor descobrir agora, com o conserto escrito na tela.
+Passo 'Conferindo se o dominio ja aponta para esta VM'
+$ipPublico = IpPublico
+$ipsDoDominio = IpsDoDominio $Dominio
+if ($ipPublico -eq '') {
+    Aviso 'Nao consegui descobrir o IP publico desta VM (sem internet?). Sigo assim mesmo.'
+} elseif ($ipsDoDominio.Count -eq 0) {
+    Aviso "O dominio $Dominio ainda nao resolve para nenhum IP."
+    Aviso "Crie o registro A apontando $Dominio para $ipPublico e espere alguns minutos."
+    if (-not (Confirmar 'Continuar mesmo assim?')) { throw 'Instalacao interrompida. Rode de novo quando o dominio estiver apontando.' }
+} elseif ($ipsDoDominio -contains $ipPublico) {
+    Write-Host "   $Dominio aponta para esta VM ($ipPublico). Certo."
+} else {
+    Aviso "$Dominio aponta para $($ipsDoDominio -join ', '), e esta VM e $ipPublico."
+    Aviso 'Se voce usa Cloudflare ou outro proxy na frente, isso e normal e pode seguir.'
+    Aviso 'Se nao usa, corrija o registro A antes - senao o certificado HTTPS nao sai.'
+    if (-not (Confirmar 'Continuar mesmo assim?')) { throw 'Instalacao interrompida. Ajuste o registro A e rode de novo.' }
+}
 
 $ClientId = Perguntar 'Client ID da Shopify' $ClientId ':'
 $ClientSecret = Perguntar 'Client secret da Shopify' $ClientSecret ':'
@@ -255,9 +305,24 @@ Write-Host ''
 if ($ok) {
     Write-Host '  PRONTO. O D&VFly esta no ar nesta VM.' -ForegroundColor Green
     Write-Host ''
-    Write-Host "  1. Confira de fora:  https://$Dominio/healthz"
-    Write-Host '     (se nao abrir, o dominio ainda nao aponta para esta VM ou as'
-    Write-Host '      portas 80/443 estao fechadas no painel do provedor)'
+    Write-Host '  1. O HTTPS:'
+    $httpsOk = $false
+    try {
+        $r2 = Invoke-WebRequest -Uri "https://$Dominio/healthz" -UseBasicParsing -TimeoutSec 20
+        if ($r2.StatusCode -eq 200) { $httpsOk = $true }
+    } catch {
+        # o certificado pode levar ate um minuto para sair
+    }
+    if ($httpsOk) {
+        Write-Host "     https://$Dominio/healthz respondeu. O certificado saiu." -ForegroundColor Green
+    } else {
+        Write-Host "     https://$Dominio/healthz ainda nao respondeu daqui de dentro."
+        Write-Host '     Isso e comum nos primeiros minutos (o certificado leva um tempo) e'
+        Write-Host '     tambem acontece quando a VM nao enxerga o proprio IP publico.'
+        Write-Host '     Teste do SEU computador. Se de la tambem nao abrir, veja o log:'
+        Write-Host ("       Get-Content " + (Join-Path $PastaCaddy 'dvfly-acessos.log') + ' -Tail 30')
+        Write-Host '     e confira as portas 80/443 no painel do provedor da VM.'
+    }
     Write-Host ''
     Write-Host '  2. Na SUA maquina, no shopify.app.toml, troque os dois enderecos por'
     Write-Host "     https://$Dominio  e rode:  npx shopify app deploy"
