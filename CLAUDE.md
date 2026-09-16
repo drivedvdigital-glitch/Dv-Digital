@@ -55,6 +55,9 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   existe (usar `value`); botões não carregam `name`/`value` (intent via `useSubmit`). Ver
   `app/README.md`.
 - Efeito colateral dentro de updater do `setState` corrompe em StrictMode (updaters rodam 2×).
+- **HTML colado é do autor**: nunca mover `style=""` para classe (a classe perde na cascata
+  para o CSS do próprio autor e para o tema) nem deixar nosso reset alcançar o que está
+  dentro de `[data-dvf-raw]`. Medir com o render comparado, não no olho.
 - Túnel dev: origem `https` × servidor `http` dispara o CSRF do React Router →
   `allowedActionOrigins` em `app/react-router.config.ts`. O `react-router dev` copia o
   `app/.env` INTEIRO para `process.env` antes de ler esse arquivo: uma variável vazia

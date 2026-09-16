@@ -41,7 +41,7 @@ export interface CompileResult {
     bytes: { html: number; css: number; js: number; total: number };
     /** Work done by the HTML optimization pass, when any block used it. */
     htmlOptimization: {
-      inlineStylesHoisted: number;
+      inlineStylesKept: number;
       styleBlocksScoped: number;
       imagesTouched: number;
       scriptsFound: number;
@@ -80,7 +80,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   const runtimes = new Set<RuntimeModule>();
   const findings: Finding[] = [];
   const htmlOptimization = {
-    inlineStylesHoisted: 0,
+    inlineStylesKept: 0,
     styleBlocksScoped: 0,
     imagesTouched: 0,
     scriptsFound: 0,
@@ -129,7 +129,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     optimizeHtml: (source) => {
       const result = optimizeHtml(source, { sheet, scope: `${CLASS_PREFIX}-page` });
       findings.push(...result.findings);
-      htmlOptimization.inlineStylesHoisted += result.stats.inlineStylesHoisted;
+      htmlOptimization.inlineStylesKept += result.stats.inlineStylesKept;
       htmlOptimization.styleBlocksScoped += result.stats.styleBlocksScoped;
       htmlOptimization.imagesTouched += result.stats.imagesTouched;
       htmlOptimization.scriptsFound += result.stats.scriptsFound;

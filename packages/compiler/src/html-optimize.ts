@@ -11,7 +11,7 @@
  * the source of truth, and this pass improves it at publish time without asking
  * anyone to change how they work:
  *
- *   - inline `style` attributes are hoisted into the scoped, deduplicated
+ *   - inline `style` attributes are LEFT ALONE (see below)
  *     stylesheet, so twenty identically-styled elements cost one rule
  *   - `<style>` blocks are scoped to our subtree so they cannot leak into the
  *     theme, and the theme cannot reach in
@@ -30,7 +30,7 @@ import type { StyleSheet } from './css.ts';
 import type { Finding } from './audit.ts';
 
 export interface OptimizeOptions {
-  /** Shared stylesheet, so hoisted rules deduplicate against block styles too. */
+  /** Shared stylesheet. Kept in the options so a future pass can dedupe against it. */
   sheet: StyleSheet;
   /** Class that scopes the page subtree. Used to contain `<style>` blocks. */
   scope: string;
@@ -45,7 +45,11 @@ export interface OptimizeResult {
   html: string;
   findings: Finding[];
   stats: {
-    inlineStylesHoisted: number;
+    /**
+     * Inline `style` attributes found in the author's HTML and kept verbatim.
+     * They are counted, never moved: see the note in `optimizeHtml`.
+     */
+    inlineStylesKept: number;
     styleBlocksScoped: number;
     imagesTouched: number;
     scriptsFound: number;
@@ -152,10 +156,10 @@ export function scopeCss(css: string, scope: string): string {
 }
 
 export function optimizeHtml(source: string, options: OptimizeOptions): OptimizeResult {
-  const { sheet, scope, eagerAttribute = 'data-dvf-eager' } = options;
+  const { scope, eagerAttribute = 'data-dvf-eager' } = options;
   const findings: Finding[] = [];
   const stats = {
-    inlineStylesHoisted: 0,
+    inlineStylesKept: 0,
     styleBlocksScoped: 0,
     imagesTouched: 0,
     scriptsFound: 0,
@@ -169,19 +173,21 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     blockTextElements: { script: true, style: true, pre: true, textarea: true },
   });
 
-  // --- 1. Hoist inline styles into the shared, deduplicated stylesheet -------
+  // --- 1. Inline styles stay exactly where the author put them -------------
+  //
+  // They used to be hoisted into the shared stylesheet, which saved bytes and
+  // silently restyled the page: a `style="margin:16px 0"` beats every rule in
+  // the cascade, but the class it became (specificity 0,1,0) loses to the
+  // author's own `#lp .price` — and to the theme. A landing page pasted here
+  // on 16/09 came out with images at full width and margins gone, and it was
+  // this pass. What the author pastes is what gets published.
   for (const element of root.querySelectorAll('[style]')) {
     const raw = element.getAttribute('style') ?? '';
-    const declarations = parseInlineStyle(raw);
-    if (declarations.length === 0) {
+    if (parseInlineStyle(raw).length === 0) {
       element.removeAttribute('style');
       continue;
     }
-    const className = sheet.adopt(declarations);
-    element.removeAttribute('style');
-    const existing = element.getAttribute('class');
-    element.setAttribute('class', existing ? `${existing} ${className}` : className);
-    stats.inlineStylesHoisted++;
+    stats.inlineStylesKept++;
   }
 
   // --- 2. Scope <style> blocks so neither side can reach the other ----------

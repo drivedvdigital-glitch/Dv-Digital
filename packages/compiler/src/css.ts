@@ -207,10 +207,15 @@ export class StyleSheet {
       chunks.push(`.${CLASS_PREFIX}-page{${vars}}`);
     }
 
-    // A single reset, scoped to our own subtree so the theme is untouched.
+    // A single reset, scoped to our own subtree so the theme is untouched —
+    // and undone inside pasted HTML, where the author's own CSS is the law.
+    // Our `img{max-width:100%}` was capping images the author had sized
+    // himself; `revert` hands them back to the browser default.
     chunks.push(
       `.${CLASS_PREFIX}-page *,.${CLASS_PREFIX}-page *::before,.${CLASS_PREFIX}-page *::after{box-sizing:border-box}`,
       `.${CLASS_PREFIX}-page img{max-width:100%;height:auto}`,
+      `[data-${CLASS_PREFIX}-raw] *,[data-${CLASS_PREFIX}-raw] *::before,[data-${CLASS_PREFIX}-raw] *::after{box-sizing:revert}`,
+      `[data-${CLASS_PREFIX}-raw] img{max-width:revert;height:revert}`,
     );
 
     for (const bp of BREAKPOINT_ORDER) {

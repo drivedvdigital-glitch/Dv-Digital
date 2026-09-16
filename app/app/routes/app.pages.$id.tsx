@@ -561,7 +561,7 @@ const matchesQuery = (label: string, query: string) => !query.trim() || fold(lab
 
 interface PreviewStats {
   bytes: { html: number; css: number; js: number; total: number };
-  htmlOptimization: { inlineStylesHoisted: number };
+  htmlOptimization: { inlineStylesKept: number };
   cssRules: number;
 }
 
@@ -1482,8 +1482,7 @@ export default function PageEditor() {
           Total {kb(live.stats.bytes.total)} ·{' '}
           {((live.stats.bytes.total / (pageType === 'product' ? TEMPLATE_LIMIT_BYTES : PAGE_BODY_LIMIT_BYTES)) * 100).toFixed(1)}%
           do teto da Shopify ({pageType === 'product' ? `${kb(TEMPLATE_LIMIT_BYTES)}, seção do tema` : `${kb(PAGE_BODY_LIMIT_BYTES)}, corpo da página`})
-          · {live.stats.htmlOptimization.inlineStylesHoisted} estilos inline →{' '}
-          {live.stats.cssRules} regras
+          · {live.stats.cssRules} regras de CSS
         </div>
       </main>
 

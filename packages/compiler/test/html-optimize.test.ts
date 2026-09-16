@@ -32,40 +32,32 @@ const run = (html: string) => {
   return optimizeHtml(html, { sheet, scope: 'dvf-page' });
 };
 
-// --- hoisting inline styles ------------------------------------------------
+// --- inline styles are the author's, and they stay ------------------------
 
-test('inline styles are lifted out of the markup into classes', () => {
+test('inline styles are kept verbatim, never moved into classes', () => {
   const result = run('<p style="color:red;font-size:18px">oi</p>');
-  assert.doesNotMatch(result.html, /style=/);
-  assert.match(result.html, /class="dvf-[a-z0-9]+"/);
-  assert.equal(result.stats.inlineStylesHoisted, 1);
+  assert.match(result.html, /style="color:red;font-size:18px"/);
+  assert.doesNotMatch(result.html, /class="dvf-/);
+  assert.equal(result.stats.inlineStylesKept, 1);
 });
 
-test('identical inline styles collapse onto one class', () => {
-  const sheet = new StyleSheet();
-  const html = Array.from(
-    { length: 12 },
-    () => '<p style="font-size:17px;line-height:1.6;color:#3a3a3a">linha</p>',
-  ).join('');
-  const result = optimizeHtml(html, { sheet, scope: 'dvf-page' });
-
-  const classes = [...result.html.matchAll(/class="([^"]+)"/g)].map((m) => m[1]);
-  assert.equal(classes.length, 12);
-  assert.equal(new Set(classes).size, 1, 'twelve identical styles should share one class');
-  assert.equal(sheet.stats().rules, 1);
+test("the author's own stylesheet cannot outrank his own inline style", () => {
+  // The bug of 16/09: hoisted to a class, `margin:16px 0` lost to the page's
+  // own `#lp .price` rule and the layout came out different from the paste.
+  const result = run('<style>#lp .price{margin-bottom:10px}</style><div id="lp"><div class="price" style="margin:16px 0">x</div></div>');
+  assert.match(result.html, /class="price" style="margin:16px 0"/);
+  assert.match(result.html, /\.dvf-page #lp \.price\{margin-bottom:10px\}/);
 });
 
-test('an existing class survives alongside the hoisted one', () => {
+test('an existing class is left exactly as written', () => {
   const result = run('<p class="kicker" style="color:#8a6d3b">x</p>');
-  const cls = result.html.match(/class="([^"]+)"/)![1];
-  assert.ok(cls.startsWith('kicker '), `expected the author class kept first, got "${cls}"`);
+  assert.match(result.html, /class="kicker" style="color:#8a6d3b"/);
 });
 
-test('an empty style attribute is removed without creating a rule', () => {
-  const sheet = new StyleSheet();
-  const result = optimizeHtml('<p style="  ">x</p>', { sheet, scope: 'dvf-page' });
+test('an empty style attribute is removed without counting', () => {
+  const result = run('<p style="  ">x</p>');
   assert.doesNotMatch(result.html, /style=/);
-  assert.equal(sheet.stats().rules, 0);
+  assert.equal(result.stats.inlineStylesKept, 0);
 });
 
 // --- scoping author CSS ----------------------------------------------------
@@ -189,11 +181,13 @@ test('headings inside author HTML count toward the page H1 check', () => {
 
 // --- integration through the compiler -------------------------------------
 
-test('an html block is optimized on the way through the compiler', () => {
+test('an html block goes through the compiler with its inline styles intact', () => {
   const result = compile(docWith('<p style="color:red">x</p>'));
-  assert.doesNotMatch(result.html, /style="color:red"/);
-  assert.equal(result.stats.htmlOptimization.inlineStylesHoisted, 1);
-  assert.match(result.css, /color:red/);
+  assert.match(result.html, /style="color:red"/);
+  assert.equal(result.stats.htmlOptimization.inlineStylesKept, 1);
+  // Our own reset steps back inside the author's territory.
+  assert.match(result.html, /data-dvf-raw/);
+  assert.match(result.css, /\[data-dvf-raw\] img\{max-width:revert;height:revert\}/);
 });
 
 test('raw:true publishes the markup untouched', () => {
@@ -203,16 +197,15 @@ test('raw:true publishes the markup untouched', () => {
   };
   const result = compile(doc);
   assert.match(result.html, /style="color:red"/);
-  assert.equal(result.stats.htmlOptimization.inlineStylesHoisted, 0);
+  assert.equal(result.stats.htmlOptimization.inlineStylesKept, 0);
 });
 
-test('hand-written HTML and block styles share one deduplication pool', () => {
-  // The block sets the same declarations the HTML does inline. One rule, not two.
+test('block styles still deduplicate among themselves', () => {
   const doc: Doc = {
     version: 1,
     root: [
-      { id: 'h', type: 'html', props: { html: '<p style="color:red">a</p>' } },
-      { id: 't', type: 'text', props: { text: 'b' }, style: { base: { color: 'red' } } },
+      { id: 'a', type: 'text', props: { text: 'a' }, style: { base: { color: 'red' } } },
+      { id: 'b', type: 'text', props: { text: 'b' }, style: { base: { color: 'red' } } },
     ],
   };
   const result = compile(doc);
@@ -225,24 +218,22 @@ test('hand-written HTML and block styles share one deduplication pool', () => {
 
 // --- the realistic fixture -------------------------------------------------
 
-test('a realistic advertorial page gets meaningfully smaller and safer', () => {
+test('a realistic advertorial page is published faithfully, scoped and audited', () => {
   const source = advertorial();
   const result = compile(docWith(source));
   const { htmlOptimization } = result.stats;
 
-  assert.ok(htmlOptimization.inlineStylesHoisted >= 15, 'expected many inline styles lifted');
+  assert.ok(htmlOptimization.inlineStylesKept >= 15, 'expected many inline styles counted');
   assert.equal(htmlOptimization.styleBlocksScoped, 1);
   assert.ok(htmlOptimization.imagesTouched >= 1);
 
-  // No inline style survives, and nothing global leaks out of our subtree.
-  assert.doesNotMatch(result.html, /style="[^"]*:/);
+  // The author's inline styles survive, and nothing global leaks out of our subtree.
+  assert.match(result.html, /style="[^"]*:/);
   assert.doesNotMatch(result.css, /(^|\})body\{/);
 
-  // The repeated paragraph styling in the fixture must collapse.
-  assert.ok(
-    result.stats.styleRegistrations > result.stats.cssRules,
-    'repeated inline styles should deduplicate',
-  );
+  // Every inline style the author wrote is still there, character for character.
+  const inline = (html: string) => (html.match(/style="[^"]*"/g) ?? []).sort();
+  assert.deepEqual(inline(result.html), inline(source), 'no inline style may be rewritten');
 
   // And the problems in the source are surfaced rather than shipped quietly.
   const codes = result.findings.map((f) => f.code);

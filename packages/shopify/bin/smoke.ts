@@ -42,7 +42,7 @@ console.log('\nD&VFly — smoke test ponta a ponta\n');
 const compiled = compile(doc);
 const fragment = toFragment(compiled);
 console.log(`  compilado ......... ${(compiled.stats.bytes.total / 1024).toFixed(1)} KB`);
-console.log(`  estilos extraídos . ${compiled.stats.htmlOptimization.inlineStylesHoisted}`);
+console.log(`  estilos inline mantidos . ${compiled.stats.htmlOptimization.inlineStylesKept}`);
 console.log(`  regras CSS ........ ${compiled.stats.cssRules}`);
 console.log(`  achados ........... ${compiled.findings.length}`);
 

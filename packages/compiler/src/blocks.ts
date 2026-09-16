@@ -396,7 +396,9 @@ const contact: Renderer = (node, ctx) => {
 const html: Renderer = (node, ctx) => {
   const source = prop<string>(node, 'html', '');
   const body = prop(node, 'raw', false) ? source : ctx.optimizeHtml(source);
-  return tag('div', ctx.baseAttrs(node), body);
+  // `data-dvf-raw` marks the author's own territory: our reset steps back
+  // inside it (see Sheet.toCss), so the pasted page renders as pasted.
+  return tag('div', { ...ctx.baseAttrs(node), 'data-dvf-raw': '' }, body);
 };
 
 export const BLOCKS: Record<string, Renderer> = {

@@ -1124,6 +1124,35 @@ ocupam a largura toda: agora a nossa também, alinhada à esquerda, sem o logo r
 que a barra do admin já mostra, com células mais respiradas e a busca mais larga.
 Verificado: print a 1680 px, flow7 e flow18 verdes.
 
+### ✅ HTML colado sai fiel: o compilador parou de mexer no `style=""` (16/09)
+
+Relato do usuário, com a página no ar: a landing page colada num bloco HTML **saía
+diferente** do código — imagens estourando a largura, margens sumindo, espaçamentos
+trocados. Medido, não deduzido: reconstruí o HTML original a partir do que estava publicado
+(cada classe `.dvf-…` que geramos volta a ser o `style=""` que o autor escreveu), renderizei
+o cru e o compilado lado a lado e comparei o estilo computado de **362 elementos** em duas
+larguras: **94 diferenças** a 420 px (`height`, `max-width`, `margin`, `font-size`, `color`).
+
+Duas causas, as duas nossas:
+1. **Hoisting de estilos inline.** Um `style="margin:16px 0"` ganha de tudo na cascata; a
+   classe que ele virava (`.dvf-x`, especificidade 0,1,0) **perde** para o próprio CSS do
+   autor — que ainda ganhava `.dvf-page` no escopo, virando `.dvf-page #xx-lp .price`
+   (1,2,0) — e perde também para o tema. Trocávamos a prioridade do autor por bytes.
+2. **Nosso reset `.dvf-page img{max-width:100%;height:auto}`** limitava imagens que o autor
+   tinha dimensionado (`max-width:680px` virava 100% da coluna).
+
+Conserto: **o que o autor cola é o que é publicado.** `optimizeHtml` conta os estilos inline
+(`inlineStylesKept`) e não os move; o bloco HTML marca seu território com `data-dvf-raw` e o
+reset se retira lá dentro (`box-sizing:revert`, `max-width/height:revert`). O passe continua
+fazendo o que só ele pode: escopar o `<style>` do autor (protege o tema), `loading`/`decoding`
+nas imagens e os avisos (imagem sem dimensão, `onclick` no lugar de link, scripts).
+
+Verificado: a mesma medição depois do conserto dá **0 diferenças** em 1200 px e 420 px (o
+`loading="lazy"` é ignorado na medição — muda quando a imagem carrega, não o layout). 97
+testes (52 + 45), typecheck, flows 7, 9, 10, 12, 13, 15 e 20 verdes. Perda assumida: o HTML
+colado não encolhe mais por dedução de estilos repetidos — a barra de status deixou de
+prometer isso e mostra só as regras de CSS.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

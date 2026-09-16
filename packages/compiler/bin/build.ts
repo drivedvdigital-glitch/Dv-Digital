@@ -77,10 +77,10 @@ console.log(
 );
 
 const opt = result.stats.htmlOptimization;
-if (opt.inlineStylesHoisted || opt.styleBlocksScoped || opt.imagesTouched || opt.scriptsFound) {
+if (opt.inlineStylesKept || opt.styleBlocksScoped || opt.imagesTouched || opt.scriptsFound) {
   console.log('');
   console.log('  Otimização do HTML do autor');
-  console.log(`    Estilos inline extraídos . ${opt.inlineStylesHoisted}`);
+  console.log(`    Estilos inline mantidos . ${opt.inlineStylesKept}`);
   console.log(`    Blocos <style> escopados . ${opt.styleBlocksScoped}`);
   console.log(`    Imagens ajustadas ........ ${opt.imagesTouched}`);
   console.log(`    Scripts encontrados ...... ${opt.scriptsFound}`);
