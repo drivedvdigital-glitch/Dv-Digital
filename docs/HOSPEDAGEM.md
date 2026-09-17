@@ -148,6 +148,7 @@ quem está ouvindo na porta, **se o app e o Caddy combinam de porta**, quem ocup
 | Sintoma | O que fazer |
 |---|---|
 | O instalador parou com erro vermelho | leia a última linha — ela diz o que falta. Rode o instalador de novo depois de resolver |
+| Ligar, trocar ou desligar a senha de acesso | `powershell -ExecutionPolicy Bypass -File C:\dvfly\deploy\windows\senha.ps1` — escreve no `.env`, reinicia o app e confirma no `/healthz` |
 | Quero saber por que o app morreu | `C:\dvfly\app\dvfly.log` — a tarefa grava tudo lá (zera sozinho acima de 5 MB) |
 | **De fora dá 502, mas de dentro o app responde** | app e Caddy em portas diferentes. O diagnóstico diz as duas; o conserto é rodar o instalador de novo |
 | `https://seu-dominio/healthz` não abre | o domínio ainda não aponta para a VM (leva minutos), ou as portas 80/443 estão fechadas no painel do provedor |
