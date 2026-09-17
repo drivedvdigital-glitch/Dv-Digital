@@ -85,6 +85,11 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   2. `await import('C:\...')` morre com `ERR_UNSUPPORTED_ESM_URL_SCHEME` (o loader lê a letra
      do drive como esquema) — use `new URL('./x.js', import.meta.url).href`.
   3. Tarefa agendada não herda o PATH de agora: chame o executável pelo **caminho completo**.
+  4. **Nome de variável no PowerShell não diferencia maiúsculas**: `foreach ($porta in 80, 443)`
+     escreveu por cima do `$Porta` do app. O app subiu na 443 e respondia perfeitamente em
+     `127.0.0.1:443`; o Caddy procurava na 3000 e devolvia 502 para o mundo. Toda checagem
+     local dizia que estava tudo certo — porque nenhuma passava pelo proxy. **Medir o caminho
+     do visitante**: `curl --resolve dominio:443:127.0.0.1` bate no Caddy sem sair da máquina.
 - **npm 12 vai BLOQUEAR script de instalação** não aprovado (hoje só avisa): o campo
   `allowScripts` na raiz já aprova `prisma`, `@prisma/*` e `esbuild`. Dependência nova com
   postinstall entra ali, senão a VM para de compilar no dia em que o npm subir de versão.

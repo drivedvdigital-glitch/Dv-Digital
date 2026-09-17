@@ -53,10 +53,37 @@ if (-not $conexoes) {
     }
 }
 
+Titulo 'O app e o Caddy combinam de porta?'
+# A pergunta existe porque a resposta ja foi NAO uma vez, e nada na tela
+# denunciava: o app respondia perfeitamente em 127.0.0.1:443 enquanto o Caddy
+# batia na 3000 e devolvia 502 para o mundo.
+$caddyfile = Join-Path $Raiz 'deploy\windows\Caddyfile.gerado'
+$portaCaddy = PortaDoCaddyfile $caddyfile
+Write-Host "   o app usa a porta $porta; o Caddy procura na porta $portaCaddy"
+if ("$porta" -ne "$portaCaddy") {
+    Write-Host '   NAO COMBINAM. E por isso que de fora da 502.' -ForegroundColor Red
+    Write-Host '   Conserto: rode o instalador de novo.' -ForegroundColor Red
+} else {
+    Write-Host '   combinam.' -ForegroundColor Green
+}
+
+Titulo 'Quem ocupa as portas 80 e 443'
+foreach ($p in 80, 443) {
+    $c = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue
+    if (-not $c) {
+        Write-Host "   $p : ninguem" -ForegroundColor Yellow
+        continue
+    }
+    foreach ($um in $c) {
+        $dono = Get-Process -Id $um.OwningProcess -ErrorAction SilentlyContinue
+        Write-Host ("   {0} : {1}:{2} <- {3} (pid {4})" -f $p, $um.LocalAddress, $um.LocalPort, $dono.ProcessName, $um.OwningProcess)
+    }
+}
+
 Titulo 'O que o app escreveu'
 MostrarLog $Raiz 30
 
-Titulo 'O HTTPS, de dentro da VM'
+Titulo 'O HTTPS, passando pelo Caddy (sem sair da VM)'
 $dominio = ''
 $env_ = Join-Path $Raiz 'app\.env'
 if (Test-Path $env_) {
@@ -67,11 +94,13 @@ if (Test-Path $env_) {
 if ($dominio -eq '') {
     Write-Host '   (sem dominio no .env)'
 } else {
-    try {
-        $r = Invoke-WebRequest -Uri "https://$dominio/healthz" -UseBasicParsing -TimeoutSec 20
-        Write-Host "   https://$dominio/healthz -> $($r.StatusCode)" -ForegroundColor Green
-    } catch {
-        Write-Host "   https://$dominio/healthz -> $($_.Exception.Message)" -ForegroundColor Yellow
+    $codigo = CaddyPorDentro $dominio
+    if ($codigo -eq '200') {
+        Write-Host "   https://$dominio/healthz -> 200" -ForegroundColor Green
+    } elseif ($codigo -eq '') {
+        Write-Host "   https://$dominio/healthz -> o Caddy nao respondeu" -ForegroundColor Red
+    } else {
+        Write-Host "   https://$dominio/healthz -> $codigo (esperado 200)" -ForegroundColor Red
     }
 }
 

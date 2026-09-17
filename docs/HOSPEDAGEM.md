@@ -142,12 +142,14 @@ powershell -ExecutionPolicy Bypass -File C:\dvfly\deploy\windows\diagnosticar.ps
 ```
 
 Ele mostra, nesta ordem: a versão do código, o estado das duas tarefas, se o app responde,
-quem está ouvindo na porta, **o que o app escreveu no log** e o HTTPS de dentro da VM.
+quem está ouvindo na porta, **se o app e o Caddy combinam de porta**, quem ocupa a 80 e a 443,
+**o que o app escreveu no log** e o HTTPS passando pelo Caddy sem sair da VM.
 
 | Sintoma | O que fazer |
 |---|---|
 | O instalador parou com erro vermelho | leia a última linha — ela diz o que falta. Rode o instalador de novo depois de resolver |
 | Quero saber por que o app morreu | `C:\dvfly\app\dvfly.log` — a tarefa grava tudo lá (zera sozinho acima de 5 MB) |
+| **De fora dá 502, mas de dentro o app responde** | app e Caddy em portas diferentes. O diagnóstico diz as duas; o conserto é rodar o instalador de novo |
 | `https://seu-dominio/healthz` não abre | o domínio ainda não aponta para a VM (leva minutos), ou as portas 80/443 estão fechadas no painel do provedor |
 | O app não responde | no PowerShell: `cd C:\dvfly\app` e `node server.mjs` — ele roda na sua frente e mostra o erro |
 | Quero ver as tarefas | `Get-ScheduledTask "DVFly *" \| Get-ScheduledTaskInfo` |

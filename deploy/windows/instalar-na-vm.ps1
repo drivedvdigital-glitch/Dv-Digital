@@ -21,7 +21,11 @@ $ErrorActionPreference = 'Stop'
 $Raiz = 'C:\dvfly'
 $Repositorio = 'https://github.com/drivedvdigital-glitch/Dv-Digital.git'
 $Branch = 'claude/dvfly-pagefly-research-skqx9r'
-$Porta = 3000
+# Nome longo de proposito. Nome de variavel no PowerShell NAO diferencia
+# maiusculas: um `foreach ($porta in 80, 443)` mais abaixo escrevia por cima de
+# um `$Porta` e deixava o app subindo na 443 enquanto o Caddy procurava por ele
+# na 3000 - de fora, 502 eterno; de dentro, tudo parecia certo.
+$PortaDoApp = 3000
 
 function Passo($texto) {
     Write-Host ''
@@ -231,15 +235,15 @@ Passo 'Configurando o HTTPS (Caddy)'
 $PastaCaddy = Join-Path $Raiz 'deploy\windows'
 $Caddyfile = Join-Path $PastaCaddy 'Caddyfile.gerado'
 $modelo = Get-Content (Join-Path $PastaCaddy 'Caddyfile.template') -Raw
-$modelo = $modelo.Replace('{{DOMINIO}}', $Dominio).Replace('{{PORTA}}', "$Porta")
+$modelo = $modelo.Replace('{{DOMINIO}}', $Dominio).Replace('{{PORTA}}', "$PortaDoApp")
 Set-Content -Path $Caddyfile -Value $modelo -Encoding ASCII
 Write-Host "   Caddyfile escrito para $Dominio."
 
 Passo 'Abrindo as portas 80 e 443 no firewall'
-foreach ($porta in 80, 443) {
-    $nome = "DVFly HTTPS $porta"
+foreach ($portaDaWeb in 80, 443) {
+    $nome = "DVFly HTTPS $portaDaWeb"
     netsh advfirewall firewall delete rule name="$nome" | Out-Null
-    netsh advfirewall firewall add rule name="$nome" dir=in action=allow protocol=TCP localport=$porta | Out-Null
+    netsh advfirewall firewall add rule name="$nome" dir=in action=allow protocol=TCP localport=$portaDaWeb | Out-Null
 }
 Write-Host '   portas liberadas.'
 
@@ -266,7 +270,7 @@ $pastaApp = Join-Path $Raiz 'app'
 # O runner e escrito pela mesma funcao que o atualizador usa (comum.ps1), para
 # que clicar em ATUALIZAR nunca deixe um arquivo velho para tras.
 . (Join-Path $PastaCaddy 'comum.ps1')
-$Runner = EscreverRunner $Raiz $Porta
+$Runner = EscreverRunner $Raiz $PortaDoApp
 
 RegistrarTarefa 'DVFly App' "$env:SystemRoot\system32\cmd.exe" "/c `"$Runner`"" $pastaApp
 RegistrarTarefa 'DVFly HTTPS' $caddy "run --config `"$Caddyfile`"" $PastaCaddy
@@ -288,7 +292,7 @@ $ok = $false
 foreach ($tentativa in 1..20) {
     Start-Sleep -Seconds 3
     try {
-        $r = Invoke-WebRequest -Uri "http://127.0.0.1:$Porta/healthz" -UseBasicParsing -TimeoutSec 5
+        $r = Invoke-WebRequest -Uri "http://127.0.0.1:$PortaDoApp/healthz" -UseBasicParsing -TimeoutSec 5
         if ($r.StatusCode -eq 200) {
             Write-Host ''
             Write-Host ('   ' + $r.Content)
@@ -305,22 +309,27 @@ if ($ok) {
     Write-Host '  PRONTO. O D&VFly esta no ar nesta VM.' -ForegroundColor Green
     Write-Host ''
     Write-Host '  1. O HTTPS:'
-    $httpsOk = $false
-    try {
-        $r2 = Invoke-WebRequest -Uri "https://$Dominio/healthz" -UseBasicParsing -TimeoutSec 20
-        if ($r2.StatusCode -eq 200) { $httpsOk = $true }
-    } catch {
-        # o certificado pode levar ate um minuto para sair
-    }
-    if ($httpsOk) {
-        Write-Host "     https://$Dominio/healthz respondeu. O certificado saiu." -ForegroundColor Green
-    } else {
-        Write-Host "     https://$Dominio/healthz ainda nao respondeu daqui de dentro."
-        Write-Host '     Isso e comum nos primeiros minutos (o certificado leva um tempo) e'
-        Write-Host '     tambem acontece quando a VM nao enxerga o proprio IP publico.'
-        Write-Host '     Teste do SEU computador. Se de la tambem nao abrir, veja o log:'
+    # O teste tem que passar PELO CADDY, e sem sair da maquina. Pedir
+    # https://dominio daqui de dentro depende de a VM enxergar o proprio IP
+    # publico (varias nao enxergam), e ai um "nao respondeu" nao significa
+    # nada. Com --resolve a conexao vai para 127.0.0.1 com o nome certo no
+    # SNI: e exatamente o caminho do visitante, medido de dentro.
+    $codigo = CaddyPorDentro $Dominio
+    if ($codigo -eq '200') {
+        Write-Host "     https://$Dominio/healthz respondeu 200. Esta no ar." -ForegroundColor Green
+    } elseif ($codigo -eq '502') {
+        Write-Host '     O Caddy esta de pe, mas nao achou o app.' -ForegroundColor Red
+        Write-Host "     O app esta na porta $PortaDoApp; o Caddy procura na porta $(PortaDoCaddyfile $Caddyfile)."
+        Write-Host '     As duas tem que ser iguais. Rode o instalador de novo.'
+    } elseif ($codigo -eq '') {
+        Write-Host '     O Caddy nao respondeu aqui de dentro.' -ForegroundColor Yellow
+        Write-Host '     Pode ser o certificado saindo (leva ate um minuto na primeira vez).'
+        Write-Host '     Se depois de alguns minutos continuar assim:'
         Write-Host ("       Get-Content " + (Join-Path $PastaCaddy 'dvfly-acessos.log') + ' -Tail 30')
         Write-Host '     e confira as portas 80/443 no painel do provedor da VM.'
+    } else {
+        Write-Host "     O Caddy respondeu $codigo (esperado 200)." -ForegroundColor Yellow
+        Write-Host '     Rode: powershell -ExecutionPolicy Bypass -File C:\dvfly\deploy\windows\diagnosticar.ps1'
     }
     Write-Host ''
     Write-Host '  2. Na SUA maquina, no shopify.app.toml, troque os dois enderecos por'

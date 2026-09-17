@@ -32,6 +32,16 @@ function CaminhoDoNode() {
         comportamento deles sem ninguem entender por que.
 #>
 function EscreverRunner($raiz, $porta) {
+    # Guarda contra a armadilha que custou um dia: a porta chegava 443 aqui (um
+    # `foreach ($porta in 80, 443)` do instalador escrevia por cima da variavel,
+    # porque nome de variavel no PowerShell nao diferencia maiusculas). O app
+    # subia na 443, respondia lindamente em 127.0.0.1:443 - e o Caddy, que
+    # procurava na 3000, devolvia 502 para o mundo inteiro. Tudo parecia certo
+    # de dentro. A porta do app nunca e a porta do servidor web: dizer isso em
+    # voz alta e mais barato do que descobrir de novo.
+    if ("$porta" -notmatch '^\d+$' -or [int]$porta -lt 1024 -or [int]$porta -gt 65535) {
+        throw "Porta invalida para o app: '$porta'. Tem que ser entre 1024 e 65535 (a 80 e a 443 sao do Caddy)."
+    }
     $pastaApp = Join-Path $raiz 'app'
     $runner = Join-Path $raiz 'deploy\windows\rodar-app.gerado.cmd'
     $log = CaminhoDoLog $raiz
@@ -78,10 +88,46 @@ function PortaDoRunner($raiz, $padrao) {
     $runner = Join-Path $raiz 'deploy\windows\rodar-app.gerado.cmd'
     if (Test-Path $runner) {
         foreach ($linha in Get-Content $runner) {
-            if ($linha -match '^\s*set PORT=(\d+)') { return $Matches[1] }
+            if ($linha -match '^\s*set PORT=(\d+)') {
+                # Uma instalacao feita antes do conserto deixou `set PORT=443`
+                # neste arquivo. Ler isso de volta so espalharia o erro: a porta
+                # do servidor web nunca e a porta do app.
+                if ([int]$Matches[1] -ge 1024) { return $Matches[1] }
+            }
         }
     }
     return $padrao
+}
+
+<# A porta que o Caddy procura, lida do Caddyfile que o instalador gerou. #>
+function PortaDoCaddyfile($caddyfile) {
+    if (Test-Path $caddyfile) {
+        foreach ($linha in Get-Content $caddyfile) {
+            if ($linha -match 'reverse_proxy\s+127\.0\.0\.1:(\d+)') { return $Matches[1] }
+        }
+    }
+    return '?'
+}
+
+<#
+    Bate no app PELO CADDY sem sair da maquina, e devolve o codigo HTTP.
+
+    Pedir https://dominio de dentro da VM nao serve de prova: muitas VMs nao
+    enxergam o proprio IP publico, e a falha ali nao diz nada sobre o app. O
+    --resolve manda a conexao para 127.0.0.1 com o nome certo no SNI - o mesmo
+    caminho do visitante, medido por dentro.
+
+    O -k e de proposito: aqui se mede se o Caddy ALCANCA o app. Se o certificado
+    ainda estiver saindo, um erro de certificado esconderia a unica resposta que
+    importa (200 x 502).
+#>
+function CaddyPorDentro($dominio) {
+    $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+    if (-not (Test-Path $curl)) { return '' }
+    $codigo = & $curl -s -k -o NUL -w '%{http_code}' --max-time 25 --resolve "${dominio}:443:127.0.0.1" "https://$dominio/healthz" 2>$null
+    $codigo = "$codigo".Trim()
+    if ($codigo -eq '000') { return '' }
+    return $codigo
 }
 
 <#

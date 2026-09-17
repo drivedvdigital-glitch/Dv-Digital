@@ -1390,6 +1390,52 @@ que sobrevive a 16 px — e agora também o que o editor mostra a 22 px, onde 25
 poeira) e `docs/marca/app-icon-1200.png`, para o campo de ícone do app no Dev Dashboard.
 O `viewBox` é cortado na caixa real do desenho, calculada, não chutada.
 
+### 🔴→✅ 502 para o mundo com o app de pé: duas letras maiúsculas (17/09)
+
+A instalação na VM terminou dizendo **PRONTO**, com o `/healthz` respondendo `{"banco":"ok"}` —
+e, ao mesmo tempo, `https://app.megaakciok.shop/healthz` devolvia **502** de fora. Medido daqui:
+12 amostras em 3 minutos, 502 em todas, cada uma levando ~16 s (exatamente o `lb_try_duration`
+do Caddy desistindo de achar o app). Caddy de pé, certificado válido, DNS certo, app
+respondendo. As duas coisas verdadeiras ao mesmo tempo, e incompatíveis.
+
+A causa, no instalador:
+
+```powershell
+$Porta = 3000
+...
+foreach ($porta in 80, 443) { ... }   # abre o firewall
+...
+EscreverRunner $Raiz $Porta            # ja vale 443
+```
+
+**Nome de variável no PowerShell não diferencia maiúsculas**: `$porta` e `$Porta` são a mesma
+variável. Depois do laço do firewall, a porta do app valia **443**. O `Caddyfile` tinha sido
+escrito antes, com 3000. Então o app subia em `127.0.0.1:443` e o Caddy — que no Windows
+consegue abrir `0.0.0.0:443` mesmo com alguém em `127.0.0.1:443` — atendia o mundo e procurava
+o app num lugar vazio. E a conferência final do instalador batia em
+`http://127.0.0.1:$Porta/healthz`, ou seja, **na porta errada pelo mesmo motivo**: acertava o
+app direto, sem passar pelo proxy, e dizia PRONTO.
+
+O que isso ensina, e virou regra no CLAUDE.md: **toda checagem local passava por fora do
+caminho do visitante**. Nenhuma podia falhar. Agora o instalador e o diagnóstico medem o
+caminho de verdade, sem sair da máquina:
+
+```powershell
+curl.exe -k --resolve "$dominio:443:127.0.0.1" "https://$dominio/healthz"
+```
+
+(`--resolve` manda a conexão para o loopback com o nome certo no SNI; pedir `https://dominio`
+de dentro da VM não serve de prova, porque muitas VMs não enxergam o próprio IP público.)
+
+Consertado em três camadas, para o erro não ter como voltar: a variável ganhou nome próprio
+(`$PortaDoApp`) e o laço do firewall outro; o `EscreverRunner` **recusa** 80, 443 ou qualquer
+coisa fora de 1024–65535 (a porta do app nunca é a porta do servidor web); o `PortaDoRunner`
+ignora o `set PORT=443` que a instalação quebrada deixou. O diagnóstico agora mostra, lado a
+lado, a porta do app e a porta que o Caddy procura, mais quem ocupa a 80 e a 443.
+
+Verificado: 17 checagens sobre as funções reais (extraídas por AST, rodadas no PowerShell 7),
+incluindo a simulação do laço que causou o bug; os quatro scripts passam no parser.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
