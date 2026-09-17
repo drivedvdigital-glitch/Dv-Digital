@@ -49,6 +49,10 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   (ID token da Shopify; exceções por desenho: `/bounce`, webhooks com HMAC, `/` que só
   redireciona); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só
   em dev. Loaders nunca devolvem token/segredo de loja ao cliente.
+  **Senha de acesso** (`DVFLY_ACCESS_KEY`, `access.server.ts`): loja instalada mas não
+  liberada para em `/liberar` — a trava mora DENTRO do `requireShop`, que é a única porta por
+  onde toda tela e todo dado já passam; portão em outro lugar é portão que a próxima rota
+  esquece. Liberação é por loja e permanente (`Store.authorizedAt`). Vazio = sem trava.
 - Decisões e porquês: `docs/ARQUITETURA.md` (invariantes I1–I7), `docs/UX_FLUXOS.md` (U1–U7),
   histórico honesto em `docs/PROGRESSO.md` — **atualizar a cada entrega**, incluindo o que falhou.
   Estado real do código × plataforma × concorrente: `docs/CONFIGURACAO_E_MECANISMOS.md`

@@ -1436,6 +1436,37 @@ lado, a porta do app e a porta que o Caddy procura, mais quem ocupa a 80 e a 443
 Verificado: 17 checagens sobre as funções reais (extraídas por AST, rodadas no PowerShell 7),
 incluindo a simulação do laço que causou o bug; os quatro scripts passam no parser.
 
+### ✅ Senha de acesso: loja instalada não é loja liberada (17/09)
+
+O app publicado na Shopify (`dvhub-application-19`) é de distribuição custom, então só instala
+quem recebe um link gerado por nós. Isso já é uma barreira — mas link se encaminha, e loja
+muda de dono. A partir de agora, **instalar não é o mesmo que poder usar**.
+
+Com `DVFLY_ACCESS_KEY` preenchida, a loja que abre o app cai numa tela (`/liberar`): nome da
+loja, campo de senha, e nada mais — nenhuma contagem de páginas, nenhuma lista, nenhuma pista
+do que a senha parece. Acertou, aquela loja fica liberada **para sempre**
+(`Store.authorizedAt`); ninguém digita de novo, nem depois de reinstalar ou de atualizar o
+app. Vazia, a variável não muda nada para quem já usava — o cadeado é opcional por desenho.
+
+Três decisões que valem estar escritas:
+
+- **A trava mora dentro do `requireShop`**, não em cada tela. É a única porta por onde toda
+  tela e todo dado já passam; um portão em qualquer outro lugar é um portão que a próxima
+  rota esquece de pôr. A exceção é a própria tela de senha, e ela é **nomeada**, não adivinhada.
+- **Pedido de documento cai na tela; pedido de dados leva 403.** Redirecionar um `fetch` do
+  App Bridge para uma tela HTML entregaria uma página onde o código espera JSON.
+- **Cinco erros por loja e vem uma pausa de 5 minutos** — contada em memória, por loja, e é a
+  loja errada que espera, não as outras. A comparação da senha é feita sobre o hash das duas
+  (`timingSafeEqual`), então o tempo da resposta não conta quantos caracteres estavam certos.
+
+Verificado dirigindo, não no papel: **15 checagens** contra o servidor de produção com ID
+tokens assinados com o segredo real (loja trancada, 403 no `.data`, senha errada, a pausa
+depois do quinto erro, a senha certa liberando **só** aquela loja, destino para fora do app
+ignorado, e a própria tela exigindo ID token), **3 checagens** com a variável vazia (nada
+muda para quem já usava) e o navegador de verdade: abrir → errar → acertar → reabrir sem
+perguntar, nos temas claro e escuro. Mais 7 testes unitários da comparação e do contador.
+`npm test` agora inclui o pacote `app` (109 testes no total).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

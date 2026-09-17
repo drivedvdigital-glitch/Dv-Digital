@@ -192,6 +192,7 @@ Ainda em **Settings → Environment Variables**, acrescente, marcando os três a
 | `SHOPIFY_CLIENT_SECRET` | do Dev Dashboard |
 | `DVFLY_TOKEN_KEY` | a que você gerou |
 | `DVFLY_ALLOWED_SHOPS` | suas lojas, separadas por vírgula (ex.: `tf1vp1-fd.myshopify.com`) — vazio deixa qualquer loja que a Shopify autorizar |
+| `DVFLY_ACCESS_KEY` | a senha de acesso: quem instalar o app só usa depois de digitá-la (uma vez por loja). Vazio = sem trava |
 
 `NODE_ENV=production` é definido pela própria Vercel; não crie.
 
@@ -377,8 +378,11 @@ Confira no fim: `https://seu-endereco/healthz` deve mostrar `"lojas"` maior que 
 
 ## O que ficou de fora, de propósito
 
-- **Vários clientes com dados separados.** Hoje qualquer loja que abra o app enxerga todas
-  as páginas — é o desenho de "publicar a mesma página em várias lojas suas". Para ceder o
-  app a terceiros, as páginas precisam ganhar dono e as telas precisam filtrar por ele.
-  Enquanto isso não existir, use `DVFLY_ALLOWED_SHOPS` para travar nas suas lojas.
+- **Vários clientes com dados separados.** Hoje qualquer loja **liberada** enxerga todas as
+  páginas — é o desenho de "publicar a mesma página em várias lojas suas". Para ceder o app
+  a terceiros, as páginas precisam ganhar dono e as telas precisam filtrar por ele. Enquanto
+  isso não existir, as duas travas que existem são: `DVFLY_ACCESS_KEY` (senha de acesso,
+  digitada uma vez por loja) e `DVFLY_ALLOWED_SHOPS` (lista fixa de domínios no servidor).
+  A senha é a prática — libera uma loja nova sem mexer no servidor; a lista é a mais dura,
+  porque nem a senha abre uma loja que não esteja nela.
 - **Deploy automático a cada commit.** É de propósito: você publica quando quiser.

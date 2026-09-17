@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
 
+import { lockEnabled, unlockedCount } from '../lib/access.server.ts';
 import { COMPILER_VERSION } from '../lib/compiler.server.ts';
 import { config } from '../lib/config.server.ts';
 import { db } from '../lib/db.server.ts';
@@ -24,8 +25,10 @@ export async function loader(_: LoaderFunctionArgs) {
   const started = Date.now();
   let database: 'ok' | 'erro' = 'ok';
   let stores: number | null = null;
+  let unlocked: number | null = null;
   try {
     stores = await db.store.count();
+    unlocked = await unlockedCount();
   } catch {
     database = 'erro';
   }
@@ -40,6 +43,10 @@ export async function loader(_: LoaderFunctionArgs) {
     credenciaisDaShopify: Boolean(config.shopifyClientId && config.shopifyClientSecret),
     tokensCriptografados: Boolean(config.tokenKey),
     lojasAutorizadas: config.allowedShops.length,
+    // Whether the lock is on, and how many stores are through it. The key
+    // itself never appears here, in any shape.
+    senhaDeAcesso: lockEnabled(),
+    lojasLiberadas: unlocked,
     ms: Date.now() - started,
   };
 

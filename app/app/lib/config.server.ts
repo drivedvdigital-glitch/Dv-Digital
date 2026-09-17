@@ -83,6 +83,19 @@ export const config = {
     .filter(Boolean),
 
   /**
+   * Access key: a store that installed the app still sees nothing until
+   * someone types this. Set it and the app is private even if an install link
+   * leaks, or if a store the app was installed on changes hands.
+   *
+   * It is not a list of stores (`allowedShops` is that, and stays the harder
+   * gate): the key is what lets YOU open a new store of your own without
+   * touching the server's configuration. Typed once per store, remembered in
+   * the database. Empty = no lock, which is what a custom-distribution app
+   * used to rely on alone.
+   */
+  accessKey: process.env.DVFLY_ACCESS_KEY?.trim() || null,
+
+  /**
    * Every request must carry a Shopify ID token (the app opened from the
    * admin). `DVFLY_AUTH=off` switches that off for local development only —
    * opening the app straight from localhost, or driving it with Playwright.

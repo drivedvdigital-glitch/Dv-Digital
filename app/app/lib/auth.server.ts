@@ -19,6 +19,7 @@ import { redirect } from 'react-router';
 import { ShopifyClient } from '../../../packages/shopify/src/client.ts';
 import { exchangeToken, SessionTokenError, verifySessionToken } from '../../../packages/shopify/src/session.ts';
 
+import { storeUnlocked, UNLOCK_PATH } from './access.server.ts';
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
 import { seal } from './secrets.server.ts';
@@ -112,6 +113,27 @@ export async function requireShop(request: Request): Promise<RequestShop> {
       { status: 403 },
     );
   }
+
+  // The lock. It sits HERE, and not on each screen, because this function is
+  // the one door every screen and every data route already goes through — a
+  // gate anywhere else is a gate somebody forgets to put on the next route.
+  // The unlock page itself is the one exception, and it is named, not guessed.
+  if (url.pathname !== UNLOCK_PATH && !(await storeUnlocked(shop))) {
+    if (isDocumentRequest(request)) {
+      const back = new URL(url);
+      back.searchParams.delete('id_token');
+      back.searchParams.delete(BOUNCED_PARAM);
+      // No token is carried over: the unlock page asks the bounce for a fresh
+      // one, like any other screen. One invisible hop, and no ID token written
+      // into a redirect of ours.
+      throw redirect(`${UNLOCK_PATH}?to=${encodeURIComponent(back.pathname + back.search)}`);
+    }
+    throw new Response(
+      `Esta loja (${shop}) ainda não foi liberada. Abra o app pelo admin e digite a senha de acesso.`,
+      { status: 403 },
+    );
+  }
+
   return { shop, idToken: token, via: 'token' };
 }
 

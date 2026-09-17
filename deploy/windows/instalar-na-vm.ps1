@@ -154,6 +154,7 @@ $Dominio = ValorDoEnv 'DVFLY_DOMAIN'
 $ClientId = ValorDoEnv 'SHOPIFY_CLIENT_ID'
 $ClientSecret = ValorDoEnv 'SHOPIFY_CLIENT_SECRET'
 $Chave = ValorDoEnv 'DVFLY_TOKEN_KEY'
+$Senha = ValorDoEnv 'DVFLY_ACCESS_KEY'
 
 Write-Host ''
 Write-Host '   O dominio e o endereco publico do app. Precisa ja estar apontando'
@@ -196,6 +197,21 @@ if ($Chave -eq '') {
     Aviso 'Guarde uma copia dela (esta em app\.env). Trocar essa chave obriga cada loja a abrir o app de novo.'
 }
 
+# A senha de acesso e o que impede uma loja desconhecida de usar o app mesmo
+# tendo conseguido instalar. Fica em branco para quem nao quer trava - mas a
+# pergunta e feita, porque uma protecao que so existe se alguem descobrir que
+# existe nao protege ninguem.
+Write-Host ''
+Write-Host '   Senha de acesso: quem instalar o app so consegue usar depois de'
+Write-Host '   digitar esta senha. Cada loja pede uma vez so. Deixe em branco'
+Write-Host '   para nao ter trava.'
+$Senha = Perguntar 'Senha de acesso ao app' $Senha '(ex.: uma frase que so voce sabe)'
+if ($Senha -eq '') {
+    Aviso 'Sem senha: qualquer loja que abrir o app vai poder usar.'
+} else {
+    Write-Host '   Trava ligada. Guarde a senha: ela esta em app\.env (DVFLY_ACCESS_KEY).' -ForegroundColor Green
+}
+
 # ---- 4. dependencias, banco e compilacao ------------------------------------
 Passo 'Preparando o app (dependencias, banco e compilacao)'
 # Se ja houver uma instalacao rodando, ela precisa parar antes: no Windows o
@@ -217,6 +233,7 @@ SHOPIFY_API_VERSION=""
 DVFLY_DEV_ORIGINS=""
 DVFLY_AUTH=""
 DVFLY_ALLOWED_SHOPS=""
+DVFLY_ACCESS_KEY="$Senha"
 # Guardado aqui so para o instalador lembrar do dominio numa proxima rodada.
 DVFLY_DOMAIN="$Dominio"
 "@

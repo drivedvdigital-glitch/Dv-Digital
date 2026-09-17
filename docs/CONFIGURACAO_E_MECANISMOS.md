@@ -365,6 +365,7 @@ draggable>` no Firefox.
 | `DVFLY_DEV_ORIGINS` | `react-router.config.ts` — **no build**, não em tempo de execução | não | `*.trycloudflare.com` fora de produção; vazio em produção |
 | `DVFLY_AUTH` | `config.server.ts` | não | `off` desliga o ID token **só fora de produção** (Playwright, localhost) |
 | `DVFLY_ALLOWED_SHOPS` | `config.server.ts` | não | vazio = qualquer loja que a Shopify deixe instalar; lista de domínios `myshopify.com` separados por vírgula restringe `requireShop` (403) |
+| `DVFLY_ACCESS_KEY` | `config.server.ts` → `access.server.ts` | não | senha de acesso: a loja instalada só usa o app depois que alguém digitar isto em `/liberar`; vale para aquela loja para sempre (`Store.authorizedAt`). Vazio = sem trava. Cinco erros por loja = pausa de 5 min |
 | `NODE_ENV` | `db.server.ts`, config, RR config | `production` no host | — |
 | `PORT` / `HOST` | `app/server.mjs` (`npm start`) | não | 3000 / todas |
 

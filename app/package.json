@@ -9,7 +9,8 @@
     "db:schema": "node scripts/db-schema.mjs",
     "db:deploy": "node scripts/db-sync.mjs",
     "db:setup": "node scripts/ensure-env.mjs && npm run db:schema && prisma generate && npm run db:deploy",
-    "vercel-build": "npm run build && npm run db:deploy"
+    "vercel-build": "npm run build && npm run db:deploy",
+    "test": "node --experimental-strip-types --test \"tests/*.test.ts\""
   },
   "dependencies": {
     "@prisma/client": "^6.16.3",

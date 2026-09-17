@@ -17,5 +17,9 @@ export default [
   route('preview/:id', 'routes/preview.$id.tsx'),
   // Session-token bounce and Shopify webhooks (see auth.server.ts / webhooks.$topic.tsx).
   route('bounce', 'routes/bounce.tsx'),
+  // A loja instalou o app mas ninguém digitou a senha de acesso: é aqui que
+  // ela para (access.server.ts). Fora de /app de propósito — o layout de /app
+  // já instala a loja, e o bloqueio tem que vir antes disso.
+  route('liberar', 'routes/liberar.tsx'),
   route('webhooks/:topic', 'routes/webhooks.$topic.tsx'),
 ] satisfies RouteConfig;

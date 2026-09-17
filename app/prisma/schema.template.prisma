@@ -34,6 +34,10 @@ model Store {
   installedAt   DateTime?
   /// Set by the app/uninstalled webhook; the row stays so pages keep history.
   uninstalledAt DateTime?
+  /// When someone typed the access key (DVFLY_ACCESS_KEY) for this store.
+  /// Null means the store still has to. Meaningless while no key is set —
+  /// installing is then enough, as it was before the lock existed.
+  authorizedAt  DateTime?
   isProduction  Boolean      @default(false)
   createdAt     DateTime     @default(now())
   deployments   Deployment[]
