@@ -57,12 +57,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
     (async function () {
       var target = ${JSON.stringify(target).replace(/</g, '\\u003c')};
       try {
-        if (!window.shopify || !window.shopify.idToken) throw new Error('fora do admin');
+        if (!window.shopify || !window.shopify.idToken) throw new Error('sem-app-bridge');
         var token = await window.shopify.idToken();
         window.location.replace(target + '&id_token=' + encodeURIComponent(token));
       } catch (e) {
-        document.getElementById('msg').textContent =
-          'O D&VFly abre de dentro do admin da Shopify (Apps → D&VFly). Esta janela não está no admin, então não há como confirmar a loja.';
+        // As duas falhas são muito diferentes e levavam o mesmo texto, que
+        // mandava o lojista para onde ele já estava ("abra pelo admin") quando
+        // o problema era o script bloqueado no navegador dele.
+        document.getElementById('msg').textContent = e && e.message === 'sem-app-bridge'
+          ? 'O script da Shopify (App Bridge) não carregou nesta janela, então não há como confirmar a loja. Se você abriu isto DENTRO do admin, o bloqueador de anúncios ou o escudo do navegador está barrando cdn.shopify.com — libere esse endereço e recarregue. Fora do admin, abra o app em Apps → DVHub Application.'
+          : 'A Shopify não devolveu a confirmação da loja nesta janela (' + ((e && e.message) || 'sem detalhe') + '). Recarregue; se continuar, abra o app pelo admin em Apps → DVHub Application.';
       }
     })();
   </script>

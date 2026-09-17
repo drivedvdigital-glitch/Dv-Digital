@@ -1459,7 +1459,32 @@ Três decisões que valem estar escritas:
   loja errada que espera, não as outras. A comparação da senha é feita sobre o hash das duas
   (`timingSafeEqual`), então o tempo da resposta não conta quantos caracteres estavam certos.
 
-Verificado dirigindo, não no papel: **15 checagens** contra o servidor de produção com ID
+**O bloqueio quase trancou o dono do lado de fora (17/09, mesmo dia).** Na loja de verdade, a
+tela de senha não apareceu: veio o texto da página de *bounce* dizendo que a janela não estava
+no admin. O navegador do lojista estava barrando `cdn.shopify.com`, e sem o App Bridge o pulo
+que eu tinha inventado — redirecionar para `/liberar` **sem** o token, para que a tela pedisse
+um novo — não tinha como se completar. Dirigindo com a CDN bloqueada de propósito, apareceu
+ainda um segundo defeito, pior: sem App Bridge a página **não hidrata**, o campo controlado
+nunca atualizava o estado do React e o botão ficava desabilitado para sempre. Uma tranca sem
+buraco de fechadura.
+
+Três consertos, todos na direção de depender de menos:
+
+- o portão **leva junto o token que já veio na URL** (é a mesma URL que o admin acabou de
+  abrir — mesma exposição, um pulo a menos);
+- a tela virou um **formulário de verdade** (`<form method="post">`), que o navegador envia
+  sozinho, sem JavaScript, para a mesma URL — e o token vai no envio;
+- a volta, depois de liberar, **também leva o token**, senão a tela seguinte cairia no mesmo
+  pulo.
+
+Medido com a `cdn.shopify.com` abortada no navegador: abrir → tela de senha → senha errada
+contada → senha certa → **cai direto na lista de páginas**. Nenhum pedaço do caminho depende
+do App Bridge. (O resto do app ainda depende: salvar e publicar mandam o token por `fetch`.
+Num navegador que barra a CDN da Shopify, o app abre mas não salva — a mensagem da página de
+bounce agora diz isso com todas as letras, em vez de mandar o lojista abrir pelo admin onde
+ele já estava.)
+
+Verificado dirigindo, não no papel: **17 checagens** contra o servidor de produção com ID
 tokens assinados com o segredo real (loja trancada, 403 no `.data`, senha errada, a pausa
 depois do quinto erro, a senha certa liberando **só** aquela loja, destino para fora do app
 ignorado, e a própria tela exigindo ID token), **3 checagens** com a variável vazia (nada

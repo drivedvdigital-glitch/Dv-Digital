@@ -123,10 +123,20 @@ export async function requireShop(request: Request): Promise<RequestShop> {
       const back = new URL(url);
       back.searchParams.delete('id_token');
       back.searchParams.delete(BOUNCED_PARAM);
-      // No token is carried over: the unlock page asks the bounce for a fresh
-      // one, like any other screen. One invisible hop, and no ID token written
-      // into a redirect of ours.
-      throw redirect(`${UNLOCK_PATH}?to=${encodeURIComponent(back.pathname + back.search)}`);
+      const unlock = new URL(UNLOCK_PATH, url.origin);
+      unlock.searchParams.set('to', back.pathname + back.search);
+      // The token this request ALREADY carried in its URL rides along.
+      //
+      // The first version dropped it, so that no ID token was written into a
+      // redirect of ours, and let the unlock page fetch a fresh one through the
+      // bounce. That hop depends on App Bridge answering inside the admin — and
+      // in a real store, in a browser with shields on, it did not: the merchant
+      // got the bounce's fallback text instead of the screen. The exposure is
+      // the same either way (this is the very URL the admin just opened), and
+      // one less moving part is one less way to be locked out of the lock.
+      const carried = url.searchParams.get('id_token');
+      if (carried) unlock.searchParams.set('id_token', carried);
+      throw redirect(unlock.pathname + unlock.search);
     }
     throw new Response(
       `Esta loja (${shop}) ainda não foi liberada. Abra o app pelo admin e digite a senha de acesso.`,

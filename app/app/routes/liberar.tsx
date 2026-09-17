@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { data, redirect, useActionData, useLoaderData, useNavigation, useSubmit } from 'react-router';
+import { data, redirect, useActionData, useLoaderData, useLocation, useNavigation } from 'react-router';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 
 import { limiter, lockEnabled, storeUnlocked, unlockStore, waitLabel } from '../lib/access.server.ts';
@@ -84,26 +83,24 @@ export async function action({ request }: ActionFunctionArgs) {
 
   limiter.clear(who.shop);
   await unlockStore(who.shop);
-  throw redirect(to);
+
+  // The way back carries the token too, for the same reason the way in does:
+  // the screen after this one is a document request, and without a token it
+  // would go through the bounce — which asks App Bridge, which is exactly what
+  // may be broken in the browser that ended up here. With the token, the store
+  // lands on the app itself.
+  const back = new URL(to, url.origin);
+  const carried = url.searchParams.get('id_token');
+  if (carried) back.searchParams.set('id_token', carried);
+  throw redirect(back.pathname + back.search);
 }
 
 export default function Liberar() {
   const { shop, to } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
-  const submit = useSubmit();
+  const location = useLocation();
   const busy = useNavigation().state !== 'idle';
-  const [senha, setSenha] = useState('');
   const [uiTheme, toggleUiTheme] = useUiTheme();
-
-  // A plain <form method="post"> would leave App Bridge out of it, and with it
-  // the ID token that says which store is asking. `useSubmit` posts with fetch,
-  // which App Bridge decorates — the same path every other screen uses.
-  const enviar = () => {
-    const fd = new FormData();
-    fd.set('senha', senha);
-    fd.set('to', to);
-    submit(fd, { method: 'post' });
-  };
 
   return (
     <div className="dv-ui" data-theme={uiTheme} style={shell}>
@@ -127,33 +124,43 @@ export default function Liberar() {
           </div>
         ) : null}
 
-        <label htmlFor="senha" style={label}>
-          Senha de acesso
-        </label>
-        <input
-          id="senha"
-          name="senha"
-          type="password"
-          className="dv-input"
-          autoComplete="off"
-          autoFocus
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && senha && !busy) enviar();
-          }}
-          style={{ width: '100%', marginBottom: 14 }}
-        />
+        {/*
+          A real form, posting to THIS url — query string and all.
 
-        <button
-          type="button"
-          className="dv-btn dv-primary"
-          style={{ width: '100%', justifyContent: 'center' }}
-          disabled={busy || !senha || undefined}
-          onClick={enviar}
-        >
-          {busy ? 'Conferindo…' : 'Liberar esta loja'}
-        </button>
+          Every other screen of the app submits through `useSubmit`, which App
+          Bridge decorates with the ID token. This one must not: it is the screen
+          a store sees when something is already unusual, and in a real store the
+          unusual thing WAS App Bridge (a browser shield was eating
+          cdn.shopify.com). Without it the page never hydrated, the controlled
+          input never updated React state, and the button stayed disabled — a
+          lock with no key hole. A plain form submits with the browser alone, and
+          the token the gate put in this url rides along with the post.
+        */}
+        <form method="post" action={location.pathname + location.search}>
+          <input type="hidden" name="to" value={to} />
+          <label htmlFor="senha" style={label}>
+            Senha de acesso
+          </label>
+          <input
+            id="senha"
+            name="senha"
+            type="password"
+            className="dv-input"
+            autoComplete="off"
+            autoFocus
+            required
+            style={{ width: '100%', marginBottom: 14 }}
+          />
+
+          <button
+            type="submit"
+            className="dv-btn dv-primary"
+            style={{ width: '100%', justifyContent: 'center' }}
+            disabled={busy || undefined}
+          >
+            {busy ? 'Conferindo…' : 'Liberar esta loja'}
+          </button>
+        </form>
 
         <p style={{ ...text, color: 'var(--dv-ink-3)', marginTop: 16, marginBottom: 0 }}>
           Não tem a senha? Ela é de quem administra o D&amp;VFly. Sem ela, nada nesta loja é
