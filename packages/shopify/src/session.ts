@@ -53,6 +53,35 @@ const b64url = {
 };
 
 /**
+ * Which of these apps a token SAYS it belongs to.
+ *
+ * This server answers for more than one Shopify app (custom distribution ties
+ * an app to one store, so a second store means a second app), and the signature
+ * cannot be checked before knowing WHICH secret to check it against. So `aud`
+ * is read here without verifying anything — and that is safe precisely because
+ * nothing is decided here: the returned credentials go straight into
+ * `verifySessionToken`, which refuses a signature that does not match and
+ * checks `aud` again against the credentials it was given. A forged `aud` only
+ * picks a secret the forger does not have.
+ *
+ * With a single app configured, that app is returned and the verification
+ * below rejects a token minted for anything else.
+ */
+export function credentialsFor(token: string, apps: AppCredentials[]): AppCredentials | null {
+  if (apps.length <= 1) return apps[0] ?? null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const claims = JSON.parse(b64url.decode(parts[1]).toString('utf8'));
+    const aud = claims && typeof claims === 'object' ? (claims as { aud?: unknown }).aud : null;
+    if (typeof aud !== 'string') return null;
+    return apps.find((app) => app.clientId === aud) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Verifies an App Bridge ID token: HS256 signature with the client secret,
  * then the claims Shopify says to check — `exp` in the future, `nbf` in the
  * past, `aud` equal to the client id, and `iss`/`dest` on the same shop.

@@ -361,6 +361,7 @@ draggable>` no Firefox.
 | `DATABASE_URL_DIRECT` | `app/scripts/prisma-schema.mjs` (vira `directUrl`) | não | endereço direto do Postgres, para as migrations quando a conexão principal é por pooler (Neon, Supabase) |
 | `DVFLY_TOKEN_KEY` | `config.server.ts` → `secrets.server.ts` | **sim em produção** | 32 bytes em base64 (`npm run gerar-chave`); criptografa `Store.accessToken` e `Store.clientSecret` em repouso (AES-256-GCM) |
 | `SHOPIFY_CLIENT_ID` / `SHOPIFY_CLIENT_SECRET` | `config.server.ts` | **sim em produção**; em dev cai para a primeira `Store` | — |
+| `SHOPIFY_CLIENT_ID_2` / `SHOPIFY_CLIENT_SECRET_2` (…_3, _4) | `config.server.ts` → `shopifyApps` | não | um app a mais atendido pelo mesmo servidor (loja em outra organização, que a distribuição custom obriga a ter app próprio). A credencial de cada requisição sai do `aud` do ID token; `Store.clientId` lembra o app de cada loja. Par incompleto = erro no boot |
 | `SHOPIFY_API_VERSION` | `config.server.ts` (validada `AAAA-MM`) | não | `2026-07` |
 | `DVFLY_DEV_ORIGINS` | `react-router.config.ts` — **no build**, não em tempo de execução | não | `*.trycloudflare.com` fora de produção; vazio em produção |
 | `DVFLY_AUTH` | `config.server.ts` | não | `off` desliga o ID token **só fora de produção** (Playwright, localhost) |

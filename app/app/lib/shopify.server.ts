@@ -15,6 +15,7 @@ import type { Store as StoreRow } from '@prisma/client';
 
 import { ShopifyClient, ShopifyError } from '../../../packages/shopify/src/client.ts';
 import type { Store } from '../../../packages/shopify/src/deploy.ts';
+import { credentialsFor } from '../../../packages/shopify/src/session.ts';
 
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
@@ -33,23 +34,85 @@ export { productSuffix, removeProductTemplate, SOLO_SUFFIX } from '../../../pack
 /** A myshopify domain and nothing else — this value ends up in URLs and a CSP. */
 export const SHOP_DOMAIN = /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i;
 
+type Credentials = { clientId: string; clientSecret: string };
+
 /**
- * The app's own credentials — one pair for the whole app, whatever the store.
- * Environment first; failing that (development only), a pair a store row
- * still carries from the days credentials were copied per store.
+ * Every Shopify app this server answers for.
+ *
+ * Usually one. Two when a second store of yours lives in another organization:
+ * Shopify's custom distribution ties an app to a single store, so the second
+ * store installs a second app, and this server holds both pairs.
+ *
+ * Environment first; failing that (development only), a pair a store row still
+ * carries from the days credentials were copied per store.
  */
-export async function appCredentials(): Promise<{ clientId: string; clientSecret: string } | null> {
-  if (config.shopifyClientId && config.shopifyClientSecret) {
-    return { clientId: config.shopifyClientId, clientSecret: config.shopifyClientSecret };
-  }
-  if (config.isProduction) return null;
-  const any = await db.store.findFirst({
+export async function appCredentialsList(): Promise<Credentials[]> {
+  if (config.shopifyApps.length > 0) return config.shopifyApps;
+  if (config.isProduction) return [];
+  const rows = await db.store.findMany({
     where: { clientId: { not: null }, clientSecret: { not: null } },
     orderBy: { createdAt: 'asc' },
   });
-  return any?.clientId && any.clientSecret
-    ? { clientId: any.clientId, clientSecret: open(any.clientSecret)! }
-    : null;
+  const apps: Credentials[] = [];
+  for (const row of rows) {
+    const clientSecret = open(row.clientSecret);
+    if (!row.clientId || !clientSecret) continue;
+    if (apps.some((app) => app.clientId === row.clientId)) continue;
+    apps.push({ clientId: row.clientId, clientSecret });
+  }
+  return apps;
+}
+
+/**
+ * The credentials of ONE app — the one a store belongs to.
+ *
+ * `clientId` comes from the store's row (written at install) or from the `aud`
+ * of the token in hand. Without it, the first app configured answers, which is
+ * the right default while there is only one and the honest fallback for a row
+ * written before this existed.
+ */
+export async function appCredentials(clientId?: string | null): Promise<Credentials | null> {
+  const apps = await appCredentialsList();
+  if (apps.length === 0) return null;
+  if (!clientId) return apps[0];
+  return apps.find((app) => app.clientId === clientId) ?? apps[0];
+}
+
+/** The credentials a store row acts under. */
+export async function credentialsForStore(row: Pick<StoreRow, 'clientId' | 'clientSecret'>): Promise<Credentials | null> {
+  // A row that carries its own pair (old development rows) keeps deciding for
+  // itself; everything else is resolved from the configured apps.
+  const ownSecret = open(row.clientSecret);
+  if (row.clientId && ownSecret) return { clientId: row.clientId, clientSecret: ownSecret };
+  return appCredentials(row.clientId);
+}
+
+/**
+ * The client id App Bridge must boot with, for THIS request.
+ *
+ * App Bridge identifies the app to the admin; with two apps on one server,
+ * handing a store the other app's id leaves the page unembedded and every
+ * `fetch` unsigned — a failure that looks like everything and nothing. Read, in
+ * order, from the `aud` of the token in the url (exact, no database), from the
+ * store the url names (its row remembers the app it installed), and finally the
+ * first app configured, which is the whole truth while there is only one.
+ */
+export async function clientIdForRequest(request: Request, shopHint?: string): Promise<string> {
+  const apps = await appCredentialsList();
+  if (apps.length === 0) return '';
+  const url = new URL(request.url);
+  const token = url.searchParams.get('id_token');
+  if (token) {
+    const app = credentialsFor(token, apps);
+    if (app) return app.clientId;
+  }
+  const shop = (shopHint ?? url.searchParams.get('shop') ?? '').toLowerCase();
+  if (SHOP_DOMAIN.test(shop)) {
+    const row = await db.store.findUnique({ where: { domain: shop }, select: { clientId: true } });
+    const known = apps.find((app) => app.clientId === row?.clientId);
+    if (known) return known.clientId;
+  }
+  return apps[0].clientId;
 }
 
 /**
@@ -78,7 +141,7 @@ export async function ensureStore(shop: string): Promise<StoreRow | null> {
     // The pair is copied into the row only when the environment does not
     // carry it (a database registered before the app had a .env) — the
     // secret has one home, and it is not the database.
-    const fromEnvironment = Boolean(config.shopifyClientId && config.shopifyClientSecret);
+    const fromEnvironment = config.shopifyApps.length > 0;
     return await db.store.create({
       data: {
         domain,
@@ -99,7 +162,7 @@ export async function ensureStore(shop: string): Promise<StoreRow | null> {
 export function storeUsable(row: StoreRow): boolean {
   if (row.uninstalledAt) return false;
   if (row.accessToken) return !row.tokenExpiresAt || row.tokenExpiresAt.getTime() > Date.now();
-  return Boolean((row.clientId && row.clientSecret) || (config.shopifyClientId && config.shopifyClientSecret));
+  return Boolean((row.clientId && row.clientSecret) || config.shopifyApps.length > 0);
 }
 
 /** Why the store is out of reach, in the words the screen shows. */
@@ -120,11 +183,16 @@ export function storeUnusableReason(row: StoreRow): string | null {
  * and nothing downstream can forget to open it.
  */
 export function toStore(row: StoreRow): Store {
+  // The app this store belongs to — remembered on the row at install. Falling
+  // back to the first configured app is right while there is only one, and is
+  // what a row written before multiple apps existed deserves.
+  const app =
+    config.shopifyApps.find((candidate) => candidate.clientId === row.clientId) ?? config.shopifyApps[0];
   return {
     domain: row.domain,
     accessToken: open(row.accessToken),
-    clientId: row.clientId ?? config.shopifyClientId ?? '',
-    clientSecret: open(row.clientSecret) ?? config.shopifyClientSecret ?? '',
+    clientId: row.clientId ?? app?.clientId ?? '',
+    clientSecret: open(row.clientSecret) ?? app?.clientSecret ?? '',
     label: row.label,
     isProduction: row.isProduction,
     apiVersion: config.shopifyApiVersion,

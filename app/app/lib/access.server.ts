@@ -49,12 +49,17 @@ export async function storeUnlocked(shop: string): Promise<boolean> {
  * request that would have created the row. The label is provisional — the
  * install that follows replaces it with the store's real name.
  */
-export async function unlockStore(shop: string): Promise<void> {
+export async function unlockStore(shop: string, appClientId?: string | null): Promise<void> {
   const now = new Date();
+  // The app this store belongs to is known HERE, from the token that was just
+  // verified — and this row is created before the install, so without it the
+  // next page (the bounce, which needs App Bridge) would boot with whichever
+  // app happens to be first. The install that follows writes it again.
+  const app = appClientId ? { clientId: appClientId } : {};
   await db.store.upsert({
     where: { domain: shop },
-    create: { domain: shop, label: shop.replace('.myshopify.com', ''), authorizedAt: now },
-    update: { authorizedAt: now },
+    create: { domain: shop, label: shop.replace('.myshopify.com', ''), authorizedAt: now, ...app },
+    update: { authorizedAt: now, ...app },
   });
 }
 

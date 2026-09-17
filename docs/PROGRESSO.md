@@ -1521,6 +1521,39 @@ faz sentido, nada de `timeout`, os três scripts passam a porta) e os cinco scri
 O `diagnosticar.ps1` passou a dizer, na primeira linha, se o runner daquela máquina tem o laço
 — uma instalação antiga não tem, e isso agora aparece em vez de ser adivinhado.
 
+### ✅ Duas lojas, dois apps da Shopify, um servidor só (17/09)
+
+A segunda loja não instalava: *"Não é possível usar este link de instalação — o app pode não
+estar disponível para esta loja"*. Não é defeito nosso e não tem configuração que resolva: a
+**distribuição custom da Shopify amarra um app a UMA loja**, e a segunda loja vive em outra
+organização. O caminho é um segundo app custom, com outro Client ID e outro secret.
+
+A saída óbvia — subir uma segunda instalação do D&VFly — seria duas ilhas: páginas separadas,
+dois bancos, nada de "publicar nas duas de uma vez". Então o servidor passou a atender
+**vários apps ao mesmo tempo**:
+
+- `SHOPIFY_CLIENT_ID_2` / `SHOPIFY_CLIENT_SECRET_2` (e `_3`, `_4`…). Par pela metade **derruba
+  o boot** com a mensagem certa, em vez de ser ignorado e reaparecer como "essa loja não
+  instala" três dias depois.
+- De qual app é um token sai do **`aud`**, lido sem verificar nada — e isso é seguro
+  justamente porque não decide nada: a escolha só diz **com qual segredo** a assinatura vai
+  ser conferida. Um `aud` forjado escolhe um segredo que o falsificador não tem, e a
+  verificação recusa. Está medido: token do app B assinado com o segredo do app A → 401
+  "assinatura"; token de um app que este servidor não atende → 401 "aud".
+- Cada loja guarda em `Store.clientId` o app que instalou — na liberação (onde o token já foi
+  verificado) e de novo na instalação. É com a credencial dele que o app troca token, publica
+  e confere webhook daquela loja.
+- O **App Bridge de cada tela recebe o Client ID da loja daquela tela**. Com o id do outro app,
+  o admin não embute a página e nenhum `fetch` sai assinado — uma falha que parece tudo e
+  nada. Medido: o HTML da loja A traz o id do app A e **não** traz o do B, e vice-versa; o
+  mesmo na página de bounce.
+
+Verificado: **10 checagens** contra o servidor de produção com dois apps configurados e duas
+lojas (incluindo as duas recusas acima e "nenhum segredo no HTML"), **116 testes** unitários
+— 7 novos só para a escolha por `aud` —, typecheck e build. Na VM, um comando acrescenta o
+app novo: `deploy\windows\adicionar-app.ps1` (10 checagens sobre a função que escolhe o
+próximo número livre no `.env`).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

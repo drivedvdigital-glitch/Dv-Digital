@@ -82,7 +82,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   limiter.clear(who.shop);
-  await unlockStore(who.shop);
+  await unlockStore(who.shop, who.appClientId);
 
   // The way back carries the token too, for the same reason the way in does:
   // the screen after this one is a document request, and without a token it

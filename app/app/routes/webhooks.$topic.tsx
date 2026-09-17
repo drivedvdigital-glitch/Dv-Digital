@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from 'react-router';
 
 import { verifyWebhookHmac } from '../../../packages/shopify/src/session.ts';
 import { db } from '../lib/db.server.ts';
-import { appCredentials } from '../lib/shopify.server.ts';
+import { appCredentialsList, credentialsForStore } from '../lib/shopify.server.ts';
 
 /**
  * Webhooks Shopify sends the app (declared in shopify.app.toml):
@@ -17,13 +17,31 @@ import { appCredentials } from '../lib/shopify.server.ts';
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   const raw = await request.text();
-  const credentials = await appCredentials();
-  if (!credentials || !verifyWebhookHmac(raw, request.headers.get('x-shopify-hmac-sha256'), credentials.clientSecret)) {
+  const topic = request.headers.get('x-shopify-topic') ?? '';
+  const domain = (request.headers.get('x-shopify-shop-domain') ?? '').toLowerCase();
+
+  // Which secret signed this depends on WHICH app the store installed — the
+  // server answers for more than one. The store's own app is tried first; when
+  // the store is unknown (an uninstall for a row already gone, a delivery that
+  // arrives before the install finished), every configured app is tried, and a
+  // body that matches none is refused. Trying them all is not a weakening: a
+  // valid HMAC under any of our secrets came from Shopify, for one of our apps.
+  const hmac = request.headers.get('x-shopify-hmac-sha256');
+  const row = domain
+    ? await db.store.findUnique({ where: { domain }, select: { clientId: true, clientSecret: true } })
+    : null;
+  const candidates = [];
+  if (row) {
+    const mine = await credentialsForStore(row);
+    if (mine) candidates.push(mine);
+  }
+  for (const app of await appCredentialsList()) {
+    if (!candidates.some((candidate) => candidate.clientId === app.clientId)) candidates.push(app);
+  }
+  if (!candidates.some((candidate) => verifyWebhookHmac(raw, hmac, candidate.clientSecret))) {
     return new Response('assinatura inválida', { status: 401 });
   }
 
-  const topic = request.headers.get('x-shopify-topic') ?? '';
-  const domain = (request.headers.get('x-shopify-shop-domain') ?? '').toLowerCase();
   let payload: Record<string, unknown> = {};
   try {
     payload = JSON.parse(raw);

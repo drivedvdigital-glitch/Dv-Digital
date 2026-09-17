@@ -49,6 +49,42 @@ function apiVersion(): string {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+export interface ShopifyApp {
+  clientId: string;
+  clientSecret: string;
+}
+
+/**
+ * The Shopify apps configured, in order: the plain pair first, then the
+ * numbered ones.
+ *
+ * A half-filled app (an id with no secret, or the other way round) throws
+ * instead of being skipped: skipping it silently would show up much later, as
+ * a store that cannot install, with nothing on screen pointing at the .env.
+ */
+function readShopifyApps(): ShopifyApp[] {
+  const apps: ShopifyApp[] = [];
+  const suffixes = ['', ...Array.from({ length: 8 }, (_, i) => `_${i + 2}`)];
+  for (const suffix of suffixes) {
+    const clientId = process.env[`SHOPIFY_CLIENT_ID${suffix}`]?.trim() ?? '';
+    const clientSecret = process.env[`SHOPIFY_CLIENT_SECRET${suffix}`]?.trim() ?? '';
+    if (!clientId && !clientSecret) continue;
+    if (!clientId || !clientSecret) {
+      throw new Error(
+        `SHOPIFY_CLIENT_ID${suffix} e SHOPIFY_CLIENT_SECRET${suffix} andam juntos: ` +
+          `um está preenchido e o outro não. Complete o par no .env (ou apague os dois).`,
+      );
+    }
+    if (apps.some((app) => app.clientId === clientId)) {
+      throw new Error(`SHOPIFY_CLIENT_ID${suffix} repete um app já configurado (${clientId}).`);
+    }
+    apps.push({ clientId, clientSecret });
+  }
+  return apps;
+}
+
+const shopifyApps = readShopifyApps();
+
 export const config = {
   isProduction,
 
@@ -60,8 +96,24 @@ export const config = {
    * with a registered store carries the same pair. Required in production,
    * where no such fallback should decide anything.
    */
-  shopifyClientId: process.env.SHOPIFY_CLIENT_ID?.trim() || null,
-  shopifyClientSecret: process.env.SHOPIFY_CLIENT_SECRET?.trim() || null,
+  shopifyClientId: shopifyApps[0]?.clientId ?? null,
+  shopifyClientSecret: shopifyApps[0]?.clientSecret ?? null,
+
+  /**
+   * Every Shopify app this server answers for.
+   *
+   * There is more than one because Shopify's custom distribution ties an app
+   * to a SINGLE store: a second store of yours, in another organization, can
+   * only install a second app, with its own client id and secret. Serving both
+   * from one server is what keeps the two stores in one D&VFly — same pages,
+   * both checkable in "Publicar em" — instead of two installations that know
+   * nothing about each other.
+   *
+   * Written as SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET, then _2, _3, … Which
+   * app a request belongs to is decided by the `aud` of its ID token, and each
+   * store remembers the app it installed.
+   */
+  shopifyApps,
 
   /**
    * Key that encrypts the store credentials at rest (32 bytes, base64 — see

@@ -12,14 +12,18 @@ import type { LoaderFunctionArgs } from 'react-router';
 
 import { config } from './lib/config.server.ts';
 import { db } from './lib/db.server.ts';
+import { clientIdForRequest } from './lib/shopify.server.ts';
 
 /**
  * App Bridge needs the app's client id to boot. It comes from the environment
  * or, failing that (development only), from any registered store — every store
  * runs the same app, so any row's client id is the app's client id.
  */
-export async function loader(_: LoaderFunctionArgs) {
-  let clientId = config.shopifyClientId ?? '';
+export async function loader({ request }: LoaderFunctionArgs) {
+  // Which app, not just "the app": a second store of yours installs a second
+  // Shopify app (custom distribution is one app per store), and App Bridge has
+  // to boot with the id of the one THIS store installed.
+  let clientId = await clientIdForRequest(request).catch(() => '');
   if (!clientId && !config.isProduction) {
     const store = await db.store.findFirst({ orderBy: { createdAt: 'asc' } }).catch(() => null);
     clientId = store?.clientId ?? '';

@@ -40,7 +40,9 @@ export async function loader(_: LoaderFunctionArgs) {
     banco: database,
     lojas: stores,
     // Configuration presence, never contents.
-    credenciaisDaShopify: Boolean(config.shopifyClientId && config.shopifyClientSecret),
+    credenciaisDaShopify: config.shopifyApps.length > 0,
+    // Quantos apps da Shopify este servidor atende (uma loja por app custom).
+    appsDaShopify: config.shopifyApps.length,
     tokensCriptografados: Boolean(config.tokenKey),
     lojasAutorizadas: config.allowedShops.length,
     // Whether the lock is on, and how many stores are through it. The key

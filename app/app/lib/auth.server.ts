@@ -17,13 +17,18 @@ import type { Store as StoreRow } from '@prisma/client';
 import { redirect } from 'react-router';
 
 import { ShopifyClient } from '../../../packages/shopify/src/client.ts';
-import { exchangeToken, SessionTokenError, verifySessionToken } from '../../../packages/shopify/src/session.ts';
+import {
+  credentialsFor,
+  exchangeToken,
+  SessionTokenError,
+  verifySessionToken,
+} from '../../../packages/shopify/src/session.ts';
 
 import { storeUnlocked, UNLOCK_PATH } from './access.server.ts';
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
 import { seal } from './secrets.server.ts';
-import { appCredentials, ensureStore, SHOP_DOMAIN, storeUsable } from './shopify.server.ts';
+import { appCredentials, appCredentialsList, ensureStore, SHOP_DOMAIN, storeUsable } from './shopify.server.ts';
 
 export interface RequestShop {
   shop: string;
@@ -31,6 +36,13 @@ export interface RequestShop {
   idToken: string | null;
   /** How the request was let in. */
   via: 'token' | 'dev';
+  /**
+   * The Shopify app whose secret verified this token. The server answers for
+   * more than one (a second store of yours needs a second custom app), and
+   * everything downstream — the token exchange, the store row — has to use the
+   * same one, not "the first configured".
+   */
+  appClientId: string | null;
 }
 
 /** The bounce page marks the request it sends back, so a refusal after it never bounces again. */
@@ -70,15 +82,15 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     // Development without the admin: the shop is whatever the URL says, or
     // the first registered store.
     const asked = url.searchParams.get('shop')?.toLowerCase() ?? '';
-    if (SHOP_DOMAIN.test(asked)) return { shop: asked, idToken: null, via: 'dev' };
+    if (SHOP_DOMAIN.test(asked)) return { shop: asked, idToken: null, via: 'dev', appClientId: null };
     const first = await db.store.findFirst({ orderBy: { createdAt: 'asc' } });
-    return { shop: first?.domain ?? '', idToken: null, via: 'dev' };
+    return { shop: first?.domain ?? '', idToken: null, via: 'dev', appClientId: first?.clientId ?? null };
   }
 
   const fromHeader = bearer(request);
   const token = fromHeader ?? url.searchParams.get('id_token');
-  const credentials = await appCredentials();
-  if (!credentials) {
+  const apps = await appCredentialsList();
+  if (apps.length === 0) {
     throw new Response('O app não tem SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET configurados.', { status: 500 });
   }
   // A document request can always fetch itself a fresh token through the
@@ -92,8 +104,14 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     throw new Response('Abra o D&VFly pelo admin da Shopify (sem ID token).', { status: 401 });
   }
 
+  // WHICH app this token is for is read from its `aud` before anything is
+  // trusted — see credentialsFor: the choice only decides which secret the
+  // signature is checked against, and a token minted for an app this server
+  // does not hold finds no credentials at all.
+  const credentials = credentialsFor(token, apps);
   let shop: string;
   try {
+    if (!credentials) throw new SessionTokenError('aud');
     shop = verifySessionToken(token, credentials).shop;
   } catch (error) {
     const reason = error instanceof SessionTokenError ? error.reason : 'desconhecido';
@@ -144,7 +162,7 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     );
   }
 
-  return { shop, idToken: token, via: 'token' };
+  return { shop, idToken: token, via: 'token', appClientId: credentials.clientId };
 }
 
 /**
@@ -169,7 +187,10 @@ export async function installStore(request: RequestShop): Promise<StoreRow | nul
     existing.tokenExpiresAt.getTime() - Date.now() < RENEW_BEFORE_MS;
   if (existing && storeUsable(existing) && !expiringSoon) return existing;
 
-  const credentials = await appCredentials();
+  // The same app that verified the token does the exchange: another app's
+  // secret would simply be refused by Shopify, and the store would be left
+  // installed-but-unusable with no explanation.
+  const credentials = await appCredentials(request.appClientId ?? existing?.clientId ?? null);
   if (!credentials) return null;
   const token = await exchangeToken(domain, request.idToken, credentials);
   const client = new ShopifyClient({
@@ -187,6 +208,10 @@ export async function installStore(request: RequestShop): Promise<StoreRow | nul
     create: {
       domain,
       label,
+      // Which app this store installed. Not a secret (the client id is public,
+      // it goes in every page's meta tag), and without it the server would not
+      // know whose credentials to publish with once there is more than one.
+      clientId: credentials.clientId,
       accessToken: seal(token.accessToken),
       tokenExpiresAt,
       scopes: token.scope,
@@ -195,6 +220,7 @@ export async function installStore(request: RequestShop): Promise<StoreRow | nul
     },
     update: {
       label,
+      clientId: credentials.clientId,
       accessToken: seal(token.accessToken),
       tokenExpiresAt,
       scopes: token.scope,

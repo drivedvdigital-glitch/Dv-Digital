@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { BOUNCED_PARAM } from '../lib/auth.server.ts';
 import { config } from '../lib/config.server.ts';
 import { db } from '../lib/db.server.ts';
-import { SHOP_DOMAIN } from '../lib/shopify.server.ts';
+import { clientIdForRequest, SHOP_DOMAIN } from '../lib/shopify.server.ts';
 
 /**
  * The session-token bounce.
@@ -36,7 +36,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
   const shop = new URLSearchParams(target.split('?')[1] ?? '').get('shop')?.toLowerCase() ?? '';
 
-  let clientId = config.shopifyClientId ?? '';
+  // The app this store installed, not simply the first one configured — with
+  // two apps on one server, booting App Bridge with the wrong id leaves the
+  // page unembedded and the bounce with nothing to ask.
+  let clientId = await clientIdForRequest(request, shop).catch(() => '');
   if (!clientId && !config.isProduction) {
     const store = await db.store.findFirst({ where: { clientId: { not: null } }, orderBy: { createdAt: 'asc' } });
     clientId = store?.clientId ?? '';

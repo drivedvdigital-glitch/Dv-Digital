@@ -127,6 +127,24 @@ páginas são autorais e publicam em N lojas de uma vez — é o fluxo de "valid
 teste, mandar para as outras". Lojas da **nossa** organização continuam podendo ser
 registradas pelo caminho antigo (client credentials) em desenvolvimento.
 
+**Loja fora da organização: um app a mais, o mesmo servidor.** A distribuição custom amarra
+um app a uma loja — a Shopify recusa o link com *"o app pode não estar disponível para esta
+loja"*. O caminho é criar um app novo no Dev Dashboard para ela (mesmo **App URL**, mesmo
+**redirect** `/app`) e acrescentar o par de credenciais dele ao servidor:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\dvfly\deploy\windows\adicionar-app.ps1
+```
+
+(fora do Windows: `SHOPIFY_CLIENT_ID_2` / `SHOPIFY_CLIENT_SECRET_2` no ambiente, e `_3`, `_4`…)
+
+De qual app é cada requisição sai do **`aud` do ID token** — a escolha decide apenas com qual
+segredo a assinatura é conferida, e uma assinatura forjada continua sendo recusada. Cada loja
+guarda em `Store.clientId` o app que instalou, e é com a credencial dele que o app publica,
+troca token e confere webhook daquela loja. O App Bridge de cada tela recebe o Client ID do
+app **daquela** loja: com o id errado, o admin não embute a página e nenhum `fetch` vai
+assinado. `/healthz` mostra quantos apps o servidor atende (`appsDaShopify`).
+
 ### 6. Desinstalar
 
 Desinstalar pelo admin dispara `app/uninstalled`: o app esquece o token e marca a loja como

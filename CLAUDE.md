@@ -41,6 +41,11 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 - `packages/shopify/` — instalação gerenciada + token exchange (`session.ts`; client credentials
   só para lojas da própria organização em dev), `upsertPage` pela id lembrada, deploy multi-loja
   com lojas independentes, templates de produto por página.
+  **Vários apps da Shopify no mesmo servidor** (`SHOPIFY_CLIENT_ID_2`…): a distribuição custom
+  amarra um app a UMA loja, então loja em outra organização = app próprio. A credencial sai do
+  `aud` do ID token (`credentialsFor`) — a escolha só decide com qual segredo a assinatura é
+  conferida; forjada continua recusada. `Store.clientId` lembra o app de cada loja, e o App
+  Bridge de cada tela recebe o Client ID **daquela** loja.
 - `app/` — React Router 7 + Prisma (**SQLite na sua máquina, Postgres no servidor** — o
   provider sai de `DATABASE_URL` via `app/scripts/prisma-schema.mjs`; `prisma/schema.prisma`
   é gerado e não versionado, o template é a fonte). Hospedar: `docs/HOSPEDAGEM.md`.
