@@ -66,6 +66,21 @@ Sem o CLI, tudo menos o `handle` pode ser feito na aba **Versions** do Dashboard
 escopos, versão dos webhooks); os webhooks de compliance também têm tela própria. Os
 webhooks `app/uninstalled` e `app/scopes_update` só entram pelo TOML.
 
+> **O caminho da pasta não pode ter parêntese nem espaço.** Rodando de
+> `C:\Users\Miguel (DV)\Dv-Digital`, o CLI responde **`TOML file not found: C:/shopify.app.toml`**
+> com o arquivo ali, na frente dele: ele procura o TOML subindo as pastas com um padrão de
+> busca, e `(DV)` é sintaxe de grupo nesse padrão — a busca não casa com nada e vai até a raiz
+> do disco. Não precisa mover nada: um atalho de pasta resolve, e as duas pastas passam a ser
+> a mesma no disco.
+>
+> ```powershell
+> cmd /c mklink /J C:\DvDigital "C:\Users\Miguel (DV)\Dv-Digital"
+> cd C:\DvDigital
+> npx shopify app deploy
+> ```
+>
+> Na VM o caminho já é limpo (`C:\dvfly`), então lá o comando roda direto.
+
 ### 3. Hospedar o app
 
 Requisitos da Shopify: **HTTPS público** com certificado válido (o admin abre o app num

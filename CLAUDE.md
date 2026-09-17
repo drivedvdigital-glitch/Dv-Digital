@@ -85,7 +85,11 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   2. `await import('C:\...')` morre com `ERR_UNSUPPORTED_ESM_URL_SCHEME` (o loader lê a letra
      do drive como esquema) — use `new URL('./x.js', import.meta.url).href`.
   3. Tarefa agendada não herda o PATH de agora: chame o executável pelo **caminho completo**.
-  4. **Nome de variável no PowerShell não diferencia maiúsculas**: `foreach ($porta in 80, 443)`
+  4. **Parêntese no caminho quebra o Shopify CLI**: em `C:\Users\Miguel (DV)\Dv-Digital` ele
+     diz `TOML file not found: C:/shopify.app.toml` com o arquivo na frente dele (procura o
+     TOML subindo as pastas com padrão de busca, e `(DV)` é grupo nesse padrão). Conserto sem
+     mover nada: `cmd /c mklink /J C:\DvDigital "C:\Users\Miguel (DV)\Dv-Digital"`.
+  5. **Nome de variável no PowerShell não diferencia maiúsculas**: `foreach ($porta in 80, 443)`
      escreveu por cima do `$Porta` do app. O app subiu na 443 e respondia perfeitamente em
      `127.0.0.1:443`; o Caddy procurava na 3000 e devolvia 502 para o mundo. Toda checagem
      local dizia que estava tudo certo — porque nenhuma passava pelo proxy. **Medir o caminho

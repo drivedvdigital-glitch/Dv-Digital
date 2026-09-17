@@ -348,6 +348,10 @@ O app agora tem endereço fixo. Falta a Shopify saber dele.
    npx shopify app deploy
    ```
 
+   Se der `TOML file not found: C:/shopify.app.toml` com o arquivo ali: o caminho da pasta
+   tem parêntese ou espaço, e o CLI não acha o arquivo. Ver `docs/INSTALACAO.md` §2 — um
+   `mklink /J` resolve sem mover nada.
+
 3. Abra o app dentro do admin de uma loja. Na primeira abertura ele se instala sozinho:
    pede a permissão, troca o ID token por um token de acesso e grava a loja no banco —
    **criptografada**.
