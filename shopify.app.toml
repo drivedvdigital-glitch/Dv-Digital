@@ -10,8 +10,13 @@
 # client secret nunca entra aqui — vive em app/.env (SHOPIFY_CLIENT_SECRET).
 
 client_id = "90c1e96f2c78ab7b88750d387691d07f"
-name = "D&VFly"
-handle = "dvfly"
+# Como o app aparece no admin da loja.
+name = "DVHub Application"
+# Apelido do app na URL do admin (…/admin/apps/<handle>). Tem que ser único na
+# organização: `dvfly` já pertence a outro app (sobra de uma tentativa antiga
+# com o CLI) e o deploy morre com "app_handle: App handle must be unique" sem
+# dizer qual app está segurando o nome.
+handle = "dvhub-application"
 
 # O endereço público onde o app está hospedado (HTTPS, sem caminho). É este
 # endereço que o admin da Shopify abre dentro do iframe e para o qual os
@@ -25,9 +30,10 @@ embedded = true
 [build]
 # Em produção o endereço não muda a cada `shopify app dev`; deixe falso.
 automatically_update_urls_on_dev = false
-# Escopos e webhooks deste arquivo vão junto no `shopify app deploy` (CLIs
-# antigas só os enviam com esta chave; nas novas ela é o padrão).
-include_config_on_deploy = true
+# Aqui existia `include_config_on_deploy = true`. A CLI 4.8 apaga essa linha do
+# arquivo ao rodar e avisa: hoje TODO deploy leva a configuração junto, então o
+# campo não existe mais. Deixar escrito para ninguém recolocar achando que
+# escopos e webhooks ficaram de fora.
 
 [access_scopes]
 # Escopo de escrita já inclui o de leitura (write_products ⊃ read_products).
