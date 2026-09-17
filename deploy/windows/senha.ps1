@@ -58,7 +58,7 @@ Write-Host '   escrita.'
 # processo continua com a antiga - a confusao mais facil de criar aqui.
 Passo 'Reiniciando o app para ele ler a senha'
 $porta = PortaDoRunner $Raiz '3000'
-PararApp
+PararApp $porta
 IniciarApp
 $ok = EsperarApp $porta 15
 

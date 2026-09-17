@@ -1467,6 +1467,35 @@ muda para quem já usava) e o navegador de verdade: abrir → errar → acertar 
 perguntar, nos temas claro e escuro. Mais 7 testes unitários da comparação e do contador.
 `npm test` agora inclui o pacote `app` (109 testes no total).
 
+### 🔴→✅ O app caiu e não voltou: o Windows só reinicia o que FALHA (17/09)
+
+Meia hora depois de a instalação terminar com `/healthz` respondendo 200, o admin da loja
+ficou carregando para sempre e daqui de fora vieram **8 respostas 502 em 2 minutos, todas
+levando ~16 s** (o Caddy desistindo). O app estava no chão — e, pior, continuou lá.
+
+A tarefa agendada tinha `RestartCount 999`, e essa configuração cobre um caso só: a tarefa que
+**falha**. Um processo que sai com código 0 — um encerramento pedido pelo sistema, uma parada
+qualquer — conta como sucesso, a tarefa termina normalmente e o Windows não tem nada para
+reiniciar. O app fica fora do ar até alguém abrir a VM e reparar.
+
+Conserto na raiz: o runner virou um **laço**. Saiu por qualquer motivo, volta em 5 segundos,
+registrando no log o código de saída. Parar de verdade continua sendo parar a **tarefa**, que
+mata o `cmd` junto — que é o que o instalador, o atualizador e o `senha.ps1` fazem.
+
+Duas armadilhas pagas junto:
+
+- `timeout /t 5` **recusa rodar sem console**, e uma tarefa agendada não tem um. A espera é
+  feita com `ping -n 6 127.0.0.1`, que funciona em qualquer lugar.
+- parar a tarefa nem sempre leva o filho junto. Se o `cmd` morre e o `node` fica, ele segura a
+  porta (a cópia nova não sobe) e o motor do Prisma (EPERM ao compilar). Agora o `PararApp`
+  recebe a porta e mata **quem estiver ouvindo nela** — que só pode ser o app, porque quem
+  chega depois não consegue nem abrir a porta.
+
+Verificado: 14 checagens sobre o runner gerado de verdade (o laço existe, a ordem das linhas
+faz sentido, nada de `timeout`, os três scripts passam a porta) e os cinco scripts no parser.
+O `diagnosticar.ps1` passou a dizer, na primeira linha, se o runner daquela máquina tem o laço
+— uma instalação antiga não tem, e isso agora aparece em vez de ser adivinhado.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

@@ -57,11 +57,24 @@ set NODE_ENV=production
 set HOST=127.0.0.1
 set PORT=$porta
 set DVFLY_LOG=$log
-if exist "%DVFLY_LOG%" for %%F in ("%DVFLY_LOG%") do if %%~zF GTR 5000000 del "%DVFLY_LOG%"
 cd /d "$pastaApp"
+
+rem O laco e o que mantem o app de pe. O Windows so reinicia uma tarefa que
+rem FALHA: um processo que sai com codigo 0 - um encerramento pedido pelo
+rem sistema, uma janela fechada - conta como sucesso, e a tarefa simplesmente
+rem termina. Foi assim que o app ficou no chao sem ninguem perceber, com o
+rem Caddy respondendo 502 para o mundo. Aqui, saiu por qualquer motivo, sobe
+rem de novo em 5 segundos. Parar de verdade e parar a TAREFA, que mata este
+rem cmd junto - que e o que o atualizador e o instalador fazem.
+:loop
+if exist "%DVFLY_LOG%" for %%F in ("%DVFLY_LOG%") do if %%~zF GTR 5000000 del "%DVFLY_LOG%"
 echo [%date% %time%] subindo o D&VFly na porta $porta >> "%DVFLY_LOG%"
 "$node" server.mjs >> "%DVFLY_LOG%" 2>&1
-echo [%date% %time%] o processo terminou com codigo %errorlevel% >> "%DVFLY_LOG%"
+echo [%date% %time%] o processo terminou com codigo %errorlevel% - subindo de novo em 5s >> "%DVFLY_LOG%"
+rem `timeout` recusa rodar sem console (a tarefa nao tem um); o ping tem a
+rem espera embutida e funciona em qualquer lugar.
+ping -n 6 127.0.0.1 > nul
+goto loop
 "@
     Set-Content -Path $runner -Value $conteudo -Encoding ASCII
     return $runner
@@ -140,13 +153,23 @@ function CaddyPorDentro($dominio) {
     So a tarefa e parada: nada de matar processos por nome, porque esta VM tem
     outros programas em node rodando e derrubar o alheio nao e conserto.
 #>
-function PararApp() {
+function PararApp($porta) {
     if (Get-ScheduledTask -TaskName 'DVFly App' -ErrorAction SilentlyContinue) {
         Stop-ScheduledTask -TaskName 'DVFly App' -ErrorAction SilentlyContinue
         # O Windows leva um instante para soltar o arquivo depois que o
         # processo morre.
         Start-Sleep -Seconds 3
     }
+    if (-not $porta) { return }
+    # Quem sobrou segurando a porta do app E o app: o runner agora roda num
+    # laco, e se a parada da tarefa matar so o cmd, o node continua de pe -
+    # segurando o motor do Prisma (EPERM ao compilar) e a porta (a copia nova
+    # nunca sobe). Matar pela PORTA acerta so ele: nada mais consegue estar ali,
+    # porque quem chega depois nao consegue nem abrir a porta.
+    foreach ($c in @(Get-NetTCPConnection -LocalPort ([int]$porta) -State Listen -ErrorAction SilentlyContinue)) {
+        Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 1
 }
 
 function IniciarApp() {

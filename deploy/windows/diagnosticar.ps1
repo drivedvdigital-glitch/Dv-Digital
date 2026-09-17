@@ -53,6 +53,17 @@ if (-not $conexoes) {
     }
 }
 
+Titulo 'O app se reergue sozinho?'
+# Uma instalacao antiga deixou um runner sem laco: o Windows so reinicia tarefa
+# que FALHA, e uma saida limpa deixava o app no chao ate alguem reparar.
+$runner = Join-Path $Raiz 'deploy\windows\rodar-app.gerado.cmd'
+if ((Test-Path $runner) -and ((Get-Content $runner -Raw) -match '(?m)^goto loop')) {
+    Write-Host '   sim (o runner tem o laco).' -ForegroundColor Green
+} else {
+    Write-Host '   NAO. Este runner e antigo: se o app sair, ele fica no chao.' -ForegroundColor Yellow
+    Write-Host '   Conserto: rode o instalador de novo.' -ForegroundColor Yellow
+}
+
 Titulo 'O app e o Caddy combinam de porta?'
 # A pergunta existe porque a resposta ja foi NAO uma vez, e nada na tela
 # denunciava: o app respondia perfeitamente em 127.0.0.1:443 enquanto o Caddy

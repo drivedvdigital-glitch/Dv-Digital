@@ -218,7 +218,7 @@ Passo 'Preparando o app (dependencias, banco e compilacao)'
 # `prisma generate` nao consegue substituir o motor do Prisma enquanto um
 # processo o mantem aberto (EPERM).
 . (Join-Path $Raiz 'deploy\windows\comum.ps1')
-PararApp
+PararApp $PortaDoApp
 Push-Location $Raiz
 
 # O .env e escrito ANTES do setup: o banco e a compilacao leem dele.

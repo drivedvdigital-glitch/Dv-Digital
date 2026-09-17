@@ -42,7 +42,7 @@ $porta = PortaDoRunner $Raiz '3000'
 # o minuto da compilacao fora do ar, e o `finally` garante que ele volte mesmo
 # se algo falhar no meio - inclusive na versao antiga, que e melhor que nada.
 Passo 'Parando o app para compilar (ele volta em seguida)'
-PararApp
+PararApp $porta
 
 $ok = $false
 try {
