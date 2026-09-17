@@ -154,7 +154,7 @@ quem está ouvindo na porta, **se o app e o Caddy combinam de porta**, quem ocup
 | `https://seu-dominio/healthz` não abre | o domínio ainda não aponta para a VM (leva minutos), ou as portas 80/443 estão fechadas no painel do provedor |
 | O app não responde | no PowerShell: `cd C:\dvfly\app` e `node server.mjs` — ele roda na sua frente e mostra o erro |
 | Quero ver as tarefas | `Get-ScheduledTask "DVFly *" \| Get-ScheduledTaskInfo` |
-| Reiniciar tudo | `Restart-ScheduledTask "DVFly App"` e `Restart-ScheduledTask "DVFly HTTPS"` |
+| Reiniciar o app | `Stop-ScheduledTask -TaskName "DVFly App"` e, depois de uns segundos, `Start-ScheduledTask -TaskName "DVFly App"` (o mesmo vale para `"DVFly HTTPS"`). **Não existe `Restart-ScheduledTask`** — o módulo do Windows só tem `Stop-` e `Start-` |
 
 ---
 
