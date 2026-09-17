@@ -194,6 +194,11 @@ if ($Chave -eq '') {
 
 # ---- 4. dependencias, banco e compilacao ------------------------------------
 Passo 'Preparando o app (dependencias, banco e compilacao)'
+# Se ja houver uma instalacao rodando, ela precisa parar antes: no Windows o
+# `prisma generate` nao consegue substituir o motor do Prisma enquanto um
+# processo o mantem aberto (EPERM).
+. (Join-Path $Raiz 'deploy\windows\comum.ps1')
+PararApp
 Push-Location $Raiz
 
 # O .env e escrito ANTES do setup: o banco e a compilacao leem dele.
@@ -333,6 +338,8 @@ if ($ok) {
         }
     }
     Write-Host '  (resultado 0 = rodou; 1 ou 267011 = o processo nao chegou a subir)'
+    Write-Host ''
+    MostrarLog $Raiz 25
     Write-Host ''
     Write-Host '  Veja o que ele disse:'
     Write-Host '    Get-ScheduledTask "DVFly App" | Get-ScheduledTaskInfo'

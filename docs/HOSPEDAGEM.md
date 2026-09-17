@@ -118,8 +118,10 @@ chegar nele pela porta 3000 sem passar pelo HTTPS.
 1. **Na sua máquina:** duplo clique em `PUBLICAR-DVFLY-VM.cmd` (envia o código para o GitHub).
 2. **Na VM:** duplo clique em **ATUALIZAR DVFly**, na área de trabalho.
 
-Se a versão nova não compilar, **o app antigo continua no ar** — a troca só acontece depois
-que a compilação passa.
+O app **fica fora do ar durante a compilação** (cerca de um minuto). Não é escolha: no
+Windows o `prisma generate` troca um arquivo que o app mantém aberto, e com ele rodando a
+compilação falha com `EPERM`. Se algo der errado no meio, o app volta do mesmo jeito — na
+versão antiga, que é melhor do que nada.
 
 ### Backup (faça)
 
@@ -133,9 +135,19 @@ Copie esse arquivo para fora da VM de vez em quando. É o seu trabalho inteiro.
 
 ### Quando algo dá errado na VM
 
+**O comando que responde tudo de uma vez** (PowerShell como administrador, na VM):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\dvfly\deploy\windows\diagnosticar.ps1
+```
+
+Ele mostra, nesta ordem: a versão do código, o estado das duas tarefas, se o app responde,
+quem está ouvindo na porta, **o que o app escreveu no log** e o HTTPS de dentro da VM.
+
 | Sintoma | O que fazer |
 |---|---|
 | O instalador parou com erro vermelho | leia a última linha — ela diz o que falta. Rode o instalador de novo depois de resolver |
+| Quero saber por que o app morreu | `C:\dvfly\app\dvfly.log` — a tarefa grava tudo lá (zera sozinho acima de 5 MB) |
 | `https://seu-dominio/healthz` não abre | o domínio ainda não aponta para a VM (leva minutos), ou as portas 80/443 estão fechadas no painel do provedor |
 | O app não responde | no PowerShell: `cd C:\dvfly\app` e `node server.mjs` — ele roda na sua frente e mostra o erro |
 | Quero ver as tarefas | `Get-ScheduledTask "DVFly *" \| Get-ScheduledTaskInfo` |

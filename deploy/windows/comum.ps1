@@ -34,18 +34,43 @@ function CaminhoDoNode() {
 function EscreverRunner($raiz, $porta) {
     $pastaApp = Join-Path $raiz 'app'
     $runner = Join-Path $raiz 'deploy\windows\rodar-app.gerado.cmd'
+    $log = CaminhoDoLog $raiz
     $node = CaminhoDoNode
+    # A saida vai para um arquivo. Sem isso, um app que morre ao subir nao
+    # deixa rastro nenhum: tarefa agendada joga stdout e stderr fora, e a
+    # unica pista que sobra e "nao respondeu". O log e zerado quando passa de
+    # 5 MB, para nunca encher o disco num ciclo de reinicios.
     $conteudo = @"
 @echo off
 rem Escrito pelo instalador/atualizador. Nao edite: e reescrito a cada vez.
 set NODE_ENV=production
 set HOST=127.0.0.1
 set PORT=$porta
+set DVFLY_LOG=$log
+if exist "%DVFLY_LOG%" for %%F in ("%DVFLY_LOG%") do if %%~zF GTR 5000000 del "%DVFLY_LOG%"
 cd /d "$pastaApp"
-"$node" server.mjs
+echo [%date% %time%] subindo o D&VFly na porta $porta >> "%DVFLY_LOG%"
+"$node" server.mjs >> "%DVFLY_LOG%" 2>&1
+echo [%date% %time%] o processo terminou com codigo %errorlevel% >> "%DVFLY_LOG%"
 "@
     Set-Content -Path $runner -Value $conteudo -Encoding ASCII
     return $runner
+}
+
+<# Onde o app escreve o que aconteceu com ele. #>
+function CaminhoDoLog($raiz) {
+    return (Join-Path $raiz 'app\dvfly.log')
+}
+
+<# As ultimas linhas do log, para quando o app nao responde. #>
+function MostrarLog($raiz, $linhas) {
+    $log = CaminhoDoLog $raiz
+    if (-not (Test-Path $log)) {
+        Write-Host '   (o app ainda nao escreveu nada no log)'
+        return
+    }
+    Write-Host "   ultimas linhas de $log :" -ForegroundColor Cyan
+    Get-Content $log -Tail $linhas | ForEach-Object { Write-Host "     $_" }
 }
 
 <# Porta que o runner esta usando, para conferir a saude no endereco certo. #>
@@ -57,4 +82,43 @@ function PortaDoRunner($raiz, $padrao) {
         }
     }
     return $padrao
+}
+
+<#
+    Para o app antes de compilar. Obrigatorio no Windows: o `prisma generate`
+    substitui `query_engine-windows.dll.node`, e um arquivo aberto por um
+    processo nao pode ser substituido - a compilacao morre com
+    "EPERM: operation not permitted, rename ...". No Linux isso funciona, que e
+    por que a armadilha so aparece aqui.
+
+    So a tarefa e parada: nada de matar processos por nome, porque esta VM tem
+    outros programas em node rodando e derrubar o alheio nao e conserto.
+#>
+function PararApp() {
+    if (Get-ScheduledTask -TaskName 'DVFly App' -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName 'DVFly App' -ErrorAction SilentlyContinue
+        # O Windows leva um instante para soltar o arquivo depois que o
+        # processo morre.
+        Start-Sleep -Seconds 3
+    }
+}
+
+function IniciarApp() {
+    if (Get-ScheduledTask -TaskName 'DVFly App' -ErrorAction SilentlyContinue) {
+        Start-ScheduledTask -TaskName 'DVFly App'
+    }
+}
+
+<# Espera o app responder; devolve $true quando responde. #>
+function EsperarApp($porta, $tentativas) {
+    foreach ($tentativa in 1..$tentativas) {
+        Start-Sleep -Seconds 2
+        try {
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:$porta/healthz" -UseBasicParsing -TimeoutSec 5
+            if ($r.StatusCode -eq 200) { return $true }
+        } catch {
+            # ainda subindo
+        }
+    }
+    return $false
 }

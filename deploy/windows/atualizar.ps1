@@ -34,46 +34,45 @@ if ($antes -eq $depois) {
     return
 }
 
-Passo 'Instalando dependencias e compilando'
-cmd /c 'npm install --no-audit --no-fund' | Out-Null
-if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'npm install falhou. O app antigo continua no ar.' }
-cmd /c 'npm run build' | Out-Null
-if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'A compilacao falhou. O app antigo continua no ar.' }
-
-Passo 'Atualizando o banco'
-cmd /c 'npm run db:deploy --workspace @dvfly/app' | Out-Null
-if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'A atualizacao do banco falhou. O app antigo continua no ar.' }
-
-Passo 'Reiniciando o app'
-# O runner tambem e reescrito aqui: o caminho do node pode ter mudado (uma
-# atualizacao do Node.js troca a pasta), e uma instalacao antiga pode ter
-# deixado um runner que chama "node" pelo nome.
 . (Join-Path $Raiz 'deploy\windows\comum.ps1')
-EscreverRunner $Raiz (PortaDoRunner $Raiz '3000') | Out-Null
-Stop-ScheduledTask -TaskName 'DVFly App' -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-Start-ScheduledTask -TaskName 'DVFly App'
-
 $porta = PortaDoRunner $Raiz '3000'
 
-$ok = $false
-foreach ($tentativa in 1..15) {
-    Start-Sleep -Seconds 2
-    try {
-        $r = Invoke-WebRequest -Uri "http://127.0.0.1:$porta/healthz" -UseBasicParsing -TimeoutSec 5
-        if ($r.StatusCode -eq 200) { $ok = $true; break }
-    } catch {
-        # ainda subindo
-    }
-}
+# O app PARA antes de compilar. No Windows nao ha escolha: o `prisma generate`
+# troca um .dll que o app mantem aberto, e a compilacao morre com EPERM. Custa
+# o minuto da compilacao fora do ar, e o `finally` garante que ele volte mesmo
+# se algo falhar no meio - inclusive na versao antiga, que e melhor que nada.
+Passo 'Parando o app para compilar (ele volta em seguida)'
+PararApp
 
-Pop-Location
+$ok = $false
+try {
+    Passo 'Instalando dependencias e compilando'
+    cmd /c 'npm install --no-audit --no-fund' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'npm install falhou.' }
+    cmd /c 'npm run build' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'A compilacao falhou.' }
+
+    Passo 'Atualizando o banco'
+    cmd /c 'npm run db:deploy --workspace @dvfly/app' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'A atualizacao do banco falhou.' }
+} finally {
+    # O runner tambem e reescrito aqui: o caminho do node pode ter mudado (uma
+    # atualizacao do Node.js troca a pasta), e uma instalacao antiga pode ter
+    # deixado um runner que chama "node" pelo nome.
+    EscreverRunner $Raiz $porta | Out-Null
+    Passo 'Subindo o app'
+    IniciarApp
+    $ok = EsperarApp $porta 15
+    Pop-Location
+}
 Write-Host ''
 if ($ok) {
     Write-Host '  PRONTO. A versao nova esta no ar.' -ForegroundColor Green
     Write-Host "  De $($antes.Substring(0,7)) para $($depois.Substring(0,7))."
 } else {
     Write-Host '  A versao nova nao respondeu.' -ForegroundColor Red
+    MostrarLog $Raiz 25
+    Write-Host ''
     Write-Host '  Para ver o erro na sua frente:'
     Write-Host "    cd $Raiz\app ; node server.mjs"
 }
