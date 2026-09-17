@@ -45,18 +45,16 @@ cmd /c 'npm run db:deploy --workspace @dvfly/app' | Out-Null
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'A atualizacao do banco falhou. O app antigo continua no ar.' }
 
 Passo 'Reiniciando o app'
+# O runner tambem e reescrito aqui: o caminho do node pode ter mudado (uma
+# atualizacao do Node.js troca a pasta), e uma instalacao antiga pode ter
+# deixado um runner que chama "node" pelo nome.
+. (Join-Path $Raiz 'deploy\windows\comum.ps1')
+EscreverRunner $Raiz (PortaDoRunner $Raiz '3000') | Out-Null
 Stop-ScheduledTask -TaskName 'DVFly App' -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2
 Start-ScheduledTask -TaskName 'DVFly App'
 
-# A porta e a que o instalador gravou no runner do app.
-$porta = '3000'
-$runner = Join-Path $Raiz 'deploy\windows\rodar-app.gerado.cmd'
-if (Test-Path $runner) {
-    foreach ($linha in Get-Content $runner) {
-        if ($linha -match '^\s*set PORT=(\d+)') { $porta = $Matches[1] }
-    }
-}
+$porta = PortaDoRunner $Raiz '3000'
 
 $ok = $false
 foreach ($tentativa in 1..15) {
