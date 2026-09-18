@@ -1,0 +1,146 @@
+// Schema do DV Confirma.
+//
+// Os campos de status usam String em vez de enum para manter o schema portável
+// entre SQLite (desenvolvimento, zero setup) e PostgreSQL (produção). Os valores
+// aceitos estão centralizados em src/lib/domain.ts e validados com zod antes de
+// qualquer escrita.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Cliente {
+  id       String   @id @default(cuid())
+  nome     String
+  telefone String   @unique // E.164 sem o "+", ex: 5511999998888
+  email    String?
+  criadoEm DateTime @default(now())
+
+  pedidos Pedido[]
+}
+
+model Produto {
+  id        String   @id @default(cuid())
+  sku       String   @unique
+  nome      String
+  preco     Int // em centavos
+  descricao String
+  criadoEm  DateTime @default(now())
+
+  objecoes Objecao[]
+  itens    ItemPedido[]
+}
+
+/// Base de conhecimento que o agente usa para responder dúvidas técnicas
+/// sobre o produto sem inventar informação.
+model Objecao {
+  id        String  @id @default(cuid())
+  produtoId String
+  produto   Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  pergunta  String
+  resposta  String
+
+  @@index([produtoId])
+}
+
+model Endereco {
+  id          String  @id @default(cuid())
+  cep         String
+  logradouro  String
+  numero      String
+  complemento String?
+  bairro      String
+  cidade      String
+  uf          String
+  referencia  String?
+  /// true quando o CEP foi conferido e bate com logradouro/cidade/UF.
+  validado    Boolean @default(false)
+
+  pedido Pedido?
+}
+
+model Pedido {
+  id             String    @id @default(cuid())
+  /// Código do pedido na plataforma de origem (checkout, ERP, planilha).
+  codigo         String    @unique
+  clienteId      String
+  cliente        Cliente   @relation(fields: [clienteId], references: [id])
+  enderecoId     String?   @unique
+  endereco       Endereco? @relation(fields: [enderecoId], references: [id])
+  status         String    @default("AGUARDANDO")
+  motivoRecusa   String?
+  valorTotal     Int // em centavos
+  formaPagamento String    @default("COD")
+  /// Quantas vezes tentamos contato sem resposta.
+  tentativas     Int       @default(0)
+  confirmadoEm   DateTime?
+  criadoEm       DateTime  @default(now())
+  atualizadoEm   DateTime  @updatedAt
+
+  itens    ItemPedido[]
+  conversa Conversa?
+  eventos  EventoPedido[]
+
+  @@index([status])
+  @@index([criadoEm])
+}
+
+model ItemPedido {
+  id         String  @id @default(cuid())
+  pedidoId   String
+  pedido     Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produtoId  String
+  produto    Produto @relation(fields: [produtoId], references: [id])
+  quantidade Int     @default(1)
+  precoUnit  Int // em centavos, congelado no momento do pedido
+
+  @@index([pedidoId])
+}
+
+model Conversa {
+  id          String   @id @default(cuid())
+  pedidoId    String   @unique
+  pedido      Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  /// Agente responsável pelo próximo turno: CONFIRMADOR, OBJECOES ou ENDERECO.
+  agenteAtual String   @default("CONFIRMADOR")
+  encerrada   Boolean  @default(false)
+  ultimaMsgEm DateTime @default(now())
+  criadoEm    DateTime @default(now())
+
+  mensagens Mensagem[]
+
+  @@index([encerrada])
+}
+
+model Mensagem {
+  id         String   @id @default(cuid())
+  conversaId String
+  conversa   Conversa @relation(fields: [conversaId], references: [id], onDelete: Cascade)
+  direcao    String // ENTRADA | SAIDA
+  autor      String // CLIENTE | AGENTE | HUMANO | SISTEMA
+  agente     String? // qual agente produziu a mensagem, quando autor = AGENTE
+  conteudo   String
+  /// ID da mensagem no provedor de WhatsApp. Garante idempotência quando o
+  /// provedor reentrega o mesmo webhook.
+  externalId String?  @unique
+  criadoEm   DateTime @default(now())
+
+  @@index([conversaId, criadoEm])
+}
+
+/// Trilha de auditoria: toda ação que um agente tomou sobre o pedido.
+model EventoPedido {
+  id       String   @id @default(cuid())
+  pedidoId String
+  pedido   Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  tipo     String
+  detalhe  String?
+  agente   String?
+  criadoEm DateTime @default(now())
+
+  @@index([pedidoId, criadoEm])
+}

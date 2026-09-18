@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de cor da paleta de referência de visualização de dados.
+ * As cores de status são fixas nos dois modos e nunca aparecem sozinhas:
+ * sempre acompanhadas do rótulo textual do status.
+ */
+:root {
+  color-scheme: light;
+
+  --plano: #f9f9f7;
+  --superficie: #fcfcfb;
+  --tinta: #0b0b0b;
+  --tinta-2: #52514e;
+  --tinta-fraca: #898781;
+  --linha: #e1e0d9;
+  --base: #c3c2b7;
+  --borda: rgba(11, 11, 11, 0.1);
+
+  --acento: #2a78d6;
+  --bom: #0ca30c;
+  --atencao: #fab219;
+  --serio: #ec835a;
+  --critico: #d03b3b;
+  --positivo: #006300;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --plano: #0d0d0d;
+    --superficie: #1a1a19;
+    --tinta: #ffffff;
+    --tinta-2: #c3c2b7;
+    --tinta-fraca: #898781;
+    --linha: #2c2c2a;
+    --base: #383835;
+    --borda: rgba(255, 255, 255, 0.1);
+
+    --acento: #3987e5;
+    --positivo: #0ca30c;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --plano: #0d0d0d;
+  --superficie: #1a1a19;
+  --tinta: #ffffff;
+  --tinta-2: #c3c2b7;
+  --tinta-fraca: #898781;
+  --linha: #2c2c2a;
+  --base: #383835;
+  --borda: rgba(255, 255, 255, 0.1);
+
+  --acento: #3987e5;
+  --positivo: #0ca30c;
+}
+
+@theme inline {
+  --color-plano: var(--plano);
+  --color-superficie: var(--superficie);
+  --color-tinta: var(--tinta);
+  --color-tinta-2: var(--tinta-2);
+  --color-tinta-fraca: var(--tinta-fraca);
+  --color-linha: var(--linha);
+  --color-base: var(--base);
+  --color-borda: var(--borda);
+  --color-acento: var(--acento);
+  --color-bom: var(--bom);
+  --color-atencao: var(--atencao);
+  --color-serio: var(--serio);
+  --color-critico: var(--critico);
+  --color-positivo: var(--positivo);
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  background: var(--plano);
+  color: var(--tinta);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Colunas de números precisam alinhar; números grandes isolados, não. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
