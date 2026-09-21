@@ -2124,6 +2124,59 @@ de carregá-lo. Um PNG gerado por screenshot resolveu. Anotado para não culpar 
 zero — é do tema e do EasySell. E as 8 imagens de exemplo continuam lá até alguém trocar no
 editor: o aviso agora grita, mas não troca sozinho.
 
+### A LP da Mini Plancha, lida inteira — e três erros meus corrigidos
+
+O Miguel colou o HTML completo da landing. Ler o código-fonte (e não só o que estava no ar)
+respondeu o "redimensionando forte" e desmentiu três coisas que eu tinha dito:
+
+1. **"JavaScript nosso é zero."** Do compilador, sim. Mas a LP traz um `<script>` próprio com
+   `setInterval(fixEasySellColors, 300)` — a cada 300 ms, para sempre, `querySelectorAll` em
+   todo botão da página + `getComputedStyle` em cada um — e um `MutationObserver` com
+   `attributes: true, attributeFilter: ['style']` que dispara **nas próprias alterações de
+   `style` que ele faz**: laço de reflow. É o "Reflow forçado", os 2,2 s de thread principal e
+   boa parte do INP de 277 ms. Não é do tema nem do EasySell: está no HTML colado.
+2. **"O `NO_LCP` fica em aberto."** Todo elemento do herói tinha `.reveal`, e
+   `#mpp-lp.js .reveal { opacity: 0 }` até o script (no FIM do HTML) adicionar `.in`. No A/B
+   local, o `h1` do original está com opacity **0,14** no evento `load` — ainda aparecendo. O
+   Chrome não conta como LCP o que pinta com opacity 0. Hipótese forte; não é prova de campo.
+3. **"O redimensionar são as imagens sem tamanho."** Era outra coisa: `.photo { height: 42dvh }`.
+   `dvh` é a altura *dinâmica* — muda quando a barra do navegador do celular some ao rolar, e
+   a foto do herói mudava de tamanho junto. No A/B: 328 px → 361 px ao "esconder a barra".
+
+E um dado novo: o arquivo `clean-2_galeria….webp` é um **JPEG de 2027×2027** com nome `.webp`
+(`file` não mente). Com `&width=720` o CDN devolve 67 KB em vez de 250 KB (−73%). O `srcset`
+do compilador já pede exatamente isso.
+
+**A LP editada** (`mini-plancha-lp.html`, entregue para colar no editor), cirúrgica:
+
+- Fontes por `<link rel="preconnect">` ×2 + `<link rel="stylesheet">`, no lugar do `@import`
+  (que só é descoberto depois de baixar e ler o CSS). Itálico 700 saiu: nenhum estilo usa.
+- Herói sem `.reveal` — a primeira tela pinta sem esperar script. O resto da página continua
+  animando.
+- Foto do herói dimensionada pela **largura** da tela (`min(100%, 80vw, 480px)`), que não muda
+  ao rolar. Primeiro tentei `42svh`; o Playwright não tem barra de URL, então `svh` e `dvh` se
+  comportam igual na simulação e a medida saiu inconclusiva. Troquei por algo **mensurável**:
+  330 px com e sem barra.
+- `width`/`height` nas 10 imagens (2027×2027 medidos no arquivo) e `sizes` no herói e na oferta.
+- As 8 imagens de `via.placeholder.com` viraram SVG inline (`data:`), marcadas
+  `data-mpp-placeholder` e comentadas "trocar pela foto real": zero pedidos a host morto, e a
+  página deixa de esperar por nada. **Continuam sendo placeholders** — só não travam mais.
+- `href="javascript:void(0)"` → `href="#mpp-offer"` nos 3 CTAs (o "links não rastreáveis" do
+  SEO; sem script, o link leva à oferta).
+- JS do EasySell: sem `setInterval`, observer só em `childList`, uma execução por frame no
+  máximo, escopo restrito ao popup, botão já pintado é pulado. A cor continua vindo da
+  variável, lida no `#mpp-lp` (o `:root` vira `.dvf-page` no escopo, e o `#mpp-lp` herda).
+- A descrição do look "Liso Sedoso" estava em português numa página em espanhol; traduzida.
+
+**A/B no Chromium celular, mesma página, tudo externo abortado** (original × editada):
+`h1` no load 0,14 × **1**; foto do herói ao crescer a janela 80 px: muda 33 px × **estável**;
+pedidos a host morto 1 × **0**; tarefas longas em 4 s parado 52 ms × **0 ms**; LCP registrado
+nos dois. Pelo compilador: preload do herói com `imagesizes` do autor, 9 lazy, 10/10 com
+tamanho, **0 avisos** além do `contains-script`.
+
+**O que ainda não está provado**: tudo acima é laboratório local; o campo (28 dias) só muda
+depois de publicar e esperar. E as 8 fotos reais continuam faltando.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
