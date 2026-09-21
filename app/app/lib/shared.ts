@@ -24,6 +24,27 @@ export function themeEditorUrl(domain: string, template: string, previewPath?: s
   return `https://admin.shopify.com/store/${handle}/themes/current/editor?${params.toString()}`;
 }
 
+/** How long a store name may be — enough for a country, short enough for a pill. */
+export const STORE_LABEL_MAX = 60;
+
+/**
+ * The name a store shows under, from whatever was typed into the field.
+ *
+ * Two stores are allowed to share a name (two shops selling in Colombia are
+ * both "Côlombia"), so the name is never the identity — every screen that
+ * shows it also shows the domain. What this rule does guarantee is that the
+ * name is never BLANK: an empty field falls back to the domain's own handle,
+ * because a store with no name at all is a checkbox nobody can aim at.
+ *
+ * The name Shopify hands back at install time is only a guess, and when the
+ * shop query fails it is the domain itself — which is how two stores ended up
+ * called `49e257-b3` and `01xmv2-7m`.
+ */
+export function storeLabelFrom(typed: string, domain: string): string {
+  const clean = typed.trim().replace(/\s+/g, ' ').slice(0, STORE_LABEL_MAX).trim();
+  return clean || domain.replace(/\.myshopify\.com$/i, '');
+}
+
 /** The shape `/api/theme-style` answers with (mirrors ThemeStyle, client-safe). */
 export interface ThemeStyleData {
   body: string | null;

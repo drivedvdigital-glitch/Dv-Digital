@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Link, useActionData, useLoaderData, useLocation, useNavigation, useSubmit } from 'react-router';
+import { Form, Link, useActionData, useLoaderData, useLocation, useNavigation, useSubmit } from 'react-router';
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 
@@ -11,6 +11,7 @@ import { LocalDateTime } from '../ui/local-time.tsx';
 import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
 import { deploymentKind, switchPage } from '../lib/publish.server.ts';
+import { STORE_LABEL_MAX, storeLabelFrom } from '../lib/shared.ts';
 import { clientFor, removeProductTemplate, storeUnusableReason } from '../lib/shopify.server.ts';
 
 export const headers = passHeaders;
@@ -32,8 +33,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { updatedAt: 'desc' },
     include: { deployments: { include: { store: true } }, _count: { select: { productLinks: true } } },
   });
+  const stores = await db.store.findMany({ orderBy: { createdAt: 'asc' } });
   // Only what the list shows — never a store's token or credentials.
   return {
+    // As lojas com o nome que VOCÊ deu. O nome que a Shopify devolve na
+    // instalação é um palpite (e vira o domínio quando a consulta falha, que
+    // é como duas lojas acabaram chamadas `49e257-b3` e `01xmv2-7m`).
+    stores: stores.map((s) => ({
+      id: s.id,
+      domain: s.domain,
+      label: s.label,
+      isProduction: s.isProduction,
+      unusable: storeUnusableReason(s),
+    })),
     pages: pages.map(({ _count, ...page }) => ({
       ...page,
       productCount: _count.productLinks,
@@ -57,6 +69,23 @@ export async function action({ request }: ActionFunctionArgs) {
   await requireShop(request);
   const form = await request.formData();
   const intent = form.get('intent');
+
+  if (intent === 'renomear-lojas') {
+    // Um nome por loja, todos de uma vez. Vazio significa "volte a chamar pelo
+    // domínio" em vez de virar um rótulo em branco impossível de clicar.
+    const stores = await db.store.findMany({ select: { id: true, domain: true, label: true } });
+    let mudadas = 0;
+    for (const store of stores) {
+      const campo = form.get(`nome-${store.id}`);
+      if (campo === null) continue;
+      const novo = storeLabelFrom(String(campo), store.domain);
+      if (store.label === novo) continue;
+      await db.store.update({ where: { id: store.id }, data: { label: novo } });
+      mudadas += 1;
+    }
+    if (mudadas === 0) return { ok: true, message: 'Os nomes já estavam assim.' };
+    return { ok: true, message: `${mudadas} loja(s) renomeada(s).` };
+  }
 
   if (intent === 'create') {
     const page = await db.page.create({
@@ -241,7 +270,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function PagesList() {
-  const { pages } = useLoaderData<typeof loader>();
+  const { pages, stores } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const search = useLocation().search;
   const submit = useSubmit();
@@ -540,6 +569,71 @@ export default function PagesList() {
             </table>
           )}
         </div>
+
+        {/* As lojas, com o nome que você escolher. Duas lojas podem se chamar
+            "Côlombia" — por isso o domínio fica SEMPRE na linha de baixo: é
+            ele que diz qual é qual quando o nome não diz. */}
+        <section style={{ ...card, marginTop: 18 }} data-lojas>
+          <div style={storesHead}>
+            <div>
+              <h2 style={storesTitle}>Lojas</h2>
+              <div style={countLine}>
+                {stores.length} {stores.length === 1 ? 'loja instalada' : 'lojas instaladas'} · o nome aparece em
+                "Publicar em"
+              </div>
+            </div>
+          </div>
+          {stores.length === 0 ? (
+            <div style={emptyState}>
+              Nenhuma loja instalada ainda. Abra o app pelo admin da loja: ela se instala sozinha.
+            </div>
+          ) : (
+            <Form method="post" style={{ padding: '4px 16px 16px' }}>
+              <input type="hidden" name="intent" value="renomear-lojas" />
+              {stores.map((store) => (
+                <div key={store.id} style={storeRow}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <input
+                      className="dv-input"
+                      // A caixa é não-controlada (`defaultValue`), e o React
+                      // não reescreve o DOM de uma dessas: depois de salvar,
+                      // o campo continuava mostrando o que foi DIGITADO —
+                      // vazio, ou com espaços — enquanto o banco já tinha o
+                      // nome tratado. Tela mentindo sobre o que gravou. A
+                      // chave inclui o rótulo salvo, então o campo é
+                      // remontado quando o nome muda de verdade.
+                      key={`${store.id}:${store.label}`}
+                      name={`nome-${store.id}`}
+                      defaultValue={store.label}
+                      maxLength={STORE_LABEL_MAX}
+                      aria-label={`Nome de ${store.domain}`}
+                      placeholder={store.domain.replace('.myshopify.com', '')}
+                      style={{ width: '100%', maxWidth: 320 }}
+                    />
+                    {/* O domínio nunca some: é a identidade de verdade. */}
+                    <div style={subLine}>{store.domain}</div>
+                  </div>
+                  <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+                    {store.isProduction ? <span style={pillInfo}>produção</span> : <span style={pillNeutral}>teste</span>}
+                    {store.unusable ? (
+                      <span style={pillNeutral} title={store.unusable}>
+                        sem acesso
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                <button type="submit" className="dv-btn dv-secondary" disabled={busy} data-salvar-nomes>
+                  Salvar nomes
+                </button>
+                <span style={bulkReason}>
+                  Só muda como a loja aparece aqui — nada muda na Shopify. Nome vazio volta a usar o domínio.
+                </span>
+              </div>
+            </Form>
+          )}
+        </section>
       </div>
     </div>
   );
@@ -658,6 +752,29 @@ const emptyIcon: React.CSSProperties = {
   justifyContent: 'center',
   color: 'var(--dv-ink-2)',
   marginBottom: 6,
+};
+
+const storesHead: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  padding: '12px 16px',
+  borderBottom: '1px solid var(--dv-edge)',
+};
+
+const storesTitle: React.CSSProperties = {
+  fontSize: 15,
+  fontWeight: 600,
+  lineHeight: '20px',
+  margin: 0,
+};
+
+const storeRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  padding: '12px 0',
+  borderBottom: '1px solid var(--dv-edge-soft)',
 };
 
 const tableStyle: React.CSSProperties = {

@@ -1955,6 +1955,39 @@ inteira que a antecedeu — e a informação que resolveu não foi o veredito `E
 **número ao lado dele**, que estava lá só porque a resposta traz o tamanho junto do fim da
 chave.
 
+### Dar nome às lojas — e por que o nome não basta
+
+Com as três lojas no ar, o "Publicar em" listava `Magyarország`, `49e257-b3` e `01xmv2-7m`. Os
+dois últimos são o próprio domínio: o nome que a Shopify devolve na instalação é um palpite, e
+quando a consulta da loja falha ele vira o domínio. Ninguém publica com confiança numa caixa
+chamada `01xmv2-7m`.
+
+O pedido era só trocar os três nomes. O que foi feito foi diferente, de propósito: **uma seção
+"Lojas" na tela de páginas, com o nome editável**. Fixar nome no código seria repetir em
+miniatura o erro que custou a tarde anterior — três apps chamados `DVHub Application` em
+organizações diferentes, indistinguíveis pelo nome.
+
+E aqui o nome **não pode** distinguir: as duas lojas da Colômbia se chamam "Côlombia" as duas.
+Então a regra não tenta impedir repetição — ela garante que o desempate esteja sempre na tela:
+o domínio aparece embaixo do nome na seção "Lojas", ao lado do nome em cada linha do "Publicar
+em", e dentro da frase de confirmação de produção ("Confirmo publicar também em Côlombia
+(49e257-b3.myshopify.com)"). Nome vazio volta a ser o domínio, porque loja sem nome nenhum é
+uma caixa de seleção sem alvo.
+
+`storeLabelFrom` (em `app/app/lib/shared.ts`, com teste próprio) é a regra inteira: apara as
+pontas, junta espaços repetidos, corta em 60 e cai no domínio quando sobra nada.
+
+**O que o teste unitário não pegou e o navegador pegou.** A caixa de texto é não-controlada
+(`defaultValue`), e o React não reescreve o DOM de uma dessas quando os dados do loader mudam.
+Resultado: digitar `  Côlombia  ` e salvar gravava `Côlombia` no banco e deixava `  Côlombia  `
+na tela; apagar o nome gravava `01xmv2-7m` e deixava **o campo vazio**. A tela mentindo sobre o
+que acabou de gravar — exatamente o defeito que nenhum teste de função pura enxerga. Conserto:
+`key={`${store.id}:${store.label}`}`, que remonta o campo quando o rótulo salvo muda.
+
+Verificado dirigindo as duas telas com as três lojas de verdade (16 checagens, todas passando),
+incluindo o caso dos dois nomes iguais e o de salvar sem mudar nada, que responde "os nomes já
+estavam assim" em vez de fingir uma gravação.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

@@ -1898,6 +1898,9 @@ export default function PageEditor() {
                     }
                   />
                   {store.label}
+                  {/* O domínio ao lado do nome: dois nomes iguais (duas lojas
+                      na Colômbia) só se distinguem por ele. */}
+                  <span style={{ ...metaLine, marginLeft: -2 }}>{store.domain}</span>
                   {store.domain === shop ? <span style={pillNeutral}>esta loja</span> : null}
                   {store.isProduction ? <span style={pillDanger}>produção</span> : null}
                   {data.liveStoreIds.includes(store.id) ? <span style={pillSuccess}>no ar</span> : null}
@@ -1910,8 +1913,9 @@ export default function PageEditor() {
                 <label style={{ ...storeRow, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
                   <input type="checkbox" name="allowProduction" value="on" style={{ marginTop: 2 }} />
                   <span>
-                    Confirmo publicar também em {outrasEmProducao.map((s) => s.label).join(', ')} —
-                    não é a loja onde estou
+                    Confirmo publicar também em{' '}
+                    {outrasEmProducao.map((s) => `${s.label} (${s.domain})`).join(', ')} — não é a loja onde
+                    estou
                   </span>
                 </label>
               ) : null}
