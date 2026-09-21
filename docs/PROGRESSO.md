@@ -1685,6 +1685,33 @@ motivo exato. Está no CLAUDE.md, com nome e sobrenome.
 14 checagens com dois apps (duas novas: os metas obrigatórios e o caminho inteiro carregando
 `shop` e `host`), 17 do cadeado com um app só, 116 testes, typecheck, build.
 
+### A recusa que dizia uma palavra e escondia o conserto
+
+Com o bounce consertado, a loja da Colômbia passou a chegar em `/app?dv_bounced=1` com token
+na mão — e a tela respondeu **`ID token recusado (assinatura).`** Essa palavra é exata e é
+inútil: só quem conhece o `credentialsFor` sabe que "assinatura" significa que o `aud` **casou**
+com um app deste servidor (logo o secret conferido foi o certo) e que o segredo guardado aqui
+não é o que a Shopify usou para assinar. Ou seja: a chave secreta foi girada no Dev Dashboard
+e o `.env` da VM ficou com a antiga — exatamente o que acontece depois de um vazamento.
+
+As duas recusas que uma instalação saudável produz têm conserto próprio e a mesma cara de
+"o app quebrou":
+
+| motivo | o que é | conserto |
+|---|---|---|
+| `assinatura` | o app é conhecido, o secret guardado é velho | `adicionar-app` com o **mesmo** Client ID e a chave atual |
+| `aud` | o token é de um app que este servidor nunca viu | `adicionar-app` com o Client ID e a chave desse app |
+
+`app/app/lib/token-refusal.ts` (puro, 3 testes novos) traduz o motivo em frase com a rota do
+conserto, e nomeia o Client ID — que é público, vai no `<meta>` de toda página, e sem ele não
+dá para saber **qual** secret trocar. Motivo sem conserto conhecido sai como estava, sem
+diagnóstico inventado.
+
+Provado dirigindo o servidor construído com dois apps configurados: token do app 2 assinado
+com o secret errado → 401 com a frase que nomeia o app; token de um app desconhecido → 401 que
+**não** fala em secret girado; token assinado com o secret certo → passa da assinatura. 119
+testes, typecheck, build.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

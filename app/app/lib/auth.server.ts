@@ -29,6 +29,7 @@ import { config } from './config.server.ts';
 import { db } from './db.server.ts';
 import { seal } from './secrets.server.ts';
 import { appCredentials, appCredentialsList, ensureStore, SHOP_DOMAIN, storeUsable } from './shopify.server.ts';
+import { tokenRefusalMessage } from './token-refusal.ts';
 
 export interface RequestShop {
   shop: string;
@@ -132,7 +133,7 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     // Whatever went wrong with a token that came in the URL (expired, secret
     // rotated since it was minted), a new one from App Bridge settles it.
     if (!fromHeader && canBounce) throw bounceTo(url);
-    throw new Response(`ID token recusado (${reason}).`, {
+    throw new Response(tokenRefusalMessage(reason, credentials?.clientId ?? null), {
       status: 401,
       // Tells App Bridge's fetch interceptor to retry with a fresh token.
       headers: { 'X-Shopify-Retry-Invalid-Session-Request': '1' },

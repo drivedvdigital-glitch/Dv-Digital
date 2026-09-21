@@ -15,6 +15,7 @@ import {
   verifySessionToken,
   SessionTokenError,
 } from '../../packages/shopify/src/session.ts';
+import { tokenRefusalMessage } from '../app/lib/token-refusal.ts';
 
 const APP_A = { clientId: 'aaaa1111', clientSecret: 'segredo-do-app-a' };
 const APP_B = { clientId: 'bbbb2222', clientSecret: 'segredo-do-app-b' };
@@ -82,4 +83,23 @@ test('lixo no lugar do token não escolhe app nenhum', () => {
 
 test('sem app configurado não há credencial', () => {
   assert.equal(credentialsFor(tokenFor(APP_A, 'loja-a.myshopify.com'), []), null);
+});
+
+test('a recusa por assinatura nomeia o app e manda girar o secret', () => {
+  const texto = tokenRefusalMessage('assinatura', APP_B.clientId);
+  assert.match(texto, /assinatura não confere/);
+  assert.match(texto, new RegExp(APP_B.clientId), 'sem o Client ID não dá para saber QUAL secret trocar');
+  assert.match(texto, /adicionar-app/, 'a tela tem que apontar a rota exata do conserto');
+});
+
+test('a recusa por aud não pede troca de secret — pede o app que falta', () => {
+  const texto = tokenRefusalMessage('aud', null);
+  assert.match(texto, /não conhece/);
+  assert.match(texto, /adicionar-app/);
+  assert.doesNotMatch(texto, /girad/, 'mandar girar o secret aqui manda caçar o erro errado');
+});
+
+test('motivo sem conserto conhecido sai como está, sem inventar diagnóstico', () => {
+  assert.equal(tokenRefusalMessage('formato', null), 'ID token recusado (formato).');
+  assert.match(tokenRefusalMessage('expirado', null), /Recarregue a página/);
 });
