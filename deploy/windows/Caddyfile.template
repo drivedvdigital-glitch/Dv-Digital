@@ -37,6 +37,11 @@
 					delete id_token
 					delete session
 					delete hmac
+					# A conferencia de chave manda a senha no CORPO, nao aqui.
+					# Esta linha e para uma VM que ainda tenha o script antigo:
+					# o filtro so apaga o que esta nomeado, e a senha de acesso
+					# num log de texto e a senha de acesso perdida.
+					delete senha
 				}
 			}
 		}

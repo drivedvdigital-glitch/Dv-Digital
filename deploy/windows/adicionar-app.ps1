@@ -165,15 +165,33 @@ Write-Host ("   recebido: {0} caracteres, terminando em ...{1}" -f $clientSecret
     a resposta e "nao sei", que NAO e "errada": segue em frente.
 #>
 function ConferirChave($porta, $senha, $clientId, $chave) {
-    if ($senha -eq '') { return $null }
+    # Sempre devolve um objeto com MOTIVO. Falhar aberto e o certo aqui - uma
+    # conferencia que nao pode ser feita nao pode impedir de configurar o app -
+    # mas falhar aberto e CALADO e como nao ter escrito nada: o operador acha
+    # que a chave passou pela conferencia quando ela nem foi conferida.
+    if ($senha -eq '') {
+        return [pscustomobject]@{ assina = $null; motivo = 'sem DVFLY_ACCESS_KEY no .env (rode senha.ps1)' }
+    }
     try {
         $corpo = @{ senha = $senha; clientId = $clientId; chave = $chave }
         $r = Invoke-WebRequest -Uri "http://127.0.0.1:$porta/api/chave" -Method Post -Body $corpo `
             -UseBasicParsing -TimeoutSec 8
-        return ($r.Content | ConvertFrom-Json)
+        $dados = $r.Content | ConvertFrom-Json
+        if ($null -eq $dados.assina) {
+            return [pscustomobject]@{ assina = $null; motivo = 'nenhuma loja deste app tentou abrir o app na ultima meia hora' }
+        }
+        return $dados
     } catch {
-        # Codigo antigo nesta VM (404), app no chao: nao e motivo para parar.
-        return $null
+        $codigo = 0
+        if ($_.Exception.Response) { $codigo = [int]$_.Exception.Response.StatusCode }
+        $motivo = switch ($codigo) {
+            404 { 'o codigo desta VM e antigo (clique em ATUALIZAR DVFly)' }
+            403 { 'o app recusou a senha de acesso (o .env mudou e o app nao foi reiniciado?)' }
+            429 { 'muitas tentativas de senha; espere alguns minutos' }
+            503 { 'o app subiu sem DVFLY_ACCESS_KEY' }
+            default { "o app nao respondeu em 127.0.0.1:$porta" }
+        }
+        return [pscustomobject]@{ assina = $null; motivo = $motivo }
     }
 }
 
@@ -183,7 +201,11 @@ foreach ($linha in $linhas) {
     if ($linha -match '^\s*DVFLY_ACCESS_KEY\s*=\s*"?(.*?)"?\s*$') { $senhaDeAcesso = $Matches[1] }
 }
 $veredito = ConferirChave $portaAgora $senhaDeAcesso $clientId $clientSecret
-if ($null -ne $veredito -and $null -ne $veredito.assina) {
+if ($null -eq $veredito.assina) {
+    Write-Host "   NAO DEU PARA CONFERIR esta chave: $($veredito.motivo)." -ForegroundColor Yellow
+    Write-Host '   Ela vai ser gravada assim mesmo. Depois do reinicio, abra o app no admin da'
+    Write-Host '   loja e rode testar-chave.ps1 para saber se acertou.'
+} else {
     if ($veredito.assina) {
         Write-Host '   CONFERIDA: esta chave assina o token que a Shopify mandou.' -ForegroundColor Green
     } else {

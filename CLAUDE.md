@@ -135,7 +135,13 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   organizações diferentes, copiar do app errado é um clique, e o único juiz era abrir o admin
   e ler o 401. O servidor guarda em memória (30 min) o último ID token recusado por app, e
   `/api/chave` diz se uma chave — a guardada ou uma candidata — produz a assinatura daquele
-  token. `adicionar-app.ps1` pergunta isso ANTES de gravar. Ordem: abrir o app na loja (pode
+  token. `adicionar-app.ps1` pergunta isso ANTES de gravar. **De fora essa rota não existe**
+  (404 antes de olhar a senha: o Caddy carimba `X-Forwarded-For` em tudo que passa por ele, e
+  os scripts chamam `127.0.0.1` direto), tem o mesmo freio de tentativas do `/liberar`, e a
+  senha vai no CORPO — o filtro do log do Caddy só apaga o que está nomeado nele.
+  **Caminho aberto à internet nunca indexa por dado que o token declara**: a memória é indexada
+  pelo app que o servidor resolveu, guarda um anel por app, e o veredito é "assina ALGUM" —
+  positivo inforjável, ruído entra ao lado da prova e não por cima dela. Ordem: abrir o app na loja (pode
   falhar), depois colar a chave. Três respostas, não duas: certa, errada e **"não tenho token
   para testar"** — a terceira não é a segunda.
 

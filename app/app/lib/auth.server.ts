@@ -20,7 +20,6 @@ import { ShopifyClient } from '../../../packages/shopify/src/client.ts';
 import {
   audienceOf,
   credentialsFor,
-  destinationOf,
   exchangeToken,
   SessionTokenError,
   verifySessionToken,
@@ -148,9 +147,13 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     // Guardado em memória por meia hora: é contra ESTE token, que a Shopify
     // assinou de verdade, que /api/chave diz se a chave colada está certa —
     // sem instalar nada e sem mais uma volta pelo admin.
-    if (reason === 'assinatura' || reason === 'aud') {
-      rememberRefusal(token, aud, destinationOf(token), Date.now());
-    }
+    //
+    // O índice é o app que ESTE servidor resolveu (`credentials`), nunca o
+    // `aud` que o token declara: este caminho é aberto à internet, e aceitar a
+    // palavra do token deixaria qualquer um escolher quantas lembranças reais
+    // cabem. Sem credencial não há chave para testar contra, então não há o que
+    // lembrar.
+    if (credentials) rememberRefusal(token, credentials.clientId, Date.now());
     // Whatever went wrong with a token that came in the URL (expired, secret
     // rotated since it was minted), a new one from App Bridge settles it.
     if (!fromHeader && canBounce) throw bounceTo(url);

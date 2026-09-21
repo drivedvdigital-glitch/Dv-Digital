@@ -51,10 +51,17 @@ export function tokenRefusalMessage(
         `cole a chave.`
       );
     case 'aud':
+      // Quantos, não quais.
+      //
+      // A primeira versão listava aqui todos os Client IDs configurados, para o
+      // operador comparar. Mas esta tela é pública: enumerar os apps de uma
+      // instalação inteira para qualquer um que force um 401 é um presente que
+      // não custa nada dar e nada ganhar — o operador tem a lista no
+      // `diagnosticar.ps1`, dentro da VM, onde ela pertence.
       return (
-        `ID token recusado: a loja abriu ${app}, que este servidor não conhece. ` +
-        (conhecidos.length > 0 ? `Aqui só existem: ${conhecidos.join(', ')}. ` : '') +
-        'Conserto na VM: rode "adicionar-app", escolha "um app NOVO" e cole o Client ID e a ' +
+        `ID token recusado: a loja abriu ${app}, que este servidor não conhece` +
+        (conhecidos.length > 0 ? ` (ele atende ${conhecidos.length} app(s), nenhum deles este)` : '') +
+        '. Conserto na VM: rode "adicionar-app", escolha "um app NOVO" e cole o Client ID e a ' +
         'chave secreta desse app.'
       );
     case 'expirado':

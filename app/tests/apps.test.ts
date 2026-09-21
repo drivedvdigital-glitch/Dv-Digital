@@ -104,7 +104,8 @@ test('a recusa por aud não pede troca de secret — pede o app que falta, contr
   const texto = tokenRefusalMessage('aud', 'cccc3333', [APP_A.clientId, APP_B.clientId]);
   assert.match(texto, /não conhece/);
   assert.match(texto, /cccc3333/, 'o app que a loja abriu é o que falta aqui');
-  assert.match(texto, new RegExp(APP_A.clientId), 'e os que existem provam a diferença');
+  assert.doesNotMatch(texto, new RegExp(APP_A.clientId), 'mas a tela é pública: não enumera os apps daqui');
+  assert.match(texto, /2 app/, 'quantos, não quais');
   assert.match(texto, /adicionar-app/);
   assert.doesNotMatch(texto, /girad/, 'mandar girar o secret aqui manda caçar o erro errado');
 });

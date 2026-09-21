@@ -99,6 +99,25 @@ export function destinationOf(token: string): string | null {
   return hostOf(unverifiedClaim(token, 'dest'));
 }
 
+/**
+ * A numeric claim, read without verifying anything (`exp`, `iat`).
+ *
+ * Same contract as the two above: good enough to decide whether something is
+ * worth keeping or worth printing, never good enough to let anything through.
+ */
+export function unverifiedNumber(token: string, name: string): number | null {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const claims = JSON.parse(b64url.decode(parts[1]).toString('utf8'));
+    if (!claims || typeof claims !== 'object') return null;
+    const value = Number((claims as Record<string, unknown>)[name]);
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 function unverifiedClaim(token: string, name: string): string | null {
   const parts = token.split('.');
   if (parts.length !== 3) return null;

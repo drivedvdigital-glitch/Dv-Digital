@@ -1889,6 +1889,45 @@ de outro) e 15 provas dirigindo o servidor construído no cenário exato da Snev
 guardada, token bom chegando, 401, veredito `ERRADA`, candidata certa reconhecida antes de ser
 gravada, e o portão recusando `GET` e `POST` sem senha.
 
+### A revisão adversarial derrubou metade do que eu tinha acabado de escrever
+
+Rodei 25 agentes sobre a conferência de chave, em cinco lentes independentes, com cada achado
+passando por um verificador instruído a **refutá-lo**. Sobreviveram 13 de 20 — e os dois piores
+eram meus, de uma hora antes:
+
+**1. A rota estava na internet, sem freio.** O Caddy faz `reverse_proxy` do domínio inteiro, sem
+matcher de caminho: `GET https://dominio/api/chave?senha=…` respondia para o mundo. Sem contagem
+de tentativas — enquanto o `/liberar`, que é o **outro portão da mesma senha**, exige ID token da
+Shopify *e* conta 5 tentativas antes de 5 minutos de espera. Eu tinha tirado as duas travas de
+uma vez, numa senha digitada à mão. Conserto: de fora a rota **não existe** (404 antes de a senha
+ser olhada — um servidor com senha e um sem não podem ser distinguíveis dali), porque o Caddy
+carimba `X-Forwarded-For` em tudo que passa por ele e os dois scripts chamam direto o
+`127.0.0.1`; mais o mesmo `AttemptLimiter` do `/liberar`, para o dia em que não houver proxy.
+
+**2. Qualquer um escolhia o token contra o qual a chave era julgada.** A escrita acontece no
+caminho de recusa do `requireShop`, que é aberto, e eu indexava pelo `aud` que o **token
+declara**. Com um slot por app e o mais novo vencendo, um estranho mandava um JWT com `aud` de um
+app real e assinatura de lixo e a chave **certa** passava a ler `ERRADA` — a ferramenta feita
+para acabar com a caça ao erro virava a que começava uma. E com 8 `aud` inventados dava para
+esvaziar a memória inteira. Conserto em três partes: o índice é o app que o **servidor** resolveu
+(nunca a palavra do token), o que limita a memória ao número de apps reais; um anel por app em
+vez de um slot; e o veredito passa a ser *"esta chave assina **algum** dos tokens lembrados"* —
+**positivo inforjável**, porque produzir um token que a chave certa assina exige a chave certa.
+Ruído entra ao lado da prova boa e nunca mais por cima dela.
+
+Mais três, menores e reais: a senha viajava na **query**, e o filtro do log do Caddy apaga
+`id_token`/`session`/`hmac` mas não `senha` (agora vai no corpo, e o filtro ganhou a linha);
+o `ConferirChave` falhava **aberto e calado**, então uma conferência que não aconteceu parecia uma
+que passou (agora sempre diz o motivo); e o `testar-chave` engolia as mensagens que a própria rota
+sabia dar, porque o PowerShell 5.1 lança em qualquer não-2xx e o corpo só sai do `catch`.
+
+E uma que eu mesmo tinha plantado antes: a tela pública de recusa **enumerava todos os Client IDs**
+da instalação. Agora diz quantos, não quais.
+
+33 testes do módulo (incluindo os dois ataques) e 20 provas dirigindo o servidor construído: token
+forjado não vira `ERRADA`, `aud` inventado não expulsa nada, de fora dá 404 mesmo com a senha
+certa, e o freio entra e segura até a senha certa.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

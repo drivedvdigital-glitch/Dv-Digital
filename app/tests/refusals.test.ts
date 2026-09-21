@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { secretSignsToken, signSessionToken } from '../../packages/shopify/src/session.ts';
+import { secretSignsToken, signSessionToken, unverifiedNumber } from '../../packages/shopify/src/session.ts';
 import { forgetRefusals, keyVerdict, rememberRefusal } from '../app/lib/refusals.server.ts';
 
 const APP = 'aaaa1111';
@@ -52,12 +52,12 @@ test('lixo no lugar do token não passa por chave nenhuma', () => {
 
 test('sem recusa lembrada o veredito é "não sei", não "errada"', () => {
   forgetRefusals();
-  assert.deepEqual(keyVerdict(APP, CERTA, AGORA), { assina: null, loja: null, minutos: null });
+  assert.deepEqual(keyVerdict(APP, CERTA, AGORA), { assina: null, loja: null, minutos: null, testados: 0 });
 });
 
 test('depois de uma recusa, o veredito separa a chave certa da errada', () => {
   forgetRefusals();
-  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), APP, 'loja.myshopify.com', AGORA);
+  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), APP, AGORA);
   const bom = keyVerdict(APP, CERTA, AGORA + 60_000);
   assert.equal(bom.assina, true);
   assert.equal(bom.loja, 'loja.myshopify.com');
@@ -67,39 +67,91 @@ test('depois de uma recusa, o veredito separa a chave certa da errada', () => {
 
 test('cada app responde pelo token dele', () => {
   forgetRefusals();
-  rememberRefusal(tokenDe(APP, 'loja-a.myshopify.com', CERTA), APP, 'loja-a.myshopify.com', AGORA);
-  rememberRefusal(tokenDe('bbbb2222', 'loja-b.myshopify.com', ERRADA), 'bbbb2222', 'loja-b.myshopify.com', AGORA);
+  rememberRefusal(tokenDe(APP, 'loja-a.myshopify.com', CERTA), APP, AGORA);
+  rememberRefusal(tokenDe('bbbb2222', 'loja-b.myshopify.com', ERRADA), 'bbbb2222', AGORA);
   assert.equal(keyVerdict(APP, CERTA, AGORA).assina, true);
   assert.equal(keyVerdict('bbbb2222', ERRADA, AGORA).assina, true);
   assert.equal(keyVerdict('bbbb2222', CERTA, AGORA).assina, false);
 });
 
-test('a recusa mais nova de um app substitui a anterior', () => {
+test('a recusa nova entra AO LADO da anterior — ela não apaga a prova boa', () => {
   forgetRefusals();
-  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', ERRADA), APP, 'loja.myshopify.com', AGORA);
-  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), APP, 'loja.myshopify.com', AGORA + 1000);
+  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', ERRADA), APP, AGORA);
+  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), APP, AGORA + 1000);
   assert.equal(keyVerdict(APP, CERTA, AGORA + 2000).assina, true, 'a lembrança velha não decide');
+  assert.equal(keyVerdict(APP, CERTA, AGORA + 2000).testados, 2, 'as duas continuam guardadas');
 });
 
 test('a lembrança expira, e expirada vira "não sei"', () => {
   forgetRefusals();
-  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), APP, 'loja.myshopify.com', AGORA);
+  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), APP, AGORA);
   assert.equal(keyVerdict(APP, CERTA, AGORA + 29 * 60_000).assina, true);
   assert.equal(keyVerdict(APP, CERTA, AGORA + 31 * 60_000).assina, null);
 });
 
 test('token sem aud não é lembrado — não haveria contra o que testá-lo', () => {
   forgetRefusals();
-  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), null, null, AGORA);
+  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), '', AGORA);
   assert.equal(keyVerdict(APP, CERTA, AGORA).assina, null);
 });
 
-test('a memória não cresce sem limite', () => {
+test('cada app guarda um punhado, não uma pilha sem fim', () => {
   forgetRefusals();
   for (let i = 0; i < 40; i++) {
-    rememberRefusal(tokenDe(`app${i}`, 'loja.myshopify.com', CERTA), `app${i}`, null, AGORA + i);
+    // Tokens distintos do MESMO app: é o que uma enxurrada produziria.
+    rememberRefusal(tokenDe(APP, `loja-${i}.myshopify.com`, ERRADA), APP, AGORA + i);
   }
-  // Os mais novos continuam respondendo; os mais velhos foram esquecidos.
-  assert.equal(keyVerdict('app39', CERTA, AGORA + 40).assina, true);
-  assert.equal(keyVerdict('app0', CERTA, AGORA + 40).assina, null);
+  assert.ok(keyVerdict(APP, ERRADA, AGORA + 40).testados <= 8, 'o anel tem teto');
+});
+
+// --- o que a revisão adversarial encontrou --------------------------------
+
+test('token forjado não apaga a prova boa: positivo é inforjável', () => {
+  // O ataque: alguém manda tokens com `aud` de um app real e assinatura de
+  // lixo, para que a chave CERTA passe a ser julgada contra o token dele.
+  // Com um slot só, a prova boa era substituída e a chave certa lia "errada".
+  forgetRefusals();
+  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', CERTA), APP, AGORA);
+  for (let i = 0; i < 5; i++) {
+    rememberRefusal(tokenDe(APP, `falsa-${i}.myshopify.com`, 'assinatura-de-lixo'), APP, AGORA + i + 1);
+  }
+  const v = keyVerdict(APP, CERTA, AGORA + 10);
+  assert.equal(v.assina, true, 'a chave certa continua sendo reconhecida');
+  assert.equal(v.loja, 'loja.myshopify.com', 'e o veredito nomeia a loja de verdade');
+  assert.ok(v.testados > 1, 'dizendo quantos tokens foram testados');
+});
+
+test('ninguém consegue forjar um CERTA sem a chave', () => {
+  forgetRefusals();
+  rememberRefusal(tokenDe(APP, 'loja.myshopify.com', 'chave-do-atacante'), APP, AGORA);
+  assert.equal(keyVerdict(APP, CERTA, AGORA).assina, false, 'a chave certa não assina o token dele');
+  assert.equal(keyVerdict(APP, 'chave-do-atacante', AGORA).assina, true, 'só quem tem a chave dele');
+});
+
+test('token sem cara de recém-assinado pela Shopify não é guardado', () => {
+  forgetRefusals();
+  const velho = signSessionToken(
+    { iss: 'https://loja.myshopify.com/admin', dest: 'https://loja.myshopify.com', aud: APP, exp: 1 },
+    CERTA,
+  );
+  rememberRefusal(velho, APP, AGORA);
+  assert.equal(keyVerdict(APP, CERTA, AGORA).assina, null, 'exp de outra era');
+
+  const semLoja = signSessionToken(
+    { iss: 'https://exemplo.com/admin', dest: 'https://exemplo.com', aud: APP, exp: Math.floor(AGORA / 1000) + 60 },
+    CERTA,
+  );
+  rememberRefusal(semLoja, APP, AGORA);
+  assert.equal(keyVerdict(APP, CERTA, AGORA).assina, null, 'dest que não é myshopify');
+
+  assert.equal(unverifiedNumber(velho, 'exp'), 1, 'o exp é lido sem verificar nada');
+  assert.equal(unverifiedNumber('lixo', 'exp'), null);
+});
+
+test('o mesmo token repetido não ocupa dois lugares', () => {
+  forgetRefusals();
+  const token = tokenDe(APP, 'loja.myshopify.com', CERTA);
+  rememberRefusal(token, APP, AGORA);
+  rememberRefusal(token, APP, AGORA + 1000);
+  assert.equal(keyVerdict(APP, CERTA, AGORA + 1000).testados, 1);
 });

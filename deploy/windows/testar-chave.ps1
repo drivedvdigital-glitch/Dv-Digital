@@ -56,16 +56,43 @@ if ($senha -eq '') {
     return
 }
 
-$url = "http://127.0.0.1:$porta/api/chave?senha=" + [uri]::EscapeDataString($senha)
+# A senha vai no CORPO, nunca na URL: o log de acesso do Caddy guarda a query,
+# e o filtro dele so apaga o que esta nomeado la dentro.
+$dados = $null
+$codigo = 0
 try {
-    $resposta = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+    $r = Invoke-WebRequest -Uri "http://127.0.0.1:$porta/api/chave" -Method Post -Body @{ senha = $senha } `
+        -UseBasicParsing -TimeoutSec 10
+    $dados = $r.Content | ConvertFrom-Json
 } catch {
-    Write-Host '  O app nao respondeu.' -ForegroundColor Red
-    Write-Host '  Se o erro falar de 404, o CODIGO desta VM e antigo: clique em ATUALIZAR DVFly.'
-    MostrarLog $Raiz 15
+    # O PowerShell 5.1 LANCA em qualquer resposta que nao seja 2xx - e e
+    # justamente no corpo dessas que a rota escreve o conserto (senha errada,
+    # senha nao configurada, espera). Sem ler daqui, toda explicacao que o app
+    # sabe dar virava "o app nao respondeu", que manda procurar no lugar errado.
+    $corpo = $_.ErrorDetails.Message
+    if ($_.Exception.Response) {
+        $codigo = [int]$_.Exception.Response.StatusCode
+        if (-not $corpo) {
+            try {
+                $leitor = New-Object IO.StreamReader($_.Exception.Response.GetResponseStream())
+                $corpo = $leitor.ReadToEnd()
+            } catch { }
+        }
+    }
+    if ($corpo) { try { $dados = $corpo | ConvertFrom-Json } catch { } }
+}
+
+if ($null -eq $dados) {
+    if ($codigo -eq 404) {
+        Write-Host '  O CODIGO desta VM e antigo: /api/chave ainda nao existe aqui.' -ForegroundColor Yellow
+        Write-Host '  Conserto: clique em ATUALIZAR DVFly (area de trabalho).' -ForegroundColor Cyan
+    } else {
+        Write-Host "  O app nao respondeu em 127.0.0.1:$porta (HTTP $codigo)." -ForegroundColor Red
+        MostrarLog $Raiz 15
+    }
+    Write-Host ''
     return
 }
-$dados = $resposta.Content | ConvertFrom-Json
 
 if ($dados.erro) {
     Write-Host "  $($dados.erro)" -ForegroundColor Red
@@ -88,7 +115,8 @@ foreach ($app in $dados.apps) {
     if ($app.assina) {
         Write-Host "   CERTA - esta chave assina o token que a Shopify mandou$onde." -ForegroundColor Green
     } else {
-        Write-Host "   ERRADA - esta chave NAO assina o token que a Shopify mandou$onde." -ForegroundColor Red
+        $quantos = if ($app.testados -gt 1) { " (nenhum dos $($app.testados) tokens lembrados)" } else { '' }
+        Write-Host "   ERRADA - esta chave NAO assina o token que a Shopify mandou$onde$quantos." -ForegroundColor Red
         Write-Host '   No Dev Dashboard, abra o app que tem ESSE Client ID (confira pelo ID, nao'
         Write-Host '   pelo nome - os apps se chamam igual) e copie a chave secreta dele pelo botao'
         Write-Host '   de copiar. Depois: adicionar-app.ps1'
