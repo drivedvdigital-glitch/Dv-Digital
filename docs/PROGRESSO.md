@@ -1812,6 +1812,27 @@ pela outra loja. Achado de quebra: o React Router roda os loaders **em paralelo*
 reparo da marca (no `/app`) e a leitura das lojas (na tela) correm juntos — a pastilha aparece
 na carga seguinte, uma vez.
 
+### Dois portões que concordavam por acidente
+
+Com a marca de produção consertada, publicar parou de funcionar — e a recusa era
+`Este deploy inclui loja(s) de produção (49e257-b3). Passe allowProduction: true para
+confirmar.`, uma frase escrita para quem chama a biblioteca por script, na cara do lojista.
+
+O `deployPage` tem um portão **próprio**, e ele conta TODA loja de produção do deploy,
+inclusive aquela cujo admin você está usando. Enquanto a loja nova estava (por defeito)
+marcada como "não produção", os dois portões concordavam por acidente: nenhum dos dois
+disparava. Consertar a marca acordou o de baixo. O conserto do de cima não estava errado —
+estava sozinho.
+
+A política agora mora num lugar só: a tela decide (confirmação apenas para loja de produção
+que não é esta) e, passada a decisão, diz à biblioteca que o deploy está autorizado. Lá
+embaixo o portão continua de pé para os outros chamadores.
+
+Provado com o botão **Publicar** de verdade, nos dois sentidos: publicar só na loja onde
+estou não esbarra mais na trava, e marcar a outra loja sem confirmar continua sendo recusado
+— nomeando ela. Portão testado só no sentido que passa não é portão testado. 17 checagens no
+navegador.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

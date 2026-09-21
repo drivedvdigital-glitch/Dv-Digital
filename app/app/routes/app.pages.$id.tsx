@@ -277,7 +277,7 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   }
   const compiled = compile(doc);
   const fragment = toFragment(compiled);
-  const allowProduction = form.get('allowProduction') === 'on';
+  const confirmouOutras = form.get('allowProduction') === 'on';
 
   // The ceilings are Shopify's, not ours: the page body column (64 KB) on the
   // regular track, the theme section file (256 KB) for a product page.
@@ -311,9 +311,21 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   const production = [...rows, ...retiring.map((d) => d.store)].filter(
     (s, i, all) => s.isProduction && s.domain !== currentShop && all.findIndex((x) => x.id === s.id) === i,
   );
-  if (production.length > 0 && !allowProduction) {
+  if (production.length > 0 && !confirmouOutras) {
     return { ok: false, saved: true, message: new ProductionNotAllowedError(production.map(toStore)).message, needsProductionConfirm: true };
   }
+  // Passada a regra desta tela, o deploy ESTÁ autorizado — e é preciso dizer
+  // isso à biblioteca.
+  //
+  // `deployPage` tem um portão próprio, e ele conta TODA loja de produção,
+  // inclusive aquela cujo admin você está usando. Enquanto a loja nova estava
+  // (por defeito) marcada como "não produção", os dois portões concordavam por
+  // acidente; consertar a marca acordou o de baixo, e publicar na própria loja
+  // passou a ser recusado com uma mensagem escrita para quem chama a
+  // biblioteca por script ("Passe allowProduction: true"). A política mora
+  // aqui, numa regra só; lá embaixo fica a trava que protege os outros
+  // chamadores, e esta tela responde por ela.
+  const allowProduction = true;
   const retired = await retireOtherKind(pageId, pageType);
   if (retired.failed.length > 0) {
     return {
