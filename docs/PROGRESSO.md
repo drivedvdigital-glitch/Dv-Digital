@@ -1579,6 +1579,23 @@ Junto, no `adicionar-app.ps1`: `appsDaShopify` ausente no `/healthz` não é mai
 tela vermelha — é "o CÓDIGO desta VM é antigo, clique em ATUALIZAR", que era exatamente o que
 estava acontecendo.
 
+### 🔴→✅ O instalador apagava o segundo app da Shopify (21/09)
+
+Rodar o instalador de novo — o que a própria documentação manda fazer para consertar qualquer
+coisa — **apagava o app da segunda loja**. Ele reescreve o `app\.env` inteiro a cada rodada, a
+partir de uma lista fixa de variáveis; `SHOPIFY_CLIENT_ID_2` e `SHOPIFY_CLIENT_SECRET_2` não
+estavam nessa lista, porque quem os escreve é outro script (`adicionar-app.ps1`). A loja da
+segunda organização simplesmente parava de entrar, e nada na tela ligava uma coisa à outra.
+
+Agora o instalador **devolve o que não é dele**: toda chave que ele não escreve é lida antes e
+recolocada depois, e ele diz na tela quantos apps extras manteve. Vale para o que ainda vier —
+a regra é "o que outro script pôs aqui continua aqui", não uma lista de exceções que alguém
+teria de lembrar de aumentar.
+
+12 checagens sobre a função real (extraída por AST): guarda os dois pares do app 2, guarda uma
+chave qualquer que alguém tenha posto à mão, **não** duplica as que o instalador escreve,
+ignora comentário e linha vazia, e não explode sem arquivo.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

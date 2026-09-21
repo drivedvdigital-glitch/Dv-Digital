@@ -150,6 +150,35 @@ function Perguntar($rotulo, $atual, $exemplo) {
     return $resposta.Trim()
 }
 
+<#
+    As linhas do .env que o instalador NAO conhece, devolvidas como estao.
+
+    Ele reescreve o arquivo inteiro a cada rodada - e por isso apagava os apps
+    que o adicionar-app.ps1 tinha acrescentado (SHOPIFY_CLIENT_ID_2 e amigos):
+    eles nao estao na lista fixa que ele escreve. A loja da segunda organizacao
+    parava de entrar, sem nada na tela ligando uma coisa a outra.
+
+    Entao o que veio de outro script volta junto. Vale para o que ainda vier:
+    qualquer chave que o instalador nao escreve e preservada.
+#>
+function LinhasPreservadas($arquivo) {
+    $nossas = @(
+        'DATABASE_URL', 'DVFLY_TOKEN_KEY', 'SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET',
+        'SHOPIFY_API_VERSION', 'DVFLY_DEV_ORIGINS', 'DVFLY_AUTH', 'DVFLY_ALLOWED_SHOPS',
+        'DVFLY_ACCESS_KEY', 'DVFLY_DOMAIN', 'DATABASE_URL_DIRECT'
+    )
+    $guardar = @()
+    if (-not (Test-Path $arquivo)) { return $guardar }
+    foreach ($linha in Get-Content $arquivo) {
+        if ($linha -match '^\s*#' -or $linha.Trim() -eq '') { continue }
+        if ($linha -notmatch '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=') { continue }
+        $chave = $Matches[1]
+        if ($nossas -contains $chave) { continue }
+        $guardar += $linha
+    }
+    return $guardar
+}
+
 $Dominio = ValorDoEnv 'DVFLY_DOMAIN'
 $ClientId = ValorDoEnv 'SHOPIFY_CLIENT_ID'
 $ClientSecret = ValorDoEnv 'SHOPIFY_CLIENT_SECRET'
@@ -237,7 +266,14 @@ DVFLY_ACCESS_KEY="$Senha"
 # Guardado aqui so para o instalador lembrar do dominio numa proxima rodada.
 DVFLY_DOMAIN="$Dominio"
 "@
+# O que outro script escreveu aqui volta no fim - apps extras, principalmente.
+$preservadas = LinhasPreservadas $ArquivoEnv
 Set-Content -Path $ArquivoEnv -Value $conteudo -Encoding ASCII
+if ($preservadas.Count -gt 0) {
+    Add-Content -Path $ArquivoEnv -Value $preservadas -Encoding ASCII
+    $apps = @($preservadas | Where-Object { $_ -match '^\s*SHOPIFY_CLIENT_ID_' }).Count
+    if ($apps -gt 0) { Write-Host "   mantive $apps app(s) extra da Shopify que ja estavam configurados." }
+}
 
 Write-Host '   instalando dependencias (a primeira vez demora)...'
 cmd /c 'npm run setup' | Out-Null
