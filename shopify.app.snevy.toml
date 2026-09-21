@@ -19,11 +19,16 @@
 #   3. no Dev Dashboard, LANCE a versão criada: escopo que não está numa versão
 #      lançada não é concedido, e a loja instala sem poder publicar nada.
 #
+# Com o `client_id` ainda no texto de exemplo, o CLI procura a organização dona
+# de um id que não existe e responde "Cannot find a valid organization" — que
+# parece erro de login e não é. Criar o app vem antes de publicar nele.
+#
 # O `--config snevy` é o que faz o CLI ler ESTE arquivo em vez do principal.
 # Sem ele, você publicaria a configuração no app errado.
 
-# <<< TROQUE pelo Client ID do app da Snevy (Dev Dashboard → Configurações do app).
-client_id = "PREENCHA_COM_O_CLIENT_ID_DO_APP_DA_SNEVY"
+# O Client ID é público — ele vai no `<meta>` de toda tela do app. O secret não
+# entra aqui: vive só no `app/.env` da VM, escrito pelo adicionar-app.ps1.
+client_id = "dbcdc8e59f6506e9f9385bfbf801322a"
 name = "DVHub Application"
 # Único na organização — por isso não pode ser `dvhub-application`.
 handle = "dvhub-snevy"
