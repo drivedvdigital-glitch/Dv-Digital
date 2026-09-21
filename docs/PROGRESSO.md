@@ -1554,6 +1554,31 @@ lojas (incluindo as duas recusas acima e "nenhum segredo no HTML"), **116 testes
 app novo: `deploy\windows\adicionar-app.ps1` (10 checagens sobre a função que escolhe o
 próximo número livre no `.env`).
 
+### 🔴→✅ "Já está na versão mais nova. Nada a fazer." — e não estava (21/09)
+
+O ATUALIZAR rodou, ficou nove minutos compilando (medido de fora: nove minutos de app fora do
+ar) e não aplicou nada. Clicar de novo respondia **"Ja estava na versao mais nova. Nada a
+fazer"** — e continuaria respondendo isso para sempre.
+
+O atualizador comparava **commits**: `git reset` primeiro, compilar depois. Quando a
+compilação morre no meio — uma janela fechada, falta de disco, ou (o caso aqui) **outro script
+parando o app no meio da compilação** —, o disco fica com o código novo e o build do código
+velho. Na rodada seguinte os commits batem, e ele vai embora sem fazer nada. O conserto nunca
+chega, e a tela diz que está tudo em dia.
+
+Agora quem responde é o **build**: o commit compilado fica gravado em
+`app\build\.commit-construido`, escrito só depois de `npm install`, `npm run build` e
+`db:deploy` terem dado certo. Pular a compilação exige que esse registro bate com o `HEAD` de
+agora — "mesmo commit" sozinho não basta mais. E, mesmo quando não há o que fazer, o
+atualizador confere se o app está de pé e o sobe se não estiver.
+
+11 checagens sobre o script e sobre a regra (versão nova → compila; mesma versão com build
+certo → não; mesma versão com build velho ou sem registro → compila).
+
+Junto, no `adicionar-app.ps1`: `appsDaShopify` ausente no `/healthz` não é mais um JSON cru na
+tela vermelha — é "o CÓDIGO desta VM é antigo, clique em ATUALIZAR", que era exatamente o que
+estava acontecendo.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

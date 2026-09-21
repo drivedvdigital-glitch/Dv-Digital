@@ -28,14 +28,38 @@ git checkout $Branch --quiet
 git reset --hard "origin/$Branch" --quiet
 $depois = (git rev-parse HEAD)
 
-if ($antes -eq $depois) {
-    Write-Host '   Ja estava na versao mais nova. Nada a fazer.'
-    Pop-Location
-    return
-}
-
 . (Join-Path $Raiz 'deploy\windows\comum.ps1')
 $porta = PortaDoRunner $Raiz '3000'
+
+# "Mesmo commit" NAO quer dizer "nada a fazer".
+#
+# O `git reset` acima acontece ANTES de compilar. Se a compilacao morrer no
+# meio - uma janela fechada, outro script parando o app, falta de disco -, o
+# disco fica com o codigo novo e o build do codigo velho. A versao antiga
+# dizia "ja esta na versao mais nova" e ia embora, para sempre: o app nunca
+# mais compilava, e nada na tela explicava por que o conserto nao chegava.
+#
+# Entao quem responde e o BUILD: depois de compilar com sucesso, o commit
+# construido fica gravado ao lado dele. Compilar de novo so e dispensavel
+# quando esse registro bate com o HEAD de agora.
+$marca = Join-Path $Raiz 'app\build\.commit-construido'
+$construido = if (Test-Path $marca) { (Get-Content $marca -Raw).Trim() } else { '' }
+if ($antes -eq $depois -and $construido -eq $depois) {
+    Write-Host '   Ja estava na versao mais nova, e o build e desta versao.'
+    Pop-Location
+    # Mesmo sem nada a fazer, o app tem que estar de pe - e uma parada por
+    # qualquer motivo nao pode sobreviver a um ATUALIZAR.
+    if (-not (EsperarApp $porta 2)) {
+        Write-Host '   O app nao estava respondendo. Subindo.' -ForegroundColor Yellow
+        IniciarApp
+        if (EsperarApp $porta 15) { Write-Host '   de pe.' -ForegroundColor Green }
+        else { MostrarLog $Raiz 25 }
+    }
+    return
+}
+if ($antes -eq $depois) {
+    Write-Host '   O codigo ja estava novo, mas o build e de outra versao. Compilando.' -ForegroundColor Yellow
+}
 
 # O app PARA antes de compilar. No Windows nao ha escolha: o `prisma generate`
 # troca um .dll que o app mantem aberto, e a compilacao morre com EPERM. Custa
@@ -55,6 +79,10 @@ try {
     Passo 'Atualizando o banco'
     cmd /c 'npm run db:deploy --workspace @dvfly/app' | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'A atualizacao do banco falhou.' }
+
+    # So AQUI, com tudo tendo dado certo: e este arquivo que responde "o que
+    # esta compilado" na proxima vez.
+    Set-Content -Path $marca -Value $depois -Encoding ASCII
 } finally {
     # O runner tambem e reescrito aqui: o caminho do node pode ter mudado (uma
     # atualizacao do Node.js troca a pasta), e uma instalacao antiga pode ter
