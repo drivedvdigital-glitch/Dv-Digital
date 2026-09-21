@@ -275,11 +275,27 @@ if ($preservadas.Count -gt 0) {
     if ($apps -gt 0) { Write-Host "   mantive $apps app(s) extra da Shopify que ja estavam configurados." }
 }
 
-Write-Host '   instalando dependencias (a primeira vez demora)...'
-cmd /c 'npm run setup' | Out-Null
-if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'npm run setup falhou.' }
-cmd /c 'npm run build' | Out-Null
-if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'A compilacao falhou.' }
+# A saida do npm fica NA TELA.
+#
+# Ela era engolida por um Out-Null, e o custo apareceu inteiro num dia: a
+# compilacao morreu no meio, a janela ficou dez minutos parada sem dizer nada, e
+# o erro so foi descoberto muito depois, quando o app entrou em laco de reinicio
+# por nao existir `build\server\index.js`. Dez minutos de tela imovel tambem
+# parecem travamento - e ai alguem abre outra janela e mexe no app, que foi
+# exatamente o que quebrou a compilacao.
+Write-Host '   instalando dependencias (a primeira vez demora; a saida do npm vem abaixo)...'
+cmd /c 'npm run setup'
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'npm run setup falhou. O erro esta nas linhas acima.' }
+cmd /c 'npm run build'
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'A compilacao falhou. O erro esta nas linhas acima.' }
+
+# Sem isto o app sobe, nao acha o build e fica reiniciando a cada 5 segundos -
+# com a instalacao dizendo que deu tudo certo.
+$servidorCompilado = Join-Path $Raiz 'app\build\server\index.js'
+if (-not (Test-Path $servidorCompilado)) {
+    Pop-Location
+    throw "A compilacao terminou sem erro mas nao escreveu $servidorCompilado. Rode o instalador de novo, sem nenhuma outra janela mexendo no app."
+}
 Pop-Location
 Write-Host '   app compilado.'
 

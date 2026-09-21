@@ -1596,6 +1596,26 @@ teria de lembrar de aumentar.
 chave qualquer que alguém tenha posto à mão, **não** duplica as que o instalador escreve,
 ignora comentário e linha vazia, e não explode sem arquivo.
 
+### 🔴→✅ Dez minutos de tela parada, e um build que não existia (21/09)
+
+O app entrou em laço de reinício a cada 5 segundos com
+`Cannot find module 'C:\dvfly\app\build\server\index.js'`. A compilação tinha morrido no
+meio; o instalador terminou dizendo que estava tudo certo, e o erro do npm **nunca apareceu**:
+ele era engolido por um `| Out-Null`.
+
+Dois consertos, e o segundo é o que fecha o buraco:
+
+- **A saída do npm fica na tela.** Uma janela parada por dez minutos não se distingue de uma
+  janela travada — e é aí que alguém abre outra janela e mexe no app, que foi exatamente o que
+  matou a compilação (o outro script para o app; a compilação em curso vai junto).
+- **Compilar sem erro não é prova.** Instalador e atualizador agora conferem que
+  `app\build\server\index.js` existe antes de declarar sucesso. Sem isso, o app sobe, não
+  acha o build, e o laço do runner o reergue a cada 5 segundos para sempre — com a instalação
+  dizendo PRONTO.
+
+Nenhum dos dois é sofisticado. Os dois existem porque a tela mentiu, e uma tela que mente
+custa mais caro que qualquer bug.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

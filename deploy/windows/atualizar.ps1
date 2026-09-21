@@ -70,15 +70,23 @@ PararApp $porta
 
 $ok = $false
 try {
-    Passo 'Instalando dependencias e compilando'
-    cmd /c 'npm install --no-audit --no-fund' | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'npm install falhou.' }
-    cmd /c 'npm run build' | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'A compilacao falhou.' }
+    # A saida do npm fica na tela: uma janela parada por dez minutos nao se
+    # distingue de uma janela travada, e foi assim que uma compilacao morta
+    # passou despercebida ate o app entrar em laco de reinicio.
+    Passo 'Instalando dependencias e compilando (a saida do npm vem abaixo)'
+    cmd /c 'npm install --no-audit --no-fund'
+    if ($LASTEXITCODE -ne 0) { throw 'npm install falhou. O erro esta nas linhas acima.' }
+    cmd /c 'npm run build'
+    if ($LASTEXITCODE -ne 0) { throw 'A compilacao falhou. O erro esta nas linhas acima.' }
+
+    $servidorCompilado = Join-Path $Raiz 'app\build\server\index.js'
+    if (-not (Test-Path $servidorCompilado)) {
+        throw "A compilacao terminou sem erro mas nao escreveu $servidorCompilado."
+    }
 
     Passo 'Atualizando o banco'
-    cmd /c 'npm run db:deploy --workspace @dvfly/app' | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'A atualizacao do banco falhou.' }
+    cmd /c 'npm run db:deploy --workspace @dvfly/app'
+    if ($LASTEXITCODE -ne 0) { throw 'A atualizacao do banco falhou. O erro esta nas linhas acima.' }
 
     # So AQUI, com tudo tendo dado certo: e este arquivo que responde "o que
     # esta compilado" na proxima vez.
