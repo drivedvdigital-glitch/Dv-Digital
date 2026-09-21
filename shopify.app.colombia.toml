@@ -21,8 +21,9 @@
 # O `--config colombia` é o que faz o CLI ler ESTE arquivo em vez do principal.
 # Sem ele, você publicaria a configuração no app errado.
 
-# <<< TROQUE pelo Client ID do app novo (Dev Dashboard → Client credentials).
-client_id = "PREENCHA_COM_O_CLIENT_ID_DO_APP_DA_COLOMBIA"
+# O Client ID é público — ele vai no `<meta>` de toda tela do app. O secret não
+# entra aqui: vive só no `app/.env` da VM, escrito pelo adicionar-app.ps1.
+client_id = "accd22b7b305b6a5671d267655ee13ef"
 name = "DVHub Application"
 # Único na organização — por isso não pode ser `dvhub-application`.
 handle = "dvhub-colombia"
