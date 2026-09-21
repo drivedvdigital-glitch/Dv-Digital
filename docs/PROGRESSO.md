@@ -1739,6 +1739,32 @@ script pela AST** (não copiados para o teste): `Read-Host` e `Write-Host` falso
 pergunta, inclusive devolvendo `SecureString` quando ela é feita escondida. Mais as 10 da
 troca de secret e a análise sintática dos 6 scripts da VM.
 
+### Parar de conferir no olho: perguntar à Shopify
+
+Três rodadas atrás do `ID token recusado (assinatura)` da Colômbia, e cada uma terminava no
+mesmo lugar: "compare o fim da chave com o Dev Dashboard". Comparar depende de achar o app
+certo no meio de dois apps com o **mesmo nome** (`DVHub Application` nas duas organizações),
+e o erro só aparece quando a loja tenta abrir o app — tarde, e sem dizer de onde veio a chave.
+
+`deploy/windows/testar-chave.ps1` troca a conferência por uma pergunta: manda o par
+`client_id` + `client_secret` guardado no `.env` para `POST /admin/oauth/access_token` com
+`grant_type=client_credentials` e mostra o que a Shopify responde, app por app. Distingue as
+três respostas que importam — `CERTA` (200), `ERRADA` (`invalid_client`: a chave não é desse
+Client ID) e `OUTRA LOJA` (`invalid_request`: o par pode estar certo, a loja é que não é
+desse app) — porque tratar a terceira como a segunda manda consertar o que não está quebrado.
+O token do sucesso nunca é impresso.
+
+O caminho até aqui, em ordem, com o que cada passo eliminou:
+
+| medição | o que passou a ser fato |
+|---|---|
+| `aud` do token na tela de erro | a loja abre o app **certo** (`accd22b7…`) — não é app trocado |
+| fim das chaves no `diagnosticar` | app 1 termina em `b363`, app 2 em `1009` — a chave vazada não é a da Hungria |
+| `readShopifyApps` recusa id repetido | não há dois slots com o mesmo Client ID |
+| aviso de variável do Windows | `loadEnvFile` não sobrepõe o ambiente, e ninguém deixou variável para trás |
+
+13 checagens novas (as funções e a interpretação das respostas tiradas do script pela AST).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
