@@ -46,11 +46,18 @@ function Interpretar($status, $corpo) {
     if ($corpo -match 'invalid_client') {
         return 'ERRADA - a Shopify recusou o par: esta chave nao e a deste Client ID.'
     }
+    if ($corpo -match 'app_not_installed') {
+        return 'APP NAO INSTALADO nesta loja - esperado para o app da outra organizacao.'
+    }
+    # A resposta que me ensinou o limite deste teste.
+    #
+    # Eu escrevi que isto era "app de outra organizacao". Nao e: um app de
+    # distribuicao custom com instalacao gerenciada NAO aceita
+    # client_credentials, entao a Shopify recusa o TIPO do pedido antes de
+    # olhar a chave. Dizer "chave errada" ou "outra loja" aqui e inventar uma
+    # conclusao que a resposta nao carrega.
     if ($corpo -match 'invalid_request|unsupported_grant_type') {
-        # App de OUTRA organizacao responde assim: o par pode estar certo, a
-        # loja e que nao e dele. Dizer "chave errada" aqui manda consertar o
-        # que nao esta quebrado.
-        return "OUTRA LOJA - a Shopify nao aceita este app nesta loja (HTTP $status). Normal para o app da outra organizacao."
+        return "INCONCLUSIVO - a Shopify recusou o tipo do pedido (HTTP $status) sem julgar a chave. Este teste nao serve para um app de instalacao gerenciada; quem decide e a tela do app."
     }
     return "RESPOSTA INESPERADA (HTTP $status): $corpo"
 }
@@ -113,6 +120,10 @@ foreach ($app in $apps) {
         Write-Host '   SEM CHAVE no .env - par pela metade.' -ForegroundColor Red
         continue
     }
+    # O fim da chave TESTADA, na mesma saida: sem isso a resposta nao diz
+    # QUAL chave foi perguntada, e "eu ja troquei" vira palavra contra palavra.
+    Write-Host ("   chave guardada aqui: {0} caracteres, terminando em ...{1}" -f $app.Secret.Length,
+        $app.Secret.Substring([Math]::Max(0, $app.Secret.Length - 4))) -ForegroundColor DarkGray
     $r = PerguntarShopify $shop $app.ClientId $app.Secret
     $frase = Interpretar $r.Status $r.Corpo
     $cor = if ($frase.StartsWith('CERTA')) { 'Green' } elseif ($frase.StartsWith('ERRADA')) { 'Red' } else { 'Yellow' }

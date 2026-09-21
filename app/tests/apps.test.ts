@@ -16,7 +16,7 @@ import {
   verifySessionToken,
   SessionTokenError,
 } from '../../packages/shopify/src/session.ts';
-import { tokenRefusalMessage } from '../app/lib/token-refusal.ts';
+import { secretFingerprint, tokenRefusalMessage } from '../app/lib/token-refusal.ts';
 
 const APP_A = { clientId: 'aaaa1111', clientSecret: 'segredo-do-app-a' };
 const APP_B = { clientId: 'bbbb2222', clientSecret: 'segredo-do-app-b' };
@@ -107,6 +107,15 @@ test('a recusa por aud não pede troca de secret — pede o app que falta, contr
   assert.match(texto, new RegExp(APP_A.clientId), 'e os que existem provam a diferença');
   assert.match(texto, /adicionar-app/);
   assert.doesNotMatch(texto, /girad/, 'mandar girar o secret aqui manda caçar o erro errado');
+});
+
+test('a digital do segredo são quatro caracteres, nunca o segredo', () => {
+  // Valor com forma de segredo de verdade faz o GitHub recusar o push (ele
+  // reconhece o formato, não a validade). Aqui basta ter fim.
+  assert.equal(secretFingerprint('chave-de-mentira-que-termina-em-abcd'), 'abcd');
+  assert.equal(secretFingerprint(null), '????');
+  assert.equal(secretFingerprint(''), '????');
+  assert.equal(secretFingerprint('abc'), '????', 'segredo curto não vira ele mesmo');
 });
 
 test('motivo sem conserto conhecido sai como está, sem inventar diagnóstico', () => {

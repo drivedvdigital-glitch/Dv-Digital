@@ -1765,6 +1765,19 @@ O caminho até aqui, em ordem, com o que cada passo eliminou:
 
 13 checagens novas (as funções e a interpretação das respostas tiradas do script pela AST).
 
+**E o teste falhou no primeiro uso — do jeito certo.** A loja da Colômbia respondeu `HTTP 400
+invalid_request` para o app dela, e eu tinha escrito que isso significava "app de outra
+organização". Não significa: um app de **distribuição custom com instalação gerenciada não
+aceita `client_credentials`**, então a Shopify recusa o *tipo* do pedido antes de olhar a
+chave. O teste não serve para este caso — e dizer "chave errada" ali mandaria consertar o que
+talvez não esteja quebrado. A resposta agora sai como `INCONCLUSIVO`, dizendo que quem decide
+é a tela do app; `app_not_installed` (o que o app da Hungria devolve) ganhou nome próprio.
+
+O que passou a medir o que importa: **o app registra, no log da VM, o fim da chave que usou na
+hora da recusa** (`secretFingerprint`, quatro caracteres, nunca a chave, e no log — a tela de
+recusa é pública). "Eu já troquei a chave" e "aqui ainda está a antiga" são indistinguíveis de
+fora, e o arquivo no disco não é prova: o processo leu o `.env` quando subiu.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

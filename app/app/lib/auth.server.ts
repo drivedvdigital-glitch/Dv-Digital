@@ -30,7 +30,7 @@ import { config } from './config.server.ts';
 import { db } from './db.server.ts';
 import { seal } from './secrets.server.ts';
 import { appCredentials, appCredentialsList, ensureStore, SHOP_DOMAIN, storeUsable } from './shopify.server.ts';
-import { tokenRefusalMessage } from './token-refusal.ts';
+import { secretFingerprint, tokenRefusalMessage } from './token-refusal.ts';
 
 export interface RequestShop {
   shop: string;
@@ -131,6 +131,17 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     shop = verifySessionToken(token, credentials).shop;
   } catch (error) {
     const reason = error instanceof SessionTokenError ? error.reason : 'desconhecido';
+    // WHICH key was in memory when this failed, in the server's own log.
+    //
+    // "I already changed the key" and "the key here is still the old one" look
+    // the same from outside, and the file on disk is not proof: the process
+    // read it when it started. Four characters, next to the app the token came
+    // from, settle it at the exact moment of the failure. Log only — the
+    // refusal page is public.
+    console.warn(
+      `[dvfly] ID token recusado (${reason}) — app ${audienceOf(token) ?? '?'}, ` +
+        `segredo conferido termina em ...${secretFingerprint(credentials?.clientSecret)}`,
+    );
     // Whatever went wrong with a token that came in the URL (expired, secret
     // rotated since it was minted), a new one from App Bridge settles it.
     if (!fromHeader && canBounce) throw bounceTo(url);

@@ -9,7 +9,9 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
   PageFly. Replicamos **conceitos e funcionalidades**, escritos do zero, com identidade D&VFly.
 - **NÃO usar** nome, logo ou marca do PageFly no produto. Citar em `docs/` (pesquisa interna) é ok.
 - **NÃO commitar segredos.** O GitHub bloqueia push com `shpss_…` — credenciais vivem só em
-  `app/.env` (não versionado). O `.env.example` fica com valores vazios.
+  `app/.env` (não versionado). O `.env.example` fica com valores vazios. Vale também para
+  valor **inventado**: o scanner reconhece o formato, não a validade, e um `shpss_` + 32
+  caracteres num teste derruba o push. Fixture de teste não imita formato de segredo.
 - Documentação e interface em **pt-BR**; código e comentários em **inglês**.
 - Branch de trabalho: `claude/dvfly-pagefly-research-skqx9r`. `git pull --rebase` antes de push.
   **Não abrir pull request.**

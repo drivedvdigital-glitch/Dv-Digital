@@ -20,6 +20,19 @@
  * OTHER app" — two repairs that have nothing to do with each other. The client
  * id is public (it is in every page's meta tag), so naming it costs nothing.
  */
+/**
+ * The last four characters of a secret — never the secret.
+ *
+ * Enough to answer "which key was in memory when this failed?" against the
+ * same four the VM's own scripts print, and not enough to be worth anything
+ * to whoever reads the log. Goes to the server log, never to a screen: the
+ * refusal page is public.
+ */
+export function secretFingerprint(secret: string | null | undefined): string {
+  if (!secret || secret.length < 4) return '????';
+  return secret.slice(-4);
+}
+
 export function tokenRefusalMessage(
   reason: string,
   /** The app the token says it belongs to, read unverified — for the text only. */
