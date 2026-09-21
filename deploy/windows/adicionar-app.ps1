@@ -22,6 +22,70 @@ if (-not (Test-Path $ArquivoEnv)) {
 }
 . (Join-Path $Raiz 'deploy\windows\comum.ps1')
 
+<# Os apps da Shopify que ja estao no .env: sufixo ('', '_2', ...) e Client ID. #>
+function AppsNoEnv($linhas) {
+    $apps = @()
+    foreach ($linha in $linhas) {
+        # Linha comentada nao casa: o ^\s* nao deixa o # passar.
+        if ($linha -match '^\s*SHOPIFY_CLIENT_ID(_\d)?\s*=\s*"?([^"\s]+)"?\s*$') {
+            $sufixo = if ($Matches.ContainsKey(1)) { $Matches[1] } else { '' }
+            $apps += [pscustomobject]@{ Sufixo = $sufixo; ClientId = $Matches[2] }
+        }
+    }
+    return $apps
+}
+
+<#
+    Le um segredo sem ecoar na tela.
+
+    -AsSecureString existe no Windows PowerShell 5.1 e no 7; -MaskInput so no 7,
+    e a VM roda o 5.1. O BSTR e zerado depois de virar texto: o valor ainda
+    acaba numa variavel comum (o .env e texto, nao ha para onde fugir), mas nao
+    fica uma copia solta na memoria nao gerenciada.
+#>
+function SegredoDoConsole {
+    $seguro = Read-Host '   cole aqui e pressione Enter (nao aparece na tela)' -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($seguro)
+    try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+}
+
+<#
+    Pergunta ate vir uma resposta que sirva, em vez de morrer na primeira.
+
+    O motivo e concreto: o Client ID chegou vazio sem ninguem ter digitado nada
+    (o Enter que sobrou do comando colado respondeu a pergunta sozinho), o
+    secret foi parar na pergunta seguinte, e o script desistiu com "sem o par
+    completo" - com o par inteiro na mao de quem estava ali, e com a chave
+    secreta ja impressa na tela. Pergunta que so tem uma chance nao pode
+    perder essa chance para um Enter de ninguem.
+#>
+function Perguntar {
+    param([string]$Titulo, [string]$Dica, [scriptblock]$Valida, [string]$Porque, [switch]$Oculto)
+    for ($tentativa = 1; $tentativa -le 4; $tentativa++) {
+        Write-Host ''
+        Write-Host "   $Titulo" -ForegroundColor Cyan
+        if ($Dica) { Write-Host "   $Dica" -ForegroundColor DarkGray }
+        # Chave secreta nao se digita na tela.
+        #
+        # O Read-Host normal ecoa o que foi colado, e o que esta na tela acaba
+        # num print - foi assim que um secret de producao saiu desta VM. A tela
+        # confirma so o tamanho e o fim, que bastam para conferir com o Dev
+        # Dashboard e nao servem para ninguem.
+        $valor = if ($Oculto) { SegredoDoConsole } else { Read-Host '   cole aqui e pressione Enter' }
+        $valor = "$valor".Trim()
+        if ($valor -eq '') {
+            Write-Host '   Nada chegou aqui.' -ForegroundColor Yellow
+            Write-Host '   (Se voce colou o comando com uma linha em branco no fim, esse Enter' -ForegroundColor Yellow
+            Write-Host '    sobrando respondeu a pergunta sozinho. E so responder agora.)' -ForegroundColor Yellow
+            continue
+        }
+        if (& $Valida $valor) { return $valor }
+        Write-Host "   $Porque" -ForegroundColor Yellow
+    }
+    throw "Quatro tentativas sem uma resposta valida para: $Titulo"
+}
+
 <# O primeiro numero de app ainda livre no .env (SHOPIFY_CLIENT_ID_2, _3, ...). #>
 function ProximoNumero($linhas) {
     for ($n = 2; $n -le 9; $n++) {
@@ -37,9 +101,11 @@ function ProximoNumero($linhas) {
 Write-Host ''
 Write-Host '  D&VFly - acrescentar um app da Shopify' -ForegroundColor Cyan
 Write-Host ''
-Write-Host '  Use isto quando uma loja SUA nao puder instalar o app atual (a Shopify'
-Write-Host '  amarra um app custom a uma loja so). No Dev Dashboard, crie um app novo'
-Write-Host '  para essa loja e traga as credenciais dele para ca.'
+Write-Host '  Serve para duas coisas:'
+Write-Host '    - acrescentar um app NOVO, quando uma loja SUA nao puder instalar o app'
+Write-Host '      atual (a Shopify amarra um app custom a uma loja so);'
+Write-Host '    - TROCAR a chave secreta de um app que ja esta aqui, depois de girar'
+Write-Host '      essa chave no Dev Dashboard.'
 Write-Host ''
 Write-Host '  ATENCAO: no app novo, o App URL tem que ser o MESMO endereco deste'
 Write-Host '  servidor, e o redirect URL o mesmo com /app no fim.'
@@ -47,17 +113,49 @@ Write-Host ''
 
 $linhas = @(Get-Content $ArquivoEnv)
 $numero = ProximoNumero $linhas
+$jaAqui = @(AppsNoEnv $linhas)
 
-Write-Host "   Client ID do app novo  (Dev Dashboard - Client credentials)" -ForegroundColor Cyan
-$clientId = (Read-Host '   digite e pressione Enter').Trim()
-Write-Host ''
-Write-Host "   Client secret do app novo  (comeca com shpss_)" -ForegroundColor Cyan
-$clientSecret = (Read-Host '   digite e pressione Enter').Trim()
+# Enter que sobrou do comando colado nao e resposta de ninguem.
+try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
 
-if ($clientId -eq '' -or $clientSecret -eq '') { throw 'Sem o par completo nao da para atender o app novo.' }
-if ($clientId.Contains('"') -or $clientSecret.Contains('"')) {
-    throw 'Credencial com aspas duplas (") nao cabe no .env. Confira se voce copiou o valor certo.'
+# Trocar secret nao pode exigir redigitar 32 caracteres que este arquivo ja
+# sabe de cor: os apps de casa aparecem numerados, e so o secret e digitado.
+$clientId = ''
+if ($jaAqui.Count -gt 0) {
+    Write-Host '  Apps da Shopify que este servidor ja atende:'
+    for ($i = 0; $i -lt $jaAqui.Count; $i++) {
+        Write-Host ("    [{0}] {1}   (SHOPIFY_CLIENT_ID{2})" -f ($i + 1), $jaAqui[$i].ClientId, $jaAqui[$i].Sufixo)
+    }
+    Write-Host '    [N] um app NOVO, de outra loja'
+    $limite = $jaAqui.Count
+    $escolha = Perguntar `
+        -Titulo 'Qual deles?' `
+        -Dica "digite o numero para so trocar a chave secreta dele, ou N para um app novo" `
+        -Valida { param($v) $v -match '^[Nn]$' -or ($v -match '^\d+$' -and [int]$v -ge 1 -and [int]$v -le $limite) } `
+        -Porque "Responda um numero de 1 a $limite, ou a letra N."
+    if ($escolha -notmatch '^[Nn]$') { $clientId = $jaAqui[[int]$escolha - 1].ClientId }
 }
+
+if ($clientId -eq '') {
+    $clientId = Perguntar `
+        -Titulo 'Client ID do app novo' `
+        -Dica 'Dev Dashboard - Client credentials' `
+        -Valida { param($v) $v -notmatch '"' -and $v -notmatch '^shpss_' -and $v.Length -ge 8 } `
+        -Porque 'Isso nao parece um Client ID (comecou com shpss_? entao e a chave secreta).'
+}
+
+$clientSecret = Perguntar -Oculto `
+    -Titulo "Chave secreta do app $clientId" `
+    -Dica 'Dev Dashboard - Chave secreta (o olhinho mostra). Comeca com shpss_' `
+    -Valida { param($v) $v -notmatch '"' -and $v.Length -ge 12 -and $v -ne $clientId } `
+    -Porque 'Isso e o Client ID, nao a chave secreta - ou o valor veio cortado.'
+
+# Colagem cortada e erro mudo: o .env aceita qualquer texto e quem descobre e a
+# loja, com "ID token recusado (assinatura)" dias depois. O fim da chave confere
+# com o Dev Dashboard e nao serve para quem so ve o print.
+Write-Host ("   recebido: {0} caracteres, terminando em ...{1}" -f $clientSecret.Length,
+    $clientSecret.Substring([Math]::Max(0, $clientSecret.Length - 4))) -ForegroundColor DarkGray
+
 # Client ID que ja esta aqui nao e erro: e troca de secret.
 #
 # Girar a chave secreta no Dev Dashboard e uma operacao normal - depois de um

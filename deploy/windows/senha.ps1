@@ -30,8 +30,27 @@ Write-Host '  Deixe em branco para DESLIGAR a trava.'
 Write-Host ''
 Write-Host '  Uma frase e melhor que uma palavra (ex.: carro-azul-do-miguel-2026).'
 Write-Host ''
-$senha = Read-Host '  digite a senha e pressione Enter'
-$senha = $senha.Trim()
+# Enter que sobrou do comando colado nao e resposta de ninguem - e aqui ele
+# DESLIGARIA a trava sem ninguem pedir. O que ficou no buffer do console antes
+# da pergunta existir nao responde a pergunta.
+try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
+
+$senha = (Read-Host '  digite a senha e pressione Enter').Trim()
+
+# Deixar em branco desliga a trava de TODAS as lojas novas: e a unica acao
+# destrutiva deste script, e a unica que se faz sem digitar nada. Fricção
+# proporcional - trocar a senha segue sendo um Enter, desligar pede a palavra.
+if ($senha -eq '') {
+    Write-Host ''
+    Write-Host '  Sem senha, QUALQUER loja que instalar o app entra direto.' -ForegroundColor Yellow
+    $confirma = (Read-Host '  Para desligar mesmo, digite DESLIGAR (ou Enter para voltar atras)').Trim()
+    if ($confirma -ne 'DESLIGAR') {
+        Write-Host ''
+        Write-Host '  Nada mudou. A senha que estava la continua valendo.' -ForegroundColor Cyan
+        Write-Host ''
+        return
+    }
+}
 
 # A aspa dupla e o unico caractere que o arquivo .env nao sabe carregar: ele
 # delimita o valor. Recusar e melhor do que gravar uma senha que o app leria

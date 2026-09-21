@@ -188,6 +188,10 @@ $Senha = ValorDoEnv 'DVFLY_ACCESS_KEY'
 Write-Host ''
 Write-Host '   O dominio e o endereco publico do app. Precisa ja estar apontando'
 Write-Host '   para o IP desta VM (registro A no seu provedor de dominio).'
+# Enter que sobrou do comando colado nao e resposta de ninguem: aqui ele
+# passaria batido pela primeira pergunta, mantendo o valor antigo em silencio.
+try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
+
 $Dominio = Perguntar 'Dominio do app' $Dominio '(ex.: app.seudominio.com)'
 if ($Dominio -eq '') { throw 'Sem dominio nao da para ter HTTPS, e a Shopify so abre o app por HTTPS.' }
 

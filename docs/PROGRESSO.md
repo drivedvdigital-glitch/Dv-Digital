@@ -1712,6 +1712,33 @@ com o secret errado → 401 com a frase que nomeia o app; token de um app descon
 **não** fala em secret girado; token assinado com o secret certo → passa da assinatura. 119
 testes, typecheck, build.
 
+### O Enter que ninguém digitou, e o segredo que foi parar no print
+
+O `adicionar-app` morreu com **`Sem o par completo nao da para atender o app novo.`** — e a
+tela mostrava a pergunta do Client ID sem resposta nenhuma, seguida da chave secreta digitada
+na pergunta seguinte. Ninguém pulou a pergunta: o comando foi colado com uma linha em branco
+no fim, esse Enter ficou no buffer do console, e a primeira `Read-Host` do script o consumiu.
+
+Três defeitos num acidente só, e os três consertados:
+
+1. **A pergunta perdia a única chance que tinha.** Agora `Perguntar` valida e repete (4
+   tentativas), e quando a resposta chega vazia ela diz de onde veio o Enter fantasma. Antes
+   dela, `$Host.UI.RawUI.FlushInputBuffer()`: o que estava no buffer antes da pergunta existir
+   não responde a pergunta. O mesmo em `instalar-na-vm.ps1` e em `senha.ps1` — neste último
+   vazio significa **desligar a trava de acesso**, então vazio agora pede a palavra `DESLIGAR`.
+2. **A chave secreta era ecoada na tela** pelo `Read-Host` comum, e de lá foi para o print.
+   Agora entra por `-AsSecureString` (`-MaskInput` só existe no PowerShell 7; a VM é 5.1), e a
+   tela confirma só `recebido: N caracteres, terminando em ...XXXX` — o bastante para conferir
+   com o Dev Dashboard, inútil para quem só vê a imagem. Colagem cortada deixava de ser erro
+   e virava "ID token recusado (assinatura)" dias depois.
+3. **Girar um secret exigia redigitar 32 caracteres** que o `.env` já sabe de cor. Os apps
+   configurados aparecem numerados; escolher o número pede só a chave nova.
+
+34 checagens em PowerShell de verdade, com as funções e **os validadores tirados do próprio
+script pela AST** (não copiados para o teste): `Read-Host` e `Write-Host` falsos dirigem a
+pergunta, inclusive devolvendo `SecureString` quando ela é feita escondida. Mais as 10 da
+troca de secret e a análise sintática dos 6 scripts da VM.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

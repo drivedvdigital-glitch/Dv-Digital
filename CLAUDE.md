@@ -104,7 +104,17 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
      diz `TOML file not found: C:/shopify.app.toml` com o arquivo na frente dele (procura o
      TOML subindo as pastas com padrão de busca, e `(DV)` é grupo nesse padrão). Conserto sem
      mover nada: `cmd /c mklink /J C:\DvDigital "C:\Users\Miguel (DV)\Dv-Digital"`.
-  5. **Nome de variável no PowerShell não diferencia maiúsculas**: `foreach ($porta in 80, 443)`
+  5. **Enter sobrando do comando colado responde a primeira pergunta**: `irm …/x.ps1 | iex`
+     colado com uma linha em branco no fim deixa esse Enter no buffer do console, e a primeira
+     `Read-Host` do script o consome sem ninguém digitar nada. Mordeu no `adicionar-app`: o
+     Client ID chegou vazio, o secret foi parar na pergunta seguinte, o script desistiu com o
+     par completo na mão do operador — e a chave secreta já impressa na tela. `$Host.UI.RawUI.
+     FlushInputBuffer()` antes da primeira pergunta, e pergunta que **valida e repete** em vez
+     de desistir. Onde vazio significa algo destrutivo (o `senha.ps1` desliga a trava), vazio
+     pede confirmação por palavra. **Segredo nunca por `Read-Host` normal** (ele ecoa, e o eco
+     vai para o print): `-AsSecureString` — `-MaskInput` só existe no PowerShell 7 e a VM é 5.1
+     — confirmando na tela só o tamanho e os 4 últimos caracteres.
+  6. **Nome de variável no PowerShell não diferencia maiúsculas**: `foreach ($porta in 80, 443)`
      escreveu por cima do `$Porta` do app. O app subiu na 443 e respondia perfeitamente em
      `127.0.0.1:443`; o Caddy procurava na 3000 e devolvia 502 para o mundo. Toda checagem
      local dizia que estava tudo certo — porque nenhuma passava pelo proxy. **Medir o caminho
