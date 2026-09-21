@@ -18,6 +18,7 @@ import { redirect } from 'react-router';
 
 import { ShopifyClient } from '../../../packages/shopify/src/client.ts';
 import {
+  audienceOf,
   credentialsFor,
   exchangeToken,
   SessionTokenError,
@@ -133,7 +134,7 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     // Whatever went wrong with a token that came in the URL (expired, secret
     // rotated since it was minted), a new one from App Bridge settles it.
     if (!fromHeader && canBounce) throw bounceTo(url);
-    throw new Response(tokenRefusalMessage(reason, credentials?.clientId ?? null), {
+    throw new Response(tokenRefusalMessage(reason, audienceOf(token), apps.map((app) => app.clientId)), {
       status: 401,
       // Tells App Bridge's fetch interceptor to retry with a fresh token.
       headers: { 'X-Shopify-Retry-Invalid-Session-Request': '1' },

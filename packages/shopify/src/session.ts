@@ -69,13 +69,28 @@ const b64url = {
  */
 export function credentialsFor(token: string, apps: AppCredentials[]): AppCredentials | null {
   if (apps.length <= 1) return apps[0] ?? null;
+  const aud = audienceOf(token);
+  if (aud === null) return null;
+  return apps.find((app) => app.clientId === aud) ?? null;
+}
+
+/**
+ * Which app a token SAYS it is for, read without verifying anything.
+ *
+ * Nothing is decided on this — `credentialsFor` uses it only to pick which
+ * secret does the deciding. It is also the one fact that settles, from the
+ * outside, WHICH Shopify app the admin actually embedded: with two apps on
+ * one server and a signature that does not match, "the secret is stale" and
+ * "the store is opening the other app" look identical until this is read.
+ * The client id is public — it goes in every page's meta tag.
+ */
+export function audienceOf(token: string): string | null {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   try {
     const claims = JSON.parse(b64url.decode(parts[1]).toString('utf8'));
     const aud = claims && typeof claims === 'object' ? (claims as { aud?: unknown }).aud : null;
-    if (typeof aud !== 'string') return null;
-    return apps.find((app) => app.clientId === aud) ?? null;
+    return typeof aud === 'string' ? aud : null;
   } catch {
     return null;
   }

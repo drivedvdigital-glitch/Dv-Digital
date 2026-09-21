@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  audienceOf,
   credentialsFor,
   signSessionToken,
   verifySessionToken,
@@ -85,16 +86,25 @@ test('sem app configurado não há credencial', () => {
   assert.equal(credentialsFor(tokenFor(APP_A, 'loja-a.myshopify.com'), []), null);
 });
 
-test('a recusa por assinatura nomeia o app e manda girar o secret', () => {
-  const texto = tokenRefusalMessage('assinatura', APP_B.clientId);
+test('o aud é legível sem verificar nada — e é ele que diz qual app a loja abriu', () => {
+  assert.equal(audienceOf(tokenFor(APP_A, 'loja-a.myshopify.com')), APP_A.clientId);
+  // Até um token forjado diz de qual app ele SE DIZ: é só para o texto da tela.
+  assert.equal(audienceOf(tokenFor(APP_B, 'loja-b.myshopify.com', 'chave-inventada')), APP_B.clientId);
+  for (const ruim of ['', 'nada', 'a.b', 'x.y.z']) assert.equal(audienceOf(ruim), null, `aceitou ${ruim}`);
+});
+
+test('a recusa por assinatura nomeia o app que a loja abriu', () => {
+  const texto = tokenRefusalMessage('assinatura', APP_B.clientId, [APP_A.clientId, APP_B.clientId]);
   assert.match(texto, /assinatura não confere/);
   assert.match(texto, new RegExp(APP_B.clientId), 'sem o Client ID não dá para saber QUAL secret trocar');
   assert.match(texto, /adicionar-app/, 'a tela tem que apontar a rota exata do conserto');
 });
 
-test('a recusa por aud não pede troca de secret — pede o app que falta', () => {
-  const texto = tokenRefusalMessage('aud', null);
+test('a recusa por aud não pede troca de secret — pede o app que falta, contra os que existem', () => {
+  const texto = tokenRefusalMessage('aud', 'cccc3333', [APP_A.clientId, APP_B.clientId]);
   assert.match(texto, /não conhece/);
+  assert.match(texto, /cccc3333/, 'o app que a loja abriu é o que falta aqui');
+  assert.match(texto, new RegExp(APP_A.clientId), 'e os que existem provam a diferença');
   assert.match(texto, /adicionar-app/);
   assert.doesNotMatch(texto, /girad/, 'mandar girar o secret aqui manda caçar o erro errado');
 });

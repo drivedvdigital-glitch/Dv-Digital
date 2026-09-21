@@ -14,22 +14,35 @@
  *     about — a second store installing its own custom app.
  *
  * Telling them apart on screen is the whole point: both look like "the app is
- * broken" and both are one script away from fixed. The client id is public
- * (it is in every page's meta tag), so naming it costs nothing.
+ * broken" and both are one script away from fixed. And both name the app the
+ * token came from, because with two apps on one server that is the only fact
+ * that separates "the stored secret is stale" from "this store is opening the
+ * OTHER app" — two repairs that have nothing to do with each other. The client
+ * id is public (it is in every page's meta tag), so naming it costs nothing.
  */
-export function tokenRefusalMessage(reason: string, clientId: string | null): string {
-  const app = clientId ? `o app ${clientId}` : 'este app';
+export function tokenRefusalMessage(
+  reason: string,
+  /** The app the token says it belongs to, read unverified — for the text only. */
+  aud: string | null,
+  /** The apps this server holds, so an unknown one can be shown against them. */
+  conhecidos: string[] = [],
+): string {
+  const app = aud ? `o app ${aud}` : 'este app';
   switch (reason) {
     case 'assinatura':
       return (
-        `ID token recusado: a assinatura não confere. A chave secreta que este servidor guarda para ` +
-        `${app} não é a que está hoje no Dev Dashboard da Shopify — ela foi girada ali, ou foi digitada ` +
-        `errada. Conserto na VM: rode "adicionar-app" com ESTE mesmo Client ID e a chave secreta atual.`
+        `ID token recusado: a assinatura não confere. A loja abriu ${app}, e a chave secreta ` +
+        `que este servidor guarda para ele não é a que a Shopify usou para assinar. Confira no ` +
+        `Dev Dashboard qual app tem esse Client ID — tem que ser o mesmo que o admin abre — e ` +
+        `copie a chave secreta DELE. Conserto na VM: rode "adicionar-app", escolha esse app e ` +
+        `cole a chave.`
       );
     case 'aud':
       return (
-        'ID token recusado: ele foi emitido para um app da Shopify que este servidor não conhece. ' +
-        'Conserto na VM: rode "adicionar-app" e cole o Client ID e a chave secreta desse app.'
+        `ID token recusado: a loja abriu ${app}, que este servidor não conhece. ` +
+        (conhecidos.length > 0 ? `Aqui só existem: ${conhecidos.join(', ')}. ` : '') +
+        'Conserto na VM: rode "adicionar-app", escolha "um app NOVO" e cole o Client ID e a ' +
+        'chave secreta desse app.'
       );
     case 'expirado':
     case 'ainda não válido':
