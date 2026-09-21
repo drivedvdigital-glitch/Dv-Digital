@@ -89,6 +89,19 @@ if (-not $ok) {
 
 # A prova vem do proprio app.
 $saude = (Invoke-WebRequest -Uri "http://127.0.0.1:$porta/healthz" -UseBasicParsing -TimeoutSec 8).Content
+# O campo so existe no codigo que sabe atender varios apps. Ele NAO aparecer
+# nao e "deu errado": e esta VM estar rodando codigo velho, com o .env ja certo
+# e o programa sem saber ler o par novo. Dizer isso aqui evita a caca ao erro.
+if ($saude -notmatch '"appsDaShopify"') {
+    Write-Host '  O .env recebeu o app novo, mas o CODIGO desta VM e antigo:' -ForegroundColor Yellow
+    Write-Host '  ele ainda nao sabe atender mais de um app da Shopify.'
+    Write-Host ''
+    Write-Host '  Conserto: clique em ATUALIZAR DVFly (area de trabalho) e rode este' -ForegroundColor Cyan
+    Write-Host '  script de novo - ou so confira o /healthz depois de atualizar, porque'
+    Write-Host '  o par que voce digitou ja esta guardado.'
+    Write-Host ''
+    return
+}
 $quantos = if ($saude -match '"appsDaShopify":(\d+)') { [int]$Matches[1] } else { 0 }
 if ($quantos -ge $numero) {
     Write-Host "  PRONTO. Este servidor atende $quantos apps da Shopify." -ForegroundColor Green
