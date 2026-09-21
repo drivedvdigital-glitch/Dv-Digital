@@ -28,6 +28,7 @@ import { parse, type HTMLElement as ParsedElement } from 'node-html-parser';
 
 import type { StyleSheet } from './css.ts';
 import type { Finding } from './audit.ts';
+import { placeholderHost, responsiveImage, type LcpImage } from './images.ts';
 
 export interface OptimizeOptions {
   /** Shared stylesheet. Kept in the options so a future pass can dedupe against it. */
@@ -39,6 +40,12 @@ export interface OptimizeOptions {
    * `data-dvf-eager`; we never guess, because guessing wrong costs LCP.
    */
   eagerAttribute?: string;
+  /**
+   * Images the page already emitted before this block, in document order.
+   * "The first image on the page" is a page-level fact — with two HTML blocks
+   * each would otherwise crown its own hero — so the compiler passes it in.
+   */
+  imageOffset?: number;
 }
 
 export interface OptimizeResult {
@@ -52,6 +59,12 @@ export interface OptimizeResult {
     inlineStylesKept: number;
     styleBlocksScoped: number;
     imagesTouched: number;
+    /** Every `<img>` seen, so the compiler can keep counting across blocks. */
+    imagesFound: number;
+    /** CDN images that left with a `srcset` built for them. */
+    imagesResponsive: number;
+    /** The page's first image, when it is in this block — the LCP candidate. */
+    firstImage: LcpImage | null;
     scriptsFound: number;
     /**
      * `rem` lengths resolved to the pixels they meant in the author's file.
@@ -288,6 +301,9 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     inlineStylesKept: 0,
     styleBlocksScoped: 0,
     imagesTouched: 0,
+    imagesFound: 0,
+    imagesResponsive: 0,
+    firstImage: null as LcpImage | null,
     scriptsFound: 0,
     remRebased: 0,
     headingLevels: [] as number[],
@@ -338,25 +354,66 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     stats.styleBlocksScoped++;
   }
 
-  // --- 3. Images: lazy, async, and honest reporting about dimensions --------
+  // --- 3. Images: the LCP one first, the rest lazy, CDN ones sized ---------
   const images = root.querySelectorAll('img');
+  stats.imagesFound = images.length;
   images.forEach((img, index) => {
     let touched = false;
+    // First on the PAGE, not in this block: the offset carries what came before.
+    const first = (options.imageOffset ?? 0) + index === 0;
+    const src = img.getAttribute('src') ?? '';
+
+    // A CDN image the author did not size himself gets served at the width
+    // the screen needs. His `width=` attribute (when present) caps it; his
+    // own `srcset` is respected untouched.
+    if (src && !img.hasAttribute('srcset')) {
+      const declared = Number(img.getAttribute('width')) || undefined;
+      const responsive = responsiveImage(src, { width: declared, sizes: img.getAttribute('sizes') ?? undefined });
+      if (responsive) {
+        img.setAttribute('src', responsive.src);
+        img.setAttribute('srcset', responsive.srcset);
+        img.setAttribute('sizes', responsive.sizes);
+        stats.imagesResponsive++;
+        touched = true;
+      }
+    }
 
     if (!img.hasAttribute('loading')) {
-      // The author marks above-the-fold images explicitly. Absent that, only the
-      // very first image is treated as likely-hero and left eager.
-      const eager = img.hasAttribute(eagerAttribute) || index === 0;
+      // The author marks above-the-fold images explicitly. Absent that, only
+      // the first image on the page is treated as the hero and left eager.
+      const eager = img.hasAttribute(eagerAttribute) || first;
       if (!eager) {
         img.setAttribute('loading', 'lazy');
         touched = true;
       }
+    }
+    if (first && !img.hasAttribute('fetchpriority')) {
+      img.setAttribute('fetchpriority', 'high');
+      touched = true;
     }
     if (!img.hasAttribute('decoding')) {
       img.setAttribute('decoding', 'async');
       touched = true;
     }
     if (touched) stats.imagesTouched++;
+    if (first && img.getAttribute('src')) {
+      stats.firstImage = {
+        src: img.getAttribute('src')!,
+        srcset: img.getAttribute('srcset') ?? undefined,
+        sizes: img.getAttribute('sizes') ?? undefined,
+      };
+    }
+
+    const sample = placeholderHost(src);
+    if (sample) {
+      findings.push({
+        severity: 'error',
+        code: 'html/image-placeholder',
+        message:
+          `Imagem de exemplo no HTML (${sample}) — troque pela imagem real antes de publicar. ` +
+          'Esses serviços somem ou ficam lentos, e o visitante espera por uma imagem que não vem.',
+      });
+    }
 
     if (!img.hasAttribute('width') || !img.hasAttribute('height')) {
       findings.push({

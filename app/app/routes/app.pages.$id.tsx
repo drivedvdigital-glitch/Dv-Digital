@@ -611,6 +611,8 @@ interface PreviewStats {
   bytes: { html: number; css: number; js: number; total: number };
   htmlOptimization: { inlineStylesKept: number };
   cssRules: number;
+  /** Images across the page: how many, how many served responsively, and the one fetched first. */
+  images?: { total: number; responsive: number; lcp: string | null };
 }
 
 /**
@@ -1554,6 +1556,14 @@ export default function PageEditor() {
           {((live.stats.bytes.total / (pageType === 'product' ? TEMPLATE_LIMIT_BYTES : PAGE_BODY_LIMIT_BYTES)) * 100).toFixed(1)}%
           do teto da Shopify ({pageType === 'product' ? `${kb(TEMPLATE_LIMIT_BYTES)}, seção do tema` : `${kb(PAGE_BODY_LIMIT_BYTES)}, corpo da página`})
           · {live.stats.cssRules} regras de CSS
+          {live.stats.images && live.stats.images.total > 0 ? (
+            // Counted from the compiled page, blocks and pasted HTML alike.
+            <span data-images-stat>
+              {' '}· {live.stats.images.total} {live.stats.images.total === 1 ? 'imagem' : 'imagens'},{' '}
+              {live.stats.images.responsive} no CDN da Shopify com tamanho por tela
+              {live.stats.images.lcp ? ' · a primeira carrega antes de tudo' : ''}
+            </span>
+          ) : null}
         </div>
       </main>
 
@@ -2593,46 +2603,7 @@ function Inspector({
       );
     }
     case 'image':
-      return (
-        <>
-          <label style={fieldLabel}>
-            URL da imagem
-            <input
-              style={fieldInput}
-              value={String(p.src ?? '')}
-              onChange={(e) => onChange({ src: e.target.value })}
-            />
-          </label>
-          <label style={fieldLabel}>
-            Texto alternativo
-            <input
-              style={fieldInput}
-              value={String(p.alt ?? '')}
-              onChange={(e) => onChange({ alt: e.target.value })}
-            />
-          </label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <label style={{ ...fieldLabel, flex: 1 }}>
-              Largura
-              <input
-                style={fieldInput}
-                type="number"
-                value={Number(p.width ?? 0) || ''}
-                onChange={(e) => onChange({ width: Number(e.target.value) || undefined })}
-              />
-            </label>
-            <label style={{ ...fieldLabel, flex: 1 }}>
-              Altura
-              <input
-                style={fieldInput}
-                type="number"
-                value={Number(p.height ?? 0) || ''}
-                onChange={(e) => onChange({ height: Number(e.target.value) || undefined })}
-              />
-            </label>
-          </div>
-        </>
-      );
+      return <ImageFields p={p} onChange={onChange} />;
     case 'list':
       return (
         <>
@@ -2683,17 +2654,7 @@ function Inspector({
         </>
       );
     case 'html':
-      return (
-        <label style={{ ...fieldLabel, flex: 1, display: 'flex', flexDirection: 'column' }}>
-          Código
-          <textarea
-            style={{ ...fieldArea, flex: 1, fontFamily: 'ui-monospace, Menlo, monospace' }}
-            spellCheck={false}
-            value={String(p.html ?? '')}
-            onChange={(e) => onChange({ html: e.target.value })}
-          />
-        </label>
-      );
+      return <HtmlFields p={p} onChange={onChange} />;
     case 'contact':
       return (
         <>
@@ -2818,6 +2779,229 @@ function Inspector({
 }
 
 /** '' → inherited; plain number → px; anything else is its own unit. */
+/** True for an address the browser can be asked to load: absolute, protocol-relative or a site path. */
+const carregavel = (src: string) => /^(?:https?:)?\/\//i.test(src) || src.startsWith('/');
+
+/**
+ * The image block's fields, plus the two things a fast page needs and nobody
+ * types by hand.
+ *
+ * The real size is measured the moment an address is pasted — the browser
+ * loads the picture and reports it — and written into width/height when they
+ * are empty. It is what keeps the page from jumping when the image arrives,
+ * and what lets the compiler cap the sizes it asks the CDN for. Ten images
+ * on the first live page had none, because the fields were manual.
+ *
+ * "Carregar primeiro" is for an image that sits above the fold but is not
+ * the page's first: the first one already loads first on its own.
+ */
+function ImageFields({
+  p,
+  onChange,
+}: {
+  p: Record<string, unknown>;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const src = String(p.src ?? '').trim();
+  const semTamanho = !p.width || !p.height;
+  const [medida, setMedida] = useState<{ src: string; w: number; h: number } | 'erro' | null>(null);
+  // The latest onChange, so the fill-in effect never closes over a stale one.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    if (!carregavel(src)) {
+      setMedida(null);
+      return;
+    }
+    let vivo = true;
+    const img = new Image();
+    img.onload = () => {
+      if (vivo) setMedida({ src, w: img.naturalWidth, h: img.naturalHeight });
+    };
+    img.onerror = () => {
+      if (vivo) setMedida('erro');
+    };
+    img.src = src;
+    return () => {
+      vivo = false;
+    };
+  }, [src]);
+
+  // Fill in what was measured, once, and only into empty fields: a size the
+  // author typed is his.
+  useEffect(() => {
+    if (medida && medida !== 'erro' && medida.src === src && medida.w > 0 && semTamanho) {
+      onChangeRef.current({ width: medida.w, height: medida.h });
+    }
+  }, [medida, src, semTamanho]);
+
+  const medido = medida && medida !== 'erro' && medida.src === src ? medida : null;
+
+  return (
+    <>
+      <label style={fieldLabel}>
+        URL da imagem
+        <input style={fieldInput} data-image-src value={String(p.src ?? '')} onChange={(e) => onChange({ src: e.target.value })} />
+      </label>
+      <label style={fieldLabel}>
+        Texto alternativo
+        <input style={fieldInput} value={String(p.alt ?? '')} onChange={(e) => onChange({ alt: e.target.value })} />
+      </label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <label style={{ ...fieldLabel, flex: 1 }}>
+          Largura
+          <input
+            style={fieldInput}
+            type="number"
+            data-image-width
+            value={Number(p.width ?? 0) || ''}
+            onChange={(e) => onChange({ width: Number(e.target.value) || undefined })}
+          />
+        </label>
+        <label style={{ ...fieldLabel, flex: 1 }}>
+          Altura
+          <input
+            style={fieldInput}
+            type="number"
+            data-image-height
+            value={Number(p.height ?? 0) || ''}
+            onChange={(e) => onChange({ height: Number(e.target.value) || undefined })}
+          />
+        </label>
+      </div>
+      <div style={metaLine} data-image-medida>
+        {medida === 'erro'
+          ? 'Não consegui carregar essa imagem para medir — confira o endereço.'
+          : medido
+            ? `Tamanho real: ${medido.w} × ${medido.h}${semTamanho ? '' : ' · preenchido'}`
+            : src
+              ? 'Medindo…'
+              : 'Cole o endereço: a largura e a altura são medidas sozinhas.'}
+      </div>
+      <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="checkbox"
+          data-image-eager
+          checked={p.eager === true}
+          onChange={(e) => onChange({ eager: e.target.checked ? true : undefined })}
+        />
+        Carregar primeiro (aparece sem rolar a página)
+      </label>
+      <div style={metaLine}>
+        A primeira imagem da página já carrega primeiro sozinha. Marque só outra que o visitante vê
+        antes de rolar.
+      </div>
+    </>
+  );
+}
+
+/**
+ * The HTML block's field, plus "Medir imagens": loads every `<img>` in the
+ * markup that lacks width/height and writes the real size into that tag.
+ *
+ * String edits, never a re-serialised document — `DOMParser` would move a
+ * leading `<style>` into a head this fragment does not have, and what the
+ * author pastes is what gets published. Attributes are added; nothing else
+ * changes. And only on request, with the count said before the click.
+ */
+function HtmlFields({
+  p,
+  onChange,
+}: {
+  p: Record<string, unknown>;
+  onChange: (patch: Record<string, unknown>) => void;
+}) {
+  const html = String(p.html ?? '');
+  const [estado, setEstado] = useState<string | null>(null);
+  const [medindo, setMedindo] = useState(false);
+  const tags = html.match(/<img\b[^>]*>/gi) ?? [];
+  const semTamanho = tags.filter((t) => !/\bwidth\s*=/i.test(t) || !/\bheight\s*=/i.test(t));
+
+  const srcDe = (tagText: string) => {
+    const m = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tagText);
+    return (m?.[1] ?? m?.[2] ?? '').replace(/&amp;/g, '&').trim();
+  };
+
+  const medir = async () => {
+    setMedindo(true);
+    const tamanhos = new Map<string, { w: number; h: number } | null>();
+    await Promise.all(
+      [...new Set(semTamanho.map(srcDe))].filter(carregavel).map(
+        (src) =>
+          new Promise<void>((done) => {
+            const img = new Image();
+            img.onload = () => {
+              tamanhos.set(src, img.naturalWidth > 0 ? { w: img.naturalWidth, h: img.naturalHeight } : null);
+              done();
+            };
+            img.onerror = () => {
+              tamanhos.set(src, null);
+              done();
+            };
+            img.src = src;
+          }),
+      ),
+    );
+    let ok = 0;
+    let falhou = 0;
+    const novo = html.replace(/<img\b[^>]*>/gi, (tagText) => {
+      if (/\bwidth\s*=/i.test(tagText) && /\bheight\s*=/i.test(tagText)) return tagText;
+      const tamanho = tamanhos.get(srcDe(tagText));
+      if (!tamanho) {
+        falhou++;
+        return tagText;
+      }
+      ok++;
+      const fecha = tagText.endsWith('/>') ? 2 : 1;
+      return `${tagText.slice(0, -fecha)} width="${tamanho.w}" height="${tamanho.h}"${tagText.slice(-fecha)}`;
+    });
+    if (ok > 0) onChange({ html: novo });
+    setEstado(
+      `${ok} imagem(ns) medida(s)` +
+        (falhou > 0 ? ` · ${falhou} não carregou (endereço quebrado ou imagem de exemplo)` : ''),
+    );
+    setMedindo(false);
+  };
+
+  return (
+    <>
+      <label style={{ ...fieldLabel, flex: 1, display: 'flex', flexDirection: 'column' }}>
+        Código
+        <textarea
+          style={{ ...fieldArea, flex: 1, fontFamily: 'ui-monospace, Menlo, monospace' }}
+          spellCheck={false}
+          value={html}
+          onChange={(e) => {
+            setEstado(null);
+            onChange({ html: e.target.value });
+          }}
+        />
+      </label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="dv-btn dv-secondary"
+          data-medir-imagens
+          disabled={medindo || semTamanho.length === 0 || undefined}
+          title="Carrega cada imagem sem largura/altura e escreve o tamanho real na tag"
+          onClick={medir}
+        >
+          {medindo ? 'Medindo…' : 'Medir imagens'}
+        </button>
+        <span style={metaLine} data-medir-estado>
+          {estado ??
+            (tags.length === 0
+              ? 'Nenhuma imagem no código.'
+              : semTamanho.length === 0
+                ? `${tags.length} imagem(ns), todas com largura e altura.`
+                : `${semTamanho.length} de ${tags.length} imagem(ns) sem largura/altura — a página pula quando elas chegam.`)}
+        </span>
+      </div>
+    </>
+  );
+}
+
 function parseLength(raw: string): number | string | undefined {
   const value = raw.trim();
   if (value === '') return undefined;

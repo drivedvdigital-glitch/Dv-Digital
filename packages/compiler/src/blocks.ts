@@ -9,11 +9,15 @@
  *     `<button>`, a heading is a real heading at the level the author chose.
  *   - No JavaScript unless the behaviour genuinely needs it. The accordion is
  *     `<details>/<summary>`, so it ships zero bytes of script.
- *   - Images always carry width, height and lazy loading, because layout shift
- *     is caused by their absence.
+ *   - Images are lazy except the first one on the page, which is the LCP
+ *     candidate and gets fetched first; CDN images are served at the width
+ *     the screen needs (see `images.ts`). Dimensions come from the document —
+ *     the editor measures them — because their absence is what causes layout
+ *     shift.
  */
 
 import { escapeText, safeUrl, tag } from './html.ts';
+import { responsiveImage } from './images.ts';
 import type { Node } from './schema.ts';
 
 export interface RenderContext {
@@ -37,6 +41,13 @@ export interface RenderContext {
   hint: (node: Node, route: string) => string;
   /** Runs author-written markup through the optimization pass. */
   optimizeHtml: (source: string) => string;
+  /**
+   * Registers an image in page order and says whether it is the first one —
+   * the LCP candidate, which the page fetches before anything else. Counted
+   * across blocks, because "first on the page" is a page-level fact that no
+   * single block can know.
+   */
+  claimImage: (image: { src: string; srcset?: string; sizes?: string }) => { first: boolean };
 }
 
 export type RuntimeModule = 'countdown' | 'reveal' | 'tabs' | 'contact';
@@ -105,19 +116,31 @@ const image: Renderer = (node, ctx) => {
   if (!src.trim()) return ctx.hint(node, 'Imagem — informe o endereço em Geral → URL da imagem');
   const width = prop<number | undefined>(node, 'width', undefined);
   const height = prop<number | undefined>(node, 'height', undefined);
-  const srcset = prop<string | undefined>(node, 'srcset', undefined);
+  const authorSizes = prop<string | undefined>(node, 'sizes', undefined);
+  // The author's own srcset wins; otherwise a CDN image gets one built for it.
+  const authorSrcset = prop<string | undefined>(node, 'srcset', undefined);
+  const responsive = authorSrcset ? null : responsiveImage(src, { width, sizes: authorSizes });
+  const finalSrc = responsive?.src ?? src;
+  const srcset = authorSrcset ?? responsive?.srcset;
+  const sizes = srcset ? (authorSizes ?? responsive?.sizes ?? '100vw') : undefined;
+
+  // The first image on the page is the LCP candidate: fetched first, never
+  // lazy. `eager` lets the author say so about any other one.
+  const { first } = ctx.claimImage({ src: finalSrc, srcset, sizes });
+  const eager = first || prop(node, 'eager', false);
 
   return tag('img', {
     ...ctx.baseAttrs(node),
-    src,
+    src: finalSrc,
     srcset,
-    sizes: srcset ? prop(node, 'sizes', '100vw') : undefined,
+    sizes,
     // Empty alt is a deliberate, valid choice for decorative images. It is not
     // the same as a missing alt, and the auditor distinguishes the two.
     alt: escapeText(prop(node, 'alt', '')),
     width,
     height,
-    loading: prop(node, 'eager', false) ? undefined : 'lazy',
+    loading: eager ? undefined : 'lazy',
+    fetchpriority: first ? 'high' : undefined,
     decoding: 'async',
   });
 };

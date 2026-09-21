@@ -13,6 +13,7 @@
 
 import { walk, type Doc, type Node } from './schema.ts';
 import { safeUrl } from './html.ts';
+import { placeholderHost } from './images.ts';
 
 export type Severity = 'error' | 'warning' | 'info';
 
@@ -77,6 +78,19 @@ function auditImages(nodes: Node[], findings: Finding[]): void {
         code: 'image/missing-alt',
         message:
           'Imagem sem texto alternativo. Use alt="" apenas se ela for puramente decorativa.',
+        nodeId: node.id,
+      });
+    }
+
+    // A sample-picture service in the URL means the template's example image
+    // was never replaced. Found on a live page: eight of ten images, host
+    // dark, every phone waiting for pictures that would never come.
+    const sample = placeholderHost(String(props.src ?? ''));
+    if (sample) {
+      findings.push({
+        severity: 'error',
+        code: 'image/placeholder',
+        message: `Imagem de exemplo (${sample}) — troque pela imagem real em Geral → URL da imagem antes de publicar.`,
         nodeId: node.id,
       });
     }

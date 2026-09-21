@@ -25,6 +25,7 @@ import {
 import { CLASS_PREFIX, StyleSheet } from './css.ts';
 import { tag } from './html.ts';
 import { optimizeHtml } from './html-optimize.ts';
+import { isPreloadable, type LcpImage } from './images.ts';
 import { validate, type Doc, type Node } from './schema.ts';
 
 export interface CompileResult {
@@ -46,6 +47,14 @@ export interface CompileResult {
       imagesTouched: number;
       scriptsFound: number;
       remRebased: number;
+    };
+    /** Images across the whole page, blocks and pasted HTML alike. */
+    images: {
+      total: number;
+      /** Served through the CDN resizer with a `srcset` built for them. */
+      responsive: number;
+      /** The first image on the page — fetched first, never lazy — or null. */
+      lcp: string | null;
     };
   };
   /** Problems found in author-written HTML while compiling. */
@@ -91,6 +100,14 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   const htmlHeadings: number[] = [];
   let htmlInteractive = 0;
   let nodes = 0;
+  // Images are counted across the whole page, in render order, because the
+  // first one is the LCP candidate and that is a fact about the page.
+  let imageOrdinal = 0;
+  let imagesResponsive = 0;
+  // Boxed, not a bare `let`: it is assigned inside the context's closures,
+  // which TypeScript's narrowing cannot see, and a bare binding reads as
+  // `never` at the use sites below.
+  const lcp: { image: LcpImage | null } = { image: null };
 
   const ctx: RenderContext = {
     renderChildren: (children) => (children ?? []).map(render).join(''),
@@ -129,7 +146,11 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       );
     },
     optimizeHtml: (source) => {
-      const result = optimizeHtml(source, { sheet, scope: `${CLASS_PREFIX}-page` });
+      const result = optimizeHtml(source, {
+        sheet,
+        scope: `${CLASS_PREFIX}-page`,
+        imageOffset: imageOrdinal,
+      });
       findings.push(...result.findings);
       htmlOptimization.inlineStylesKept += result.stats.inlineStylesKept;
       htmlOptimization.styleBlocksScoped += result.stats.styleBlocksScoped;
@@ -138,7 +159,17 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       htmlOptimization.remRebased += result.stats.remRebased;
       htmlHeadings.push(...result.stats.headingLevels);
       htmlInteractive += result.stats.interactiveElements;
+      imageOrdinal += result.stats.imagesFound;
+      imagesResponsive += result.stats.imagesResponsive;
+      if (result.stats.firstImage) lcp.image = result.stats.firstImage;
       return result.html;
+    },
+    claimImage: (image) => {
+      const first = imageOrdinal === 0;
+      imageOrdinal++;
+      if (image.srcset) imagesResponsive++;
+      if (first) lcp.image = image;
+      return { first };
     },
   };
 
@@ -208,7 +239,23 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       message: 'A página não tem nenhuma chamada para ação.',
     });
   }
-  const html = tag('div', { class: `${CLASS_PREFIX}-page` }, body);
+  // The LCP image is asked for before the parser reaches its tag. A `<link
+  // rel="preload">` is valid in the body, and this fragment never owns a
+  // `<head>` — it lands inside a theme section. Same URL, same candidates,
+  // same `sizes`, so the browser picks one file and fetches it once.
+  const hero = lcp.image;
+  const preload =
+    hero && isPreloadable(hero.src)
+      ? tag('link', {
+          rel: 'preload',
+          as: 'image',
+          href: hero.src,
+          imagesrcset: hero.srcset,
+          imagesizes: hero.srcset ? hero.sizes : undefined,
+          fetchpriority: 'high',
+        })
+      : '';
+  const html = tag('div', { class: `${CLASS_PREFIX}-page` }, preload + body);
   // Feature CSS ships only when the matching blocks exist on the page.
   const css =
     sheet.toCss(doc.tokens, body.includes(`data-${CLASS_PREFIX}-raw`)) +
@@ -239,6 +286,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       runtimeModules: modules,
       bytes,
       htmlOptimization,
+      images: { total: imageOrdinal, responsive: imagesResponsive, lcp: hero?.src ?? null },
     },
     findings,
   };

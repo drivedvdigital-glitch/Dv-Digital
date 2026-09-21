@@ -37,7 +37,7 @@ export function attrs(map: Record<string, unknown>): string {
 }
 
 /** A void element has no closing tag and no children. */
-const VOID_ELEMENTS = new Set(['img', 'br', 'hr', 'input', 'source']);
+const VOID_ELEMENTS = new Set(['img', 'br', 'hr', 'input', 'source', 'link']);
 
 export function tag(
   name: string,

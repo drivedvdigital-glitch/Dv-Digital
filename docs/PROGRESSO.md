@@ -2064,6 +2064,66 @@ O que **está** pesando, e dois são nossos:
 com elas mortas e com elas respondendo — o LCP apareceu nos dois casos (em texto). A hipótese
 estava errada e não vou substituí-la por outro palpite.
 
+### Imagens: a primeira carrega antes de tudo, e o CDN entrega no tamanho da tela
+
+O dado de campo (28 dias, Chrome de visitantes reais, não laboratório) da Mini Plancha:
+**LCP 3,1 s, INP 277 ms — Core Web Vitals reprovadas**. É o que o Google usa no ranking. O
+elemento do LCP era a nossa imagem principal: 250 KB na resolução cheia, sem `srcset`, sem
+prioridade, sem `preload`, sem `width`/`height` — e os dois únicos `<link rel="preload">` da
+página eram do app EasySell, para um SVG de desconto e um *spinner*. A Shopify escreve as
+regras na própria documentação de desempenho de temas: nunca `lazy` na imagem do LCP,
+`fetchpriority="high"` nela, `srcset`/`sizes` pelo redimensionador do CDN (`?width=`, que
+nunca amplia), dimensões declaradas. Nenhuma dessas é tarefa do autor da página — são do
+compilador. O PageFly expõe o conceito equivalente (tamanho por breakpoint, proporção fixa,
+compressão) como opções do elemento de imagem; aqui é automático.
+
+`packages/compiler/src/images.ts` (puro, com 17 testes próprios):
+
+- **"Primeira imagem" é fato da página, não do bloco.** O `optimizeHtml` rodava por bloco e
+  coroava a primeira imagem de CADA bloco de HTML como herói. Agora o `compile` conta as
+  imagens em ordem de renderização, através de blocos de imagem e de HTML colado, e só a
+  primeira da página ganha: sem `lazy`, `fetchpriority="high"`, e um
+  `<link rel="preload" as="image" imagesrcset imagesizes>` no topo do fragmento (válido no
+  corpo; o fragmento nunca tem `<head>`, mora numa seção do tema). Todas as outras: `lazy`.
+  Nó oculto não conta. O bloco de imagem antes era `lazy` por padrão mesmo sendo o único
+  da página — o teste que fixava isso foi reescrito com o motivo.
+- **URL no CDN da Shopify** (as duas formas: `cdn.shopify.com/s/files/…` e
+  `loja.com/cdn/shop/…`) sai com `?width=1080` no `src` e `srcset` de 360 a 2048, `sizes`
+  `100vw`; com largura declarada, os candidatos param em 2× (retina) e o `sizes` diz o
+  limite. URL que o autor já dimensionou (`width=`, `height=`, `crop=`) ou `srcset` próprio:
+  intocados. Host que não é o CDN: nada a fazer, nada é feito.
+- **Serviço de imagem de exemplo** (`via.placeholder.com` e mais nove) vira aviso de erro no
+  editor, com o campo a corrigir. No ar, 8 das 10 imagens da Mini Plancha apontavam para um
+  host morto.
+
+No editor (`app.pages.$id.tsx`), dois componentes novos:
+
+- `ImageFields`: ao colar a URL, o navegador carrega a imagem e escreve o tamanho real em
+  largura/altura **se estiverem vazias** — tamanho digitado é do autor. Caixa "Carregar
+  primeiro" (`eager`) para imagem acima da dobra que não é a primeira, com a explicação de
+  que a primeira já carrega primeiro sozinha.
+- `HtmlFields`: botão **"Medir imagens"** que diz antes do clique quantas tags estão sem
+  tamanho, carrega cada uma e escreve `width`/`height` **na própria tag, por substituição de
+  texto** — não por `DOMParser`, que moveria um `<style>` inicial para um `<head>` que o
+  fragmento não tem. Só atributos entram; o que o autor colou continua igual.
+- Barra de status: "N imagens, M no CDN da Shopify com tamanho por tela · a primeira carrega
+  antes de tudo" — contado da página compilada.
+
+**Prova real**: o HTML colado da própria Mini Plancha (extraído do que está no ar) pelo
+compilador novo — preload do herói em `width=1080` com 9 candidatos, `fetchpriority="high"`
+nele, 9 imagens lazy, as 2 do CDN responsivas, 8 avisos de placeholder. É o que vai ao ar na
+próxima publicação dessa página. E 11 checagens no editor de verdade (Playwright): mede ao
+colar, não sobrescreve tamanho digitado, o aviso aparece, "Medir imagens" mede 1 e conta as 2
+que não carregam, o canvas mostra o preload.
+
+**O que falhou primeiro**: o roteiro caiu com "não consegui carregar essa imagem" e a suspeita
+foi CSP. Era o PNG de teste, escrito à mão em base64 e corrompido — o Chrome nunca terminava
+de carregá-lo. Um PNG gerado por screenshot resolveu. Anotado para não culpar o CSP de novo.
+
+**O que isto não resolve**: o INP de 277 ms é JavaScript, e JavaScript nosso na página é
+zero — é do tema e do EasySell. E as 8 imagens de exemplo continuam lá até alguém trocar no
+editor: o aviso agora grita, mas não troca sozinho.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

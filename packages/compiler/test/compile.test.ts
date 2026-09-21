@@ -104,20 +104,26 @@ test('author text is escaped', () => {
   assert.match(result.html, /&lt;script&gt;/);
 });
 
-test('images carry dimensions and lazy loading by default', () => {
+test('images carry dimensions; the first is fetched first and the rest are lazy', () => {
+  // Shopify's rule, adopted as ours: never lazy-load the LCP image. The first
+  // image on the page is that candidate — it used to be lazy like the others,
+  // and the field data on the first live page (LCP 3.1 s) is why it is not.
   const result = compile({
     version: 1,
     root: [
-      {
-        id: 'i',
-        type: 'image',
-        props: { src: '/a.jpg', alt: 'Um gato', width: 800, height: 600 },
-      },
+      { id: 'a', type: 'image', props: { src: '/a.jpg', alt: 'Um gato', width: 800, height: 600 } },
+      { id: 'b', type: 'image', props: { src: '/b.jpg', alt: 'Outro', width: 400, height: 300 } },
     ],
   });
-  assert.match(result.html, /width="800"/);
-  assert.match(result.html, /height="600"/);
-  assert.match(result.html, /loading="lazy"/);
+  const tags = result.html.match(/<img[^>]*>/g)!;
+  assert.match(tags[0], /width="800"/);
+  assert.match(tags[0], /height="600"/);
+  assert.match(tags[0], /fetchpriority="high"/);
+  assert.doesNotMatch(tags[0], /loading=/, 'the LCP image is never lazy');
+  assert.match(tags[1], /loading="lazy"/);
+  assert.doesNotMatch(tags[1], /fetchpriority/);
+  assert.match(result.html, /^<div class="dvf-page"><link rel="preload" as="image" href="\/a\.jpg" fetchpriority="high">/);
+  assert.equal(result.stats.images.lcp, '/a.jpg');
 });
 
 test('an image marked eager opts out of lazy loading', () => {
