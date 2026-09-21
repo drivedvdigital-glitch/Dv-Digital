@@ -2177,6 +2177,45 @@ tamanho, **0 avisos** além do `contains-script`.
 **O que ainda não está provado**: tudo acima é laboratório local; o campo (28 dias) só muda
 depois de publicar e esperar. E as 8 fotos reais continuam faltando.
 
+### Depois de publicar: 57 no celular, LCP 10,5 s — e o que isso diz
+
+O Miguel publicou a LP editada e rodou o PageSpeed: celular **57**, FCP 5,4 s, **LCP 10,5 s**,
+TBT 170 ms, CLS 0. Antes: 96 com `NO_LCP`. Leitura honesta: o 96 era calculado **sem** LCP,
+porque o herói estava invisível para a medição; agora o herói pinta de cara, o Lighthouse mede,
+e o número que aparece é o problema que existia o tempo todo. Não é consolo — é o diagnóstico
+que faltava. O FCP piorar (3,8 → 5,4 s) é o que precisa de explicação.
+
+O que foi possível medir daqui (a API do PageSpeed estourou a cota do dia e o Chromium do
+sandbox não abre a snevy.co):
+
+- No ar está a LP nova (8 `data-mpp-placeholder`, 0 `via.placeholder`, herói com `srcset` +
+  `fetchpriority` + `preload`, 9 lazy, 10/10 com tamanho). O compilador novo foi aplicado.
+- **Todo CSS do tema e do EasySell carrega com `media` (não bloqueia) e todo JS é `defer`.**
+  O único recurso que bloqueia a renderização da página é o `<link rel="stylesheet">` das
+  fontes do Google que a LP editada colocou no `body` — em Chrome, isso segura tudo que vem
+  depois dele até o Google responder. Em 4G lento, 1–2 s de tela em branco. O `@import`
+  antigo também bloqueava, mas de onde estava; a troca não piorou, só não ajudou.
+- O herói que o celular escolhe é o candidato de 900 px = **95 KB** (era 250 KB). Ok.
+- A duplicação que suspeitei (3 preloads, um `42dvh` sobrando) não existia: dois preloads são
+  do EasySell, e o `42dvh` estava num **comentário meu** dentro do `<style>`.
+
+**Correção na LP** (`docs/lps/mini-plancha-lp.html`, `47d172b`): fontes com
+`media="print" onload="this.media='all'"` + `<noscript>` (o mesmo truque do Dawn) e
+`display=optional` — se a fonte não chega em ~100 ms, esta visita usa Georgia/system-ui e a
+próxima usa a fonte; **nunca** a troca tardia que re-renderiza o título e joga o LCP para 10 s.
+Custo: a primeira visita em rede lenta vê a fonte reserva. Comentários de CSS saíram do
+`<style>`.
+
+**Defeito do compilador achado pela LP**: `scopeCss` não pulava comentários — um comentário
+antes de um seletor era lido como parte da lista de seletores, quebrado nas vírgulas e
+prefixado com `.dvf-page`; um `{` dentro dele desalinharia o contador de blocos para o resto
+da folha. Agora os comentários caem antes do escopo (a única reescrita que não muda nada do
+que o visitante vê), com teste.
+
+**O que não sei e não vou chutar**: qual é o elemento do LCP de 10,5 s e em que fase o tempo
+vai (TTFB / atraso de carregamento / carregamento / atraso de renderização). O relatório do
+PageSpeed mostra isso em "Largest Contentful Paint element". Pedido ao Miguel.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

@@ -117,6 +117,16 @@ test('keyframes are left alone, because their contents are not selectors', () =>
   assert.doesNotMatch(out, /\.dvf-page from/);
 });
 
+test('CSS comments are dropped before scoping — never read as selectors', () => {
+  // A pasted landing page (21/09) had a comment with commas and a brace
+  // right before a rule: the scoper prefixed each comma-piece with the scope
+  // and the brace inside it threw the block counter off for everything after.
+  const css = '/* foto: largura, não altura { 42dvh } */ .a{color:red} /* fim */ .b{color:blue}';
+  const out = scopeCss(css, 'dvf-page');
+  assert.equal(out, '.dvf-page .a{color:red}.dvf-page .b{color:blue}');
+  assert.doesNotMatch(out, /42dvh|\/\*/);
+});
+
 test('a style block in the markup gets scoped in place', () => {
   const result = run('<style>.a{color:red}</style><div class="a">x</div>');
   assert.match(result.html, /\.dvf-page \.a\{color:red\}/);

@@ -232,7 +232,14 @@ function parseInlineStyle(value: string): string[] {
  * `@supports`, `@container`) and passing through the ones that do not
  * (`@keyframes`, `@font-face`, `@import`), whose contents must not be prefixed.
  */
-export function scopeCss(css: string, scope: string): string {
+export function scopeCss(rawCss: string, scope: string): string {
+  // Comments go first, whole. Left in, a comment sitting before a selector is
+  // read as part of the selector list: split on its commas, each piece
+  // prefixed with the scope — and a `{` inside one throws the brace counter
+  // off for the rest of the sheet. Seen on 21/09 with a pasted landing page
+  // whose comments had commas. Comments carry no styling; dropping them is
+  // the one rewrite here that cannot change what the visitor sees.
+  const css = rawCss.replace(/\/\*[\s\S]*?\*\//g, '');
   const out: string[] = [];
   let i = 0;
 
