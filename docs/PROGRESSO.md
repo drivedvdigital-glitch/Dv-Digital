@@ -1833,6 +1833,25 @@ estou não esbarra mais na trava, e marcar a outra loja sem confirmar continua s
 — nomeando ela. Portão testado só no sentido que passa não é portão testado. 17 checagens no
 navegador.
 
+### A segunda loja no ar, e o caminho escrito para a terceira
+
+A Colômbia publica. O servidor atende **dois apps da Shopify**, as duas lojas aparecem em
+"Publicar em", e a publicação funciona de dentro de cada uma.
+
+O caminho inteiro foi percorrido às cegas, então ele virou checklist em `docs/INSTALACAO.md`
+§5 — com as três armadilhas que custaram a tarde:
+
+- **os apps têm o mesmo `name`** nas duas organizações, então no painel só o **Client ID**
+  identifica; copiar a chave do app parecido é o erro mais fácil e o mais caro;
+- **girar a chave cria uma segunda chave válida**: enquanto as duas existirem, a Shopify pode
+  assinar com a que você não guardou — foi exatamente isto, e o conserto foi **revogar a
+  antiga**, não colar de novo;
+- **lançar a versão do app** é o que concede os escopos; sem isso a loja instala e não publica.
+
+E `shopify.app.snevy.toml` já está no repositório para a terceira loja: a configuração de um
+app novo sai de um arquivo, não de cliques — duas configurações que deveriam ser iguais e são
+mantidas à mão divergem.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

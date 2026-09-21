@@ -150,7 +150,41 @@ npx shopify app deploy --config colombia
 
 Sem o `--config`, o CLI usa o `shopify.app.toml` e você publica no app errado. Para uma
 terceira loja, copie o arquivo (`shopify.app.<nome>.toml`), troque `client_id` e `handle` — o
-handle é único por organização.
+handle é único por organização. (`shopify.app.colombia.toml` e `shopify.app.snevy.toml` já
+estão no repositório.)
+
+#### A ordem que funciona, e as três armadilhas
+
+Esta sequência foi percorrida inteira ao ligar a segunda loja. Cada passo fora de ordem custa
+uma volta:
+
+1. **Crie o app no Dev Dashboard da organização DAQUELA loja.** App URL e redirect iguais aos
+   do primeiro app.
+2. **Cole o Client ID** no `shopify.app.<nome>.toml` e rode `npx shopify app deploy --config
+   <nome>`.
+3. **Lance a versão** no Dev Dashboard (Versões → Lançar). Escopo que não está numa versão
+   lançada não é concedido: a loja instala e não consegue publicar nada.
+4. **Leve as credenciais para o servidor**: `adicionar-app.ps1` → `[N] um app NOVO` → Client
+   ID e chave secreta. A chave é digitada escondida; a tela confirma só o tamanho e os quatro
+   últimos caracteres.
+5. **Gere o link de instalação** do app NOVO e abra-o logado no admin daquela loja.
+6. **Digite a senha de acesso** (uma vez por loja).
+7. **Confira**: `/healthz` mostra `appsDaShopify` e `lojas`; a loja aparece em "Publicar em".
+
+As armadilhas, todas pagas:
+
+- **Os apps têm o mesmo `name`** (é o nome que o lojista vê). No Dev Dashboard, identifique o
+  app sempre pelo **Client ID**, nunca pelo nome — copiar a chave secreta do app parecido é o
+  erro mais fácil de cometer e o mais caro de diagnosticar.
+- **Chave secreta**: copie pelo **botão de copiar** do painel, nunca de um print ou de uma
+  conversa. Se você girou a chave ("Alternar"), o app passa a ter **duas** válidas: enquanto as
+  duas existirem a Shopify pode assinar com a que você não guardou, e a tela diz
+  `ID token recusado (assinatura)`. **Revogue a antiga** — depois que a nova estiver
+  funcionando.
+- **Se der 401**, não adivinhe: a tela nomeia o app que a loja abriu (o `aud` do token), e o
+  log da VM (`app\dvfly.log`) registra em quais quatro caracteres termina a chave que o
+  servidor usou naquele instante. Os dois juntos separam "a chave guardada está velha" de
+  "esta loja está abrindo outro app", que são consertos diferentes.
 
 De qual app é cada requisição sai do **`aud` do ID token** — a escolha decide apenas com qual
 segredo a assinatura é conferida, e uma assinatura forjada continua sendo recusada. Cada loja
