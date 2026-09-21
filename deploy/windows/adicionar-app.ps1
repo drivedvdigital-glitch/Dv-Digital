@@ -144,11 +144,24 @@ if ($clientId -eq '') {
         -Porque 'Isso nao parece um Client ID (comecou com shpss_? entao e a chave secreta).'
 }
 
+# Chave da Shopify tem tamanho fixo: `shpss_` + 32 caracteres = 38.
+#
+# Custou uma tarde. A chave da terceira loja entrou com 37 - um caractere
+# perdido na colagem - e nada disse nada: o .env aceita qualquer texto, o app
+# sobe, e quem descobre e a loja, com "ID token recusado (assinatura)". Contar
+# os caracteres e a checagem mais barata que existe, e pega justamente o erro
+# que nenhuma leitura no olho pega.
+$TAMANHO_DA_CHAVE = 38
 $clientSecret = Perguntar -Oculto `
     -Titulo "Chave secreta do app $clientId" `
-    -Dica 'Dev Dashboard - Chave secreta (o olhinho mostra). Comeca com shpss_' `
-    -Valida { param($v) $v -notmatch '"' -and $v.Length -ge 12 -and $v -ne $clientId } `
-    -Porque 'Isso e o Client ID, nao a chave secreta - ou o valor veio cortado.'
+    -Dica "Dev Dashboard - Chave secreta (use o botao de copiar). shpss_ + 32 = $TAMANHO_DA_CHAVE caracteres" `
+    -Valida {
+        param($v)
+        if ($v -match '"' -or $v -eq $clientId) { return $false }
+        if ($v -match '^shpss_') { return $v.Length -eq $TAMANHO_DA_CHAVE }
+        return $v.Length -ge 12
+    } `
+    -Porque "Isso e o Client ID, ou a chave veio CORTADA: uma chave shpss_ tem $TAMANHO_DA_CHAVE caracteres. Copie pelo botao de copiar do painel, nao pelo olhinho."
 
 # Colagem cortada e erro mudo: o .env aceita qualquer texto e quem descobre e a
 # loja, com "ID token recusado (assinatura)" dias depois. O fim da chave confere

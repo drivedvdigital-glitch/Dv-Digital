@@ -139,6 +139,8 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   (404 antes de olhar a senha: o Caddy carimba `X-Forwarded-For` em tudo que passa por ele, e
   os scripts chamam `127.0.0.1` direto), tem o mesmo freio de tentativas do `/liberar`, e a
   senha vai no CORPO — o filtro do log do Caddy só apaga o que está nomeado nele.
+  **Chave da Shopify tem 38 caracteres** (`shpss_` + 32): a da terceira loja entrou com 37 e
+  custou uma tarde. Contar caracteres pega o que nenhuma leitura no olho pega.
   **Caminho aberto à internet nunca indexa por dado que o token declara**: a memória é indexada
   pelo app que o servidor resolveu, guarda um anel por app, e o veredito é "assina ALGUM" —
   positivo inforjável, ruído entra ao lado da prova e não por cima dela. Ordem: abrir o app na loja (pode

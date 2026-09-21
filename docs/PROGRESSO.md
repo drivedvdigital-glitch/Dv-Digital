@@ -1928,6 +1928,33 @@ da instalação. Agora diz quantos, não quais.
 forjado não vira `ERRADA`, `aud` inventado não expulsa nada, de fora dá 404 mesmo com a senha
 certa, e o freio entra e segura até a senha certa.
 
+### 37 caracteres
+
+A conferência de chave respondeu na primeira vez que foi usada, e a resposta tinha o defeito
+escrito nela:
+
+```
+== dbcdc8e59f6506e9f9385bfbf801322a
+   chave guardada: 37 caracteres, terminando em ...b632
+   ERRADA - esta chave NAO assina o token que a Shopify mandou (nenhum dos 3 tokens lembrados).
+```
+
+As outras duas linhas do mesmo relatório diziam **38**. Uma chave da Shopify é `shpss_` + 32
+caracteres = 38. A da terceira loja tinha 37: a colagem perdeu um caractere, e nada no caminho
+disse nada — o `.env` aceita qualquer texto, o app sobe, e quem descobre é a loja, dias depois,
+com `ID token recusado (assinatura)`.
+
+Contar caracteres é a checagem mais barata que existe e pega justamente o erro que nenhuma
+leitura no olho pega. O `adicionar-app.ps1` agora recusa na hora da colagem uma chave que
+comece com `shpss_` e não tenha 38 caracteres, dizendo o número. Chave sem esse prefixo (as
+antigas) continua sendo medida só por "não está vazia", porque o tamanho fixo é uma promessa do
+formato novo, não uma regra nossa.
+
+Vale registrar o que isso diz sobre a ferramenta: ela foi usada uma vez e já pagou a tarde
+inteira que a antecedeu — e a informação que resolveu não foi o veredito `ERRADA`, foi o
+**número ao lado dele**, que estava lá só porque a resposta traz o tamanho junto do fim da
+chave.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
