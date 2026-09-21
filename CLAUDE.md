@@ -54,7 +54,8 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   Telas próprias (tokens `--dv-*`, claro/escuro); editor
   em tela cheia (árvore / canvas / inspetor). **Toda rota de tela/dados chama `requireShop`**
   (ID token da Shopify; exceções por desenho: `/bounce`, webhooks com HMAC, `/` que só
-  redireciona); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só
+  redireciona, e `/api/chave`, que existe **porque** o token está falhando e por isso é
+  guardada pela senha de acesso); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só
   em dev. Loaders nunca devolvem token/segredo de loja ao cliente.
   **Senha de acesso** (`DVFLY_ACCESS_KEY`, `access.server.ts`): loja instalada mas não
   liberada para em `/liberar` — a trava mora DENTRO do `requireShop`, que é a única porta por
@@ -130,6 +131,13 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 - **Segredo de loja nunca em texto puro no banco** (exigência da doc de hospedagem da
   Shopify): entra por `seal()` e sai por `toStore()`/`appCredentials()`. Em produção o app
   se recusa a subir sem `DVFLY_TOKEN_KEY`.
+- **Chave secreta de app não se confere no olho.** Com vários apps de mesmo `name` em
+  organizações diferentes, copiar do app errado é um clique, e o único juiz era abrir o admin
+  e ler o 401. O servidor guarda em memória (30 min) o último ID token recusado por app, e
+  `/api/chave` diz se uma chave — a guardada ou uma candidata — produz a assinatura daquele
+  token. `adicionar-app.ps1` pergunta isso ANTES de gravar. Ordem: abrir o app na loja (pode
+  falhar), depois colar a chave. Três respostas, não duas: certa, errada e **"não tenho token
+  para testar"** — a terceira não é a segunda.
 
 ## Regras de interface (aprendidas da referência, adotadas como nossas)
 

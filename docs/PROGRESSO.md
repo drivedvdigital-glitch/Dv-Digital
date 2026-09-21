@@ -1852,6 +1852,43 @@ E `shopify.app.snevy.toml` já está no repositório para a terceira loja: a con
 app novo sai de um arquivo, não de cliques — duas configurações que deveriam ser iguais e são
 mantidas à mão divergem.
 
+### "Cara, acho que você está cometendo os mesmos erros"
+
+A terceira loja (Snevy) subiu e deu o mesmo `ID token recusado (assinatura)`. O Miguel estava
+certo: eu o tinha colocado num laço — cola a chave, reinicia, abre o admin, lê o 401, repete.
+Cada volta custava minutos e não produzia informação nova.
+
+O defeito do processo: **a chave só era julgada depois de instalada**. Copiar a chave do app
+errado é um clique (três apps, três organizações, todos chamados `DVHub Application`), e o
+único juiz era o admin da loja.
+
+A prova sempre esteve à mão e nunca tinha sido usada: **o token que a Shopify assinou e o app
+acabou de recusar**. Agora o servidor guarda o último token recusado por app (memória, 30 min,
+nunca em disco) e `/api/chave` responde se uma chave — a guardada (`GET`) ou uma candidata
+(`POST`) — produz aquela assinatura. O `adicionar-app.ps1` pergunta **antes de gravar**: chave
+errada não chega ao `.env` nem custa um reinício.
+
+Três decisões que valem mais que o mecanismo:
+
+- **O veredito tem três respostas**, não duas: `certa`, `errada` e `não tenho token para
+  testar`. A terceira não é a segunda — confundi-las manda procurar no lugar errado, que é o
+  defeito que isto existe para acabar.
+- **A rota não passa pelo `requireShop`** — de propósito, e é o ponto: chamam-na *porque* a
+  verificação de token está falhando. O portão é a senha de acesso (comparação de tempo
+  constante), e **sem senha configurada a rota se recusa a responder** em vez de responder a
+  qualquer um.
+- **Nada de segredo na resposta**: só os Client IDs (públicos), os 4 últimos caracteres de
+  cada chave e um booleano. O token nunca sai do processo.
+
+O `testar-chave.ps1` foi reescrito: a versão anterior perguntava à Shopify por
+`client_credentials` e não servia — app de instalação gerenciada não aceita esse tipo de
+pedido, e a resposta era recusada antes de a chave ser olhada.
+
+10 testes novos da memória de recusas (inclusive TTL, limite e um app não responder pelo token
+de outro) e 15 provas dirigindo o servidor construído no cenário exato da Snevy: chave errada
+guardada, token bom chegando, 401, veredito `ERRADA`, candidata certa reconhecida antes de ser
+gravada, e o portão recusando `GET` e `POST` sem senha.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

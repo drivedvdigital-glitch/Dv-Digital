@@ -85,15 +85,50 @@ export function credentialsFor(token: string, apps: AppCredentials[]): AppCreden
  * The client id is public — it goes in every page's meta tag.
  */
 export function audienceOf(token: string): string | null {
+  return unverifiedClaim(token, 'aud');
+}
+
+/**
+ * The shop a token SAYS it comes from, read without verifying anything.
+ *
+ * Same contract as `audienceOf`, and the same single use: naming things on a
+ * screen or in a log when the signature did not check out, so nothing was
+ * established. Never a basis for letting anything through.
+ */
+export function destinationOf(token: string): string | null {
+  return hostOf(unverifiedClaim(token, 'dest'));
+}
+
+function unverifiedClaim(token: string, name: string): string | null {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   try {
     const claims = JSON.parse(b64url.decode(parts[1]).toString('utf8'));
-    const aud = claims && typeof claims === 'object' ? (claims as { aud?: unknown }).aud : null;
-    return typeof aud === 'string' ? aud : null;
+    if (!claims || typeof claims !== 'object') return null;
+    const value = (claims as Record<string, unknown>)[name];
+    return typeof value === 'string' ? value : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Does this secret produce this token's signature? Signature only.
+ *
+ * `verifySessionToken` is the gate and checks everything — including `exp`,
+ * which makes it useless for the question an operator actually has: "is the key
+ * I just pasted the one Shopify signed with?" By the time anyone asks, the
+ * token that failed is a minute old and expired, and every candidate would be
+ * refused for the wrong reason. This answers the narrow question and nothing
+ * else; it is a diagnostic, never an authentication path.
+ */
+export function secretSignsToken(token: string, clientSecret: string): boolean {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  const [head, body, signature] = parts;
+  const expected = createHmac('sha256', clientSecret).update(`${head}.${body}`).digest();
+  const given = b64url.decode(signature);
+  return expected.length === given.length && timingSafeEqual(expected, given);
 }
 
 /**

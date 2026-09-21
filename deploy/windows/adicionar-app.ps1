@@ -156,6 +156,53 @@ $clientSecret = Perguntar -Oculto `
 Write-Host ("   recebido: {0} caracteres, terminando em ...{1}" -f $clientSecret.Length,
     $clientSecret.Substring([Math]::Max(0, $clientSecret.Length - 4))) -ForegroundColor DarkGray
 
+<#
+    A chave e julgada AGORA, contra um token que a Shopify assinou.
+
+    O app guarda por meia hora o ultimo token que recusou. Se a loja ja tentou
+    abrir o app, da para saber neste instante se a chave colada e a certa - em
+    vez de gravar, reiniciar, voltar ao admin e ler um 401. Sem token guardado
+    a resposta e "nao sei", que NAO e "errada": segue em frente.
+#>
+function ConferirChave($porta, $senha, $clientId, $chave) {
+    if ($senha -eq '') { return $null }
+    try {
+        $corpo = @{ senha = $senha; clientId = $clientId; chave = $chave }
+        $r = Invoke-WebRequest -Uri "http://127.0.0.1:$porta/api/chave" -Method Post -Body $corpo `
+            -UseBasicParsing -TimeoutSec 8
+        return ($r.Content | ConvertFrom-Json)
+    } catch {
+        # Codigo antigo nesta VM (404), app no chao: nao e motivo para parar.
+        return $null
+    }
+}
+
+$portaAgora = PortaDoRunner $Raiz '3000'
+$senhaDeAcesso = ''
+foreach ($linha in $linhas) {
+    if ($linha -match '^\s*DVFLY_ACCESS_KEY\s*=\s*"?(.*?)"?\s*$') { $senhaDeAcesso = $Matches[1] }
+}
+$veredito = ConferirChave $portaAgora $senhaDeAcesso $clientId $clientSecret
+if ($null -ne $veredito -and $null -ne $veredito.assina) {
+    if ($veredito.assina) {
+        Write-Host '   CONFERIDA: esta chave assina o token que a Shopify mandou.' -ForegroundColor Green
+    } else {
+        Write-Host ''
+        Write-Host '   ESTA CHAVE NAO SERVE.' -ForegroundColor Red
+        Write-Host '   Ela nao assina o token que a Shopify mandou para este Client ID.'
+        Write-Host '   No Dev Dashboard, abra o app pelo CLIENT ID (nao pelo nome - os apps se'
+        Write-Host '   chamam igual) e copie a chave secreta dele pelo botao de copiar.'
+        Write-Host ''
+        $mesmoAssim = (Read-Host '   Gravar assim mesmo? digite SIM (ou Enter para parar)').Trim()
+        if ($mesmoAssim -ne 'SIM') {
+            Write-Host ''
+            Write-Host '   Nada foi mudado. Rode de novo com a chave certa.' -ForegroundColor Cyan
+            Write-Host ''
+            return
+        }
+    }
+}
+
 # Client ID que ja esta aqui nao e erro: e troca de secret.
 #
 # Girar a chave secreta no Dev Dashboard e uma operacao normal - depois de um

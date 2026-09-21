@@ -13,6 +13,10 @@ export default [
   // servidor perguntam, e nenhum dos dois tem token da Shopify).
   route('healthz', 'routes/healthz.tsx'),
   route('api/theme-style', 'routes/api.theme-style.tsx'),
+  // "A chave guardada aqui é a que a Shopify usou para assinar?" — chamada da
+  // própria VM, protegida pela senha de acesso e não pelo token da Shopify,
+  // porque é justamente o token que está falhando quando alguém pergunta.
+  route('api/chave', 'routes/api.chave.tsx'),
   route('api/products', 'routes/api.products.tsx'),
   route('preview/:id', 'routes/preview.$id.tsx'),
   // Session-token bounce and Shopify webhooks (see auth.server.ts / webhooks.$topic.tsx).

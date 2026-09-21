@@ -1,136 +1,103 @@
-# Pergunta A SHOPIFY se as chaves guardadas nesta VM estao certas.
+# A chave guardada nesta VM assina os tokens que a loja manda?
 #
-# Existe porque a conferencia no olho ja falhou tres vezes: comparar o fim da
-# chave com o Dev Dashboard depende de achar o app certo no meio de nomes
-# parecidos, e "ID token recusado (assinatura)" so aparece quando a loja tenta
-# abrir o app - tarde, e sem dizer de onde veio a chave errada.
+# Esta e a pergunta que nunca tinha resposta antes de instalar. Trazer uma loja
+# nova para o ar e copiar uma chave secreta do Dev Dashboard para ca, e a unica
+# coisa que julgava a copia era abrir o app no admin e ler um 401. Com tres apps
+# chamados "DVHub Application" em tres organizacoes, copiar do app errado e um
+# clique - e cada tentativa errada custava uma volta inteira.
 #
-# A Shopify aceita client_credentials para um app custom na organizacao da
-# propria loja: mandar o par e ver se ela devolve um token responde, em dois
-# segundos e sem chutar, a unica pergunta que sobrou.
+# A prova sempre esteve aqui: um token que a Shopify assinou de verdade e que o
+# app acabou de recusar. O servidor guarda esse token por meia hora, em memoria,
+# e este script pergunta a ele se a chave configurada assina aquele token.
+#
+# A versao anterior perguntava a Shopify por client_credentials. Nao servia: um
+# app de instalacao gerenciada nao aceita esse tipo de pedido, e a resposta era
+# recusada antes de a chave ser olhada.
+#
+# COMO USAR
+#   1. abra o app no admin da loja (pode falhar - e o que se quer medir);
+#   2. rode este script.
 
 $ErrorActionPreference = 'Stop'
 $Raiz = 'C:\dvfly'
 $ArquivoEnv = Join-Path $Raiz 'app\.env'
 
-if (-not (Test-Path $ArquivoEnv)) {
-    Write-Host "Nao achei $ArquivoEnv." -ForegroundColor Red
+if (-not (Test-Path (Join-Path $Raiz 'deploy\windows\comum.ps1'))) {
+    Write-Host "Nao achei o D&VFly em $Raiz." -ForegroundColor Red
     exit 1
 }
+. (Join-Path $Raiz 'deploy\windows\comum.ps1')
 
-<# Os pares do .env: sufixo, Client ID e chave. #>
-function LerApps($linhas) {
-    $apps = @()
-    foreach ($sufixo in @('') + (2..9 | ForEach-Object { "_$_" })) {
-        $id = ''; $secret = ''
-        foreach ($linha in $linhas) {
-            if ($linha -match "^\s*SHOPIFY_CLIENT_ID$sufixo\s*=\s*`"?([^`"\s]*)`"?\s*$") { $id = $Matches[1] }
-            if ($linha -match "^\s*SHOPIFY_CLIENT_SECRET$sufixo\s*=\s*`"?([^`"\s]*)`"?\s*$") { $secret = $Matches[1] }
-        }
-        if ($id -eq '' -and $secret -eq '') { continue }
-        $apps += [pscustomobject]@{ Sufixo = $sufixo; ClientId = $id; Secret = $secret }
+<# O valor de uma chave do .env, sem aspas. #>
+function DoEnv($linhas, $nome) {
+    foreach ($linha in $linhas) {
+        if ($linha -match "^\s*$nome\s*=\s*`"?(.*?)`"?\s*$") { return $Matches[1] }
     }
-    return $apps
+    return ''
 }
 
-<#
-    O que a resposta da Shopify quer dizer, em uma frase.
-
-    A diferenca que importa e entre "a chave esta errada" e "esta chave nao e
-    desta loja": as duas devolvem erro, e so uma se conserta com adicionar-app.
-#>
-function Interpretar($status, $corpo) {
-    if ($status -eq 200) { return 'CERTA - a Shopify aceitou este par.' }
-    if ($status -eq 0) { return "NAO DEU PARA PERGUNTAR - a VM nao alcancou a loja ($corpo)." }
-    if ($status -eq 404) { return 'LOJA NAO ENCONTRADA - confira o dominio .myshopify.com que voce digitou.' }
-    if ($corpo -match 'invalid_client') {
-        return 'ERRADA - a Shopify recusou o par: esta chave nao e a deste Client ID.'
-    }
-    if ($corpo -match 'app_not_installed') {
-        return 'APP NAO INSTALADO nesta loja - esperado para o app da outra organizacao.'
-    }
-    # A resposta que me ensinou o limite deste teste.
-    #
-    # Eu escrevi que isto era "app de outra organizacao". Nao e: um app de
-    # distribuicao custom com instalacao gerenciada NAO aceita
-    # client_credentials, entao a Shopify recusa o TIPO do pedido antes de
-    # olhar a chave. Dizer "chave errada" ou "outra loja" aqui e inventar uma
-    # conclusao que a resposta nao carrega.
-    if ($corpo -match 'invalid_request|unsupported_grant_type') {
-        return "INCONCLUSIVO - a Shopify recusou o tipo do pedido (HTTP $status) sem julgar a chave. Este teste nao serve para um app de instalacao gerenciada; quem decide e a tela do app."
-    }
-    return "RESPOSTA INESPERADA (HTTP $status): $corpo"
-}
-
-<# O POST do client_credentials, sem nunca devolver o token que vem no sucesso. #>
-function PerguntarShopify($shop, $clientId, $clientSecret) {
-    $corpo = @{ grant_type = 'client_credentials'; client_id = $clientId; client_secret = $clientSecret }
-    try {
-        $r = Invoke-WebRequest -Uri "https://$shop/admin/oauth/access_token" -Method Post -Body $corpo `
-            -ContentType 'application/x-www-form-urlencoded' -UseBasicParsing -TimeoutSec 20
-        return [pscustomobject]@{ Status = [int]$r.StatusCode; Corpo = '' }
-    } catch {
-        $resposta = $_.Exception.Response
-        if ($null -eq $resposta) { return [pscustomobject]@{ Status = 0; Corpo = $_.Exception.Message } }
-        $texto = ''
-        # PowerShell 5.1 devolve o corpo no fluxo; o 7 ja o traz em ErrorDetails.
-        if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
-            $texto = $_.ErrorDetails.Message
-        } else {
-            try {
-                $leitor = New-Object System.IO.StreamReader($resposta.GetResponseStream())
-                $texto = $leitor.ReadToEnd()
-            } catch { }
-        }
-        return [pscustomobject]@{ Status = [int]$resposta.StatusCode; Corpo = $texto }
-    }
-}
+if (-not (Test-Path $ArquivoEnv)) { throw "Nao achei $ArquivoEnv." }
+$linhas = @(Get-Content $ArquivoEnv)
+$senha = DoEnv $linhas 'DVFLY_ACCESS_KEY'
+$porta = PortaDoRunner $Raiz '3000'
 
 Write-Host ''
-Write-Host '  D&VFly - a chave desta VM esta certa?' -ForegroundColor Cyan
+Write-Host '  D&VFly - a chave guardada aqui esta certa?' -ForegroundColor Cyan
 Write-Host ''
-Write-Host '  Isto NAO muda nada: so pergunta a Shopify se o par Client ID + chave'
-Write-Host '  secreta que esta guardado aqui e aceito pela loja.'
+Write-Host '  Isto NAO muda nada. Ele confere as chaves do app\.env contra o ultimo'
+Write-Host '  token que a Shopify assinou e o app recusou.'
 Write-Host ''
 
-# Enter que sobrou do comando colado nao e resposta de ninguem.
-try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
-
-$apps = @(LerApps @(Get-Content $ArquivoEnv))
-if ($apps.Count -eq 0) {
-    Write-Host '  Nenhum app configurado no app\.env.' -ForegroundColor Red
-    exit 1
-}
-
-Write-Host '   Dominio da loja  (ex.: 49e257-b3.myshopify.com)' -ForegroundColor Cyan
-$shop = ''
-for ($tentativa = 1; $tentativa -le 4 -and $shop -eq ''; $tentativa++) {
-    $digitado = (Read-Host '   cole aqui e pressione Enter').Trim().ToLower()
-    # Endereco colado do admin tambem serve: o que importa e o .myshopify.com.
-    if ($digitado -match '([a-z0-9][a-z0-9-]*\.myshopify\.com)') { $shop = $Matches[1] }
-    elseif ($digitado -eq '') { Write-Host '   Nada chegou aqui. Digite de novo.' -ForegroundColor Yellow }
-    else { Write-Host '   Precisa terminar em .myshopify.com' -ForegroundColor Yellow }
-}
-if ($shop -eq '') { throw 'Sem o dominio da loja nao da para perguntar nada a Shopify.' }
-
-foreach ($app in $apps) {
+if ($senha -eq '') {
+    Write-Host '  Sem DVFLY_ACCESS_KEY no .env esta conferencia fica desligada' -ForegroundColor Yellow
+    Write-Host '  (ela so responde a quem sabe a senha de acesso).'
+    Write-Host '  Defina a senha primeiro: senha.ps1' -ForegroundColor Cyan
     Write-Host ''
-    Write-Host ("== SHOPIFY_CLIENT_ID{0}  {1}" -f $app.Sufixo, $app.ClientId) -ForegroundColor Green
-    if ($app.Secret -eq '') {
-        Write-Host '   SEM CHAVE no .env - par pela metade.' -ForegroundColor Red
+    return
+}
+
+$url = "http://127.0.0.1:$porta/api/chave?senha=" + [uri]::EscapeDataString($senha)
+try {
+    $resposta = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+} catch {
+    Write-Host '  O app nao respondeu.' -ForegroundColor Red
+    Write-Host '  Se o erro falar de 404, o CODIGO desta VM e antigo: clique em ATUALIZAR DVFly.'
+    MostrarLog $Raiz 15
+    return
+}
+$dados = $resposta.Content | ConvertFrom-Json
+
+if ($dados.erro) {
+    Write-Host "  $($dados.erro)" -ForegroundColor Red
+    Write-Host ''
+    return
+}
+
+$semTeste = 0
+foreach ($app in $dados.apps) {
+    Write-Host ''
+    Write-Host "== $($app.clientId)" -ForegroundColor Green
+    Write-Host ("   chave guardada: {0} caracteres, terminando em ...{1}" -f $app.tamanhoDaChave, $app.fimDaChave) -ForegroundColor DarkGray
+    if ($null -eq $app.assina) {
+        $semTeste++
+        Write-Host '   SEM TOKEN PARA TESTAR - nenhuma loja deste app tentou abrir o app na ultima' -ForegroundColor Yellow
+        Write-Host '   meia hora. Abra o app no admin dela (mesmo que de erro) e rode isto de novo.'
         continue
     }
-    # O fim da chave TESTADA, na mesma saida: sem isso a resposta nao diz
-    # QUAL chave foi perguntada, e "eu ja troquei" vira palavra contra palavra.
-    Write-Host ("   chave guardada aqui: {0} caracteres, terminando em ...{1}" -f $app.Secret.Length,
-        $app.Secret.Substring([Math]::Max(0, $app.Secret.Length - 4))) -ForegroundColor DarkGray
-    $r = PerguntarShopify $shop $app.ClientId $app.Secret
-    $frase = Interpretar $r.Status $r.Corpo
-    $cor = if ($frase.StartsWith('CERTA')) { 'Green' } elseif ($frase.StartsWith('ERRADA')) { 'Red' } else { 'Yellow' }
-    Write-Host "   $frase" -ForegroundColor $cor
+    $onde = if ($app.loja) { " (loja $($app.loja), ha $($app.minutos) min)" } else { '' }
+    if ($app.assina) {
+        Write-Host "   CERTA - esta chave assina o token que a Shopify mandou$onde." -ForegroundColor Green
+    } else {
+        Write-Host "   ERRADA - esta chave NAO assina o token que a Shopify mandou$onde." -ForegroundColor Red
+        Write-Host '   No Dev Dashboard, abra o app que tem ESSE Client ID (confira pelo ID, nao'
+        Write-Host '   pelo nome - os apps se chamam igual) e copie a chave secreta dele pelo botao'
+        Write-Host '   de copiar. Depois: adicionar-app.ps1'
+    }
 }
 
 Write-Host ''
-Write-Host '  Se o app que a loja abre saiu como ERRADA: pegue a chave secreta DELE no' -ForegroundColor Cyan
-Write-Host '  Dev Dashboard (ou gire uma nova em "Alternar") e rode o adicionar-app.'
+if ($semTeste -eq $dados.apps.Count) {
+    Write-Host '  Nenhum app tinha token para testar. A ordem e: primeiro abrir o app no' -ForegroundColor Cyan
+    Write-Host '  admin da loja, depois rodar isto.'
+}
 Write-Host ''

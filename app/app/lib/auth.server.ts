@@ -20,6 +20,7 @@ import { ShopifyClient } from '../../../packages/shopify/src/client.ts';
 import {
   audienceOf,
   credentialsFor,
+  destinationOf,
   exchangeToken,
   SessionTokenError,
   verifySessionToken,
@@ -28,6 +29,7 @@ import {
 import { storeUnlocked, UNLOCK_PATH } from './access.server.ts';
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
+import { rememberRefusal } from './refusals.server.ts';
 import { seal } from './secrets.server.ts';
 import { appCredentials, appCredentialsList, ensureStore, SHOP_DOMAIN, storeUsable } from './shopify.server.ts';
 import { secretFingerprint, tokenRefusalMessage } from './token-refusal.ts';
@@ -138,14 +140,21 @@ export async function requireShop(request: Request): Promise<RequestShop> {
     // read it when it started. Four characters, next to the app the token came
     // from, settle it at the exact moment of the failure. Log only — the
     // refusal page is public.
+    const aud = audienceOf(token);
     console.warn(
-      `[dvfly] ID token recusado (${reason}) — app ${audienceOf(token) ?? '?'}, ` +
+      `[dvfly] ID token recusado (${reason}) — app ${aud ?? '?'}, ` +
         `segredo conferido termina em ...${secretFingerprint(credentials?.clientSecret)}`,
     );
+    // Guardado em memória por meia hora: é contra ESTE token, que a Shopify
+    // assinou de verdade, que /api/chave diz se a chave colada está certa —
+    // sem instalar nada e sem mais uma volta pelo admin.
+    if (reason === 'assinatura' || reason === 'aud') {
+      rememberRefusal(token, aud, destinationOf(token), Date.now());
+    }
     // Whatever went wrong with a token that came in the URL (expired, secret
     // rotated since it was minted), a new one from App Bridge settles it.
     if (!fromHeader && canBounce) throw bounceTo(url);
-    throw new Response(tokenRefusalMessage(reason, audienceOf(token), apps.map((app) => app.clientId)), {
+    throw new Response(tokenRefusalMessage(reason, aud, apps.map((app) => app.clientId)), {
       status: 401,
       // Tells App Bridge's fetch interceptor to retry with a fresh token.
       headers: { 'X-Shopify-Retry-Invalid-Session-Request': '1' },
