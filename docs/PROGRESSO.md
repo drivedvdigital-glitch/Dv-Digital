@@ -1655,6 +1655,36 @@ não adivinha nada — vai direto no app dela.
 12 checagens contra o servidor de produção com dois apps (duas novas: a cadeia de tentativas
 da loja desconhecida e o "loja conhecida não adivinha").
 
+### 🔴→✅ "O script não carregou" — com o script carregado (21/09)
+
+A loja nova continuou sem entrar depois do conserto anterior, e eu mandei o usuário caçar um
+bloqueador de anúncios. Ele abriu `cdn.shopify.com/shopifycloud/app-bridge.js` no navegador e
+colou o arquivo inteiro aqui: carregava perfeitamente. E no meio do próprio código do App
+Bridge estava a resposta:
+
+```js
+const yt = ["apiKey","shop"];
+… if (n.length) throw Error("App Bridge Next: missing required configuration fields: " + n)
+```
+
+Ele **exige `apiKey` e `shop`**, lidos da query da própria página ou de `<meta name="shopify-*">`.
+A minha página de bounce mandava só a `apiKey`; o `shop` ia escondido dentro do parâmetro `to`,
+codificado, onde ele não olha. Resultado: o script carrega, **desiste**, `window.shopify` nunca
+existe — e o `catch` da minha página anunciava que o script tinha sido bloqueado.
+
+Conserto: o `shop`, o `host`, o `embedded` e o `locale` viajam na URL do **próprio** `/bounce`,
+e a página emite os `<meta>` correspondentes. Medido o caminho inteiro que o admin faz:
+`/?shop&host` → `/app?shop&host` → `/bounce?to=…&shop&host` → três metas na página.
+
+E a lição que vale mais que o conserto: **eu afirmei três vezes que era o navegador do
+lojista**, com confiança, e as três vezes o defeito era meu. A mensagem na tela era minha
+também, e mandava procurar no lugar errado. Ela agora diz o que foi observado ("o App Bridge
+não se registrou aqui") e aponta o console do navegador, onde o próprio App Bridge escreve o
+motivo exato. Está no CLAUDE.md, com nome e sobrenome.
+
+14 checagens com dois apps (duas novas: os metas obrigatórios e o caminho inteiro carregando
+`shop` e `host`), 17 do cadeado com um app só, 116 testes, typecheck, build.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

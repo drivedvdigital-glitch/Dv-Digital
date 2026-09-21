@@ -79,6 +79,12 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   especificidade de **uma classe** — ganha do tema, perde do autor. `all:revert` apaga
   também atributo de apresentação (`<img width>`, `<svg viewBox>`): esses elementos ficam de
   fora e são limpos propriedade a propriedade.
+- **O App Bridge exige `apiKey` E `shop`** ("missing required configuration fields"), e lê os
+  dois da query da própria página ou de `<meta name="shopify-*">` — **nunca** de dentro de um
+  parâmetro codificado como o `to` do bounce. Sem o `shop` ele lança e aborta: `window.shopify`
+  não existe, e a tela acusa "o script não carregou" **com o script carregado**. Três vezes eu
+  culpei o navegador do lojista por isto. Mensagem de erro não adivinha culpado: diz o que foi
+  observado e manda abrir o console, onde o App Bridge escreve o motivo exato.
 - **O canvas do editor tem que carregar o CSS do tema** (`api.theme-style` →
   `themeHead()`), senão o editor mostra Times New Roman e o visitante vê outra página.
 - Túnel dev: origem `https` × servidor `http` dispara o CSRF do React Router →

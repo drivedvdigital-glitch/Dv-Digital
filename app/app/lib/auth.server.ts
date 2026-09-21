@@ -65,7 +65,21 @@ const bounceTo = (url: URL): Response => {
   const back = new URL(url);
   back.searchParams.delete('id_token');
   back.searchParams.delete(BOUNCED_PARAM);
-  return redirect(`/bounce?to=${encodeURIComponent(back.pathname + back.search)}`);
+  const bounce = new URL('/bounce', url.origin);
+  bounce.searchParams.set('to', back.pathname + back.search);
+  // `shop` and `host` ride on the bounce's OWN url, not only inside `to`.
+  //
+  // App Bridge reads its configuration from the page's query string (and from
+  // meta tags), and it REFUSES to start without `shop`: "missing required
+  // configuration fields: shop". Buried inside an encoded `to`, it may as well
+  // not be there — the script aborts, `window.shopify` never exists, and the
+  // page reports that the Shopify script did not load. It loads; it just has
+  // nothing to work with.
+  for (const chave of ['shop', 'host', 'embedded', 'locale']) {
+    const valor = url.searchParams.get(chave);
+    if (valor) bounce.searchParams.set(chave, valor);
+  }
+  return redirect(bounce.pathname + bounce.search);
 };
 
 /**

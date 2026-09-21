@@ -34,7 +34,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch {
     // Unparseable destination: the app's front door.
   }
-  const shop = new URLSearchParams(target.split('?')[1] ?? '').get('shop')?.toLowerCase() ?? '';
+  // A loja vem do endereço desta página; do destino só como reserva, para um
+  // /bounce montado à mão.
+  const shop = (
+    url.searchParams.get('shop') ??
+    new URLSearchParams(target.split('?')[1] ?? '').get('shop') ??
+    ''
+  ).toLowerCase();
+  const host = url.searchParams.get('host') ?? new URLSearchParams(target.split('?')[1] ?? '').get('host') ?? '';
 
   // WHICH app's key boots App Bridge here.
   //
@@ -71,6 +78,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 <head>
   <meta charset="utf-8">
   <meta name="shopify-api-key" content="${escapeAttr(clientId)}">
+  <!--
+    O App Bridge exige apiKey E shop ("missing required configuration fields").
+    Ele le daqui e da query desta pagina - nunca de dentro do parametro to.
+    Sem o shop ele lanca e aborta, e a pagina acusa "o script nao carregou"
+    quando o script carregou e foi ele que desistiu.
+  -->
+  ${SHOP_DOMAIN.test(shop) ? `<meta name="shopify-shop" content="${escapeAttr(shop)}">` : ''}
+  ${host ? `<meta name="shopify-host" content="${escapeAttr(host)}">` : ''}
   <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   <title>D&VFly</title>
   <style>body{font:14px/1.5 system-ui,sans-serif;color:#303030;padding:32px;max-width:520px}</style>
@@ -95,8 +110,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
         // As duas falhas são muito diferentes e levavam o mesmo texto, que
         // mandava o lojista para onde ele já estava ("abra pelo admin") quando
         // o problema era o script bloqueado no navegador dele.
+        // Sem chutar culpado: o texto diz o que FOI observado. A versão
+        // anterior afirmava que o navegador estava bloqueando o script, e
+        // mandou caçar um bloqueio que não existia — o script carregava e
+        // desistia por falta de configuração, que era defeito nosso.
         document.getElementById('msg').textContent = e && e.message === 'sem-app-bridge'
-          ? 'O script da Shopify (App Bridge) não carregou nesta janela, então não há como confirmar a loja. Se você abriu isto DENTRO do admin, o bloqueador de anúncios ou o escudo do navegador está barrando cdn.shopify.com — libere esse endereço e recarregue. Fora do admin, abra o app em Apps → DVHub Application.'
+          ? 'Esta janela não conseguiu confirmar a loja: o App Bridge da Shopify não se registrou aqui. Se você abriu isto DENTRO do admin, recarregue; se continuar, abra o console do navegador (F12) — o App Bridge escreve ali o motivo exato — e mande o print para quem cuida do D&VFly. Fora do admin, abra o app em Apps → DVHub Application.'
           : 'A Shopify não devolveu a confirmação da loja nesta janela (' + ((e && e.message) || 'sem detalhe') + '). Recarregue; se continuar, abra o app pelo admin em Apps → DVHub Application.';
       }
     })();
