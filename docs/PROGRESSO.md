@@ -1778,6 +1778,40 @@ hora da recusa** (`secretFingerprint`, quatro caracteres, nunca a chave, e no lo
 recusa é pública). "Eu já troquei a chave" e "aqui ainda está a antiga" são indistinguíveis de
 fora, e o arquivo no disco não é prova: o processo leu o `.env` quando subiu.
 
+### A Colômbia entrou — e o "Publicar em" passou a saber onde você está
+
+A loja da Colômbia instalou, apareceu em "Publicar em" junto da Hungria e o servidor passou a
+atender **dois apps da Shopify ao mesmo tempo**, que era o objetivo desde o começo. O que a
+tela mostrou em seguida foi o problema: com a Colômbia marcada e só ela, a tela pedia
+"Confirmo publicar em produção" — uma confirmação que aparecia porque **alguma** loja da lista
+era de produção, sem dizer qual, e sem relação com o que estava marcado.
+
+Duas coisas, uma delas um defeito de verdade:
+
+1. **A loja que entrou pela trava nascia marcada como "não produção".** `unlockStore` cria a
+   linha ANTES da instalação (o portão barra justamente a requisição que a criaria), e a linha
+   nasce com o padrão da coluna: `isProduction = false`. O `installStore` que vem depois cai no
+   ramo `update`, que não escrevia esse campo — e o ramo `create`, que escrevia, só valia para
+   a primeira loja, registrada antes da trava existir. Resultado: toda loja nova entrava sem a
+   marca, sem pastilha e sem o cuidado que a marca compra. Consertado no `update` **e** com um
+   reparo na abertura, porque uma loja já instalada nunca mais passa pelo upsert.
+2. **A confirmação de produção passou a ser sobre a OUTRA loja.** Publicar na loja cujo admin
+   você abriu é o ato normal, é o que o botão diz que faz, e o "Despublicar" desfaz —
+   confirmar isso toda vez ensina a única lição que uma confirmação não pode ensinar: marcar
+   sem ler. Agora a caixa só existe quando há loja de produção marcada **que não é esta**, e
+   ela **nomeia** a loja: "Confirmo publicar também em Colombia — não é a loja onde estou".
+   A lista ganhou a pastilha `esta loja`, e a loja onde você está já vem marcada.
+
+A tela agora também sabe em que loja está pelo **token verificado** (`loader` devolve `shop`),
+e não pela query string, que um bounce pode não carregar.
+
+Verificado **dirigindo o editor no navegador** com duas lojas (Playwright, 14 checagens): a
+loja atual vem marcada e com a pastilha; sem confirmação nenhuma quando o destino é só ela;
+marcar a outra faz a caixa aparecer nomeando-a; desmarcar faz sumir; e tudo espelhado ao abrir
+pela outra loja. Achado de quebra: o React Router roda os loaders **em paralelo**, então o
+reparo da marca (no `/app`) e a leitura das lojas (na tela) correm juntos — a pastilha aparece
+na carga seguinte, uma vez.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

@@ -76,7 +76,7 @@ import {
 } from '../ui/theme.tsx';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireShop(request);
+  const { shop } = await requireShop(request);
   const page = await db.page.findUniqueOrThrow({
     where: { id: params.id },
     include: { deployments: { include: { store: true } }, productLinks: { orderBy: { createdAt: 'asc' } } },
@@ -100,6 +100,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   );
 
   return {
+    // WHICH store this screen was opened from, said by the verified token and
+    // not by the query string. The publish panel decides what comes ticked and
+    // what needs confirming from this, and a screen that has to guess it after
+    // a bounce would decide wrong on the one thing that must not be wrong.
+    shop,
     page: {
       id: page.id,
       title: page.title,
@@ -136,7 +141,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  await requireShop(request);
+  const { shop: currentShop } = await requireShop(request);
   const form = await request.formData();
   const intent = String(form.get('intent'));
   const pageId = String(params.id);
@@ -278,9 +283,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
   // is taken down as that kind first; publishing over it would strand it.
   // Taking something off a production store is as deliberate as publishing
   // to one, so the confirmation covers both before anything happens.
+  //
+  // The store you OPENED the app from is not one of them. Publishing into the
+  // store whose admin you are standing in is the normal act, it is what the
+  // button says it does, and "Despublicar" undoes it. Asking to confirm it
+  // every time taught the only lesson a confirmation must never teach: tick it
+  // without reading. What deserves the gate is the other store — the one you
+  // are not looking at, in another country, that a stray click would change.
   const retiring = await otherKindDeployments(pageId, pageType);
   const production = [...rows, ...retiring.map((d) => d.store)].filter(
-    (s, i, all) => s.isProduction && all.findIndex((x) => x.id === s.id) === i,
+    (s, i, all) => s.isProduction && s.domain !== currentShop && all.findIndex((x) => x.id === s.id) === i,
   );
   if (production.length > 0 && !allowProduction) {
     return { ok: false, saved: true, message: new ProductionNotAllowedError(production.map(toStore)).message, needsProductionConfirm: true };
@@ -591,7 +603,7 @@ export default function PageEditor() {
   const location = useLocation();
   const busy = navigation.state !== 'idle';
 
-  const shop = new URLSearchParams(location.search).get('shop');
+  const shop = data.shop;
   const [doc, setDoc] = useState<DocTree>(data.doc);
 
   // Selection is a LIST: hold Ctrl to add or remove blocks. The last one
@@ -722,6 +734,26 @@ export default function PageEditor() {
   // exactly what was submitted. A plain save also confirms itself as a toast
   // over the canvas — where the eye already is — instead of a side banner.
   const [toast, setToast] = useState<string | null>(null);
+
+  // Which stores this publish goes to.
+  //
+  // It starts ticked where the page already lives plus the store you opened
+  // the app from: the screen arrives knowing where it is instead of asking.
+  // Controlled (not defaultChecked) because the production confirmation below
+  // has to appear and disappear with the selection — a confirmation that is
+  // always on screen is one nobody reads.
+  const [publishTo, setPublishTo] = useState<string[]>(() =>
+    data.stores
+      .filter((s) => !s.unusable && (data.deployedStoreIds.includes(s.id) || s.domain === data.shop))
+      .map((s) => s.id),
+  );
+
+  // The stores this publish would change that are NOT the one you are in, and
+  // are production. Exactly these are what the confirmation is for: an empty
+  // list means there is nothing to confirm, and no checkbox is drawn.
+  const outrasEmProducao = data.stores.filter(
+    (s) => publishTo.includes(s.id) && s.isProduction && s.domain !== data.shop,
+  );
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** A short confirmation over the canvas, replacing any that is still up. */
   const announce = useCallback((message: string) => {
@@ -1827,18 +1859,31 @@ export default function PageEditor() {
                     name="storeIds"
                     value={store.id}
                     disabled={store.unusable ? true : undefined}
-                    defaultChecked={!store.unusable && (data.deployedStoreIds.includes(store.id) || store.domain === shop)}
+                    checked={publishTo.includes(store.id)}
+                    onChange={(event) =>
+                      setPublishTo((atual) =>
+                        event.target.checked
+                          ? [...atual, store.id]
+                          : atual.filter((id) => id !== store.id),
+                      )
+                    }
                   />
                   {store.label}
+                  {store.domain === shop ? <span style={pillNeutral}>esta loja</span> : null}
                   {store.isProduction ? <span style={pillDanger}>produção</span> : null}
                   {data.liveStoreIds.includes(store.id) ? <span style={pillSuccess}>no ar</span> : null}
                   {store.unusable ? <span style={metaLine}>— {store.unusable}</span> : null}
                 </label>
               ))}
-              {data.stores.some((s) => s.isProduction) ? (
-                <label style={storeRow}>
-                  <input type="checkbox" name="allowProduction" value="on" />
-                  Confirmo publicar em produção
+              {outrasEmProducao.length > 0 ? (
+                // `storeRow` embrulha (flexWrap) porque uma linha de loja tem
+                // pastilhas; aqui isso jogava a caixa para uma linha só dela.
+                <label style={{ ...storeRow, flexWrap: 'nowrap', alignItems: 'flex-start' }}>
+                  <input type="checkbox" name="allowProduction" value="on" style={{ marginTop: 2 }} />
+                  <span>
+                    Confirmo publicar também em {outrasEmProducao.map((s) => s.label).join(', ')} —
+                    não é a loja onde estou
+                  </span>
                 </label>
               ) : null}
             </div>

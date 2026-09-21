@@ -204,7 +204,20 @@ export async function requireShop(request: Request): Promise<RequestShop> {
 export async function installStore(request: RequestShop): Promise<StoreRow | null> {
   if (!SHOP_DOMAIN.test(request.shop)) return null;
   const domain = request.shop.toLowerCase();
-  const existing = await db.store.findUnique({ where: { domain } });
+  let existing = await db.store.findUnique({ where: { domain } });
+
+  // A row the LOCK created carries the column's default, `isProduction` false.
+  //
+  // The unlock happens before the install — the gate stops the very request
+  // that would have created the row — so every store that came in through the
+  // access key was filed as "not production": no badge next to its name, and
+  // none of the care that mark buys it. The first store, registered before the
+  // lock existed, took the create path and looked right, which is why this hid
+  // in plain sight. Nothing in this app ever registers a store that is NOT
+  // production, so the repair needs no condition beyond the mark itself.
+  if (existing && !existing.isProduction) {
+    existing = await db.store.update({ where: { id: existing.id }, data: { isProduction: true } });
+  }
 
   if (!request.idToken) return existing ?? ensureStore(domain);
 
@@ -253,6 +266,16 @@ export async function installStore(request: RequestShop): Promise<StoreRow | nul
       scopes: token.scope,
       installedAt: new Date(),
       uninstalledAt: null,
+      // A real store, exchanging a real token — the same thing `create` says.
+      //
+      // It was missing here, and the row that reaches this branch is exactly
+      // the one the LOCK created: the unlock happens before the install, and
+      // it writes the row with the column's default (false). So every store
+      // that came in through the access key was filed as "not production" and
+      // published without the production guard, while the badge next to it
+      // stayed blank. The first store, registered before the lock existed,
+      // took the `create` branch and looked right — which is why this hid.
+      isProduction: true,
     },
   });
 }
