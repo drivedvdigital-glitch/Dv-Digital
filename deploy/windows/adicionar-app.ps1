@@ -58,15 +58,37 @@ if ($clientId -eq '' -or $clientSecret -eq '') { throw 'Sem o par completo nao d
 if ($clientId.Contains('"') -or $clientSecret.Contains('"')) {
     throw 'Credencial com aspas duplas (") nao cabe no .env. Confira se voce copiou o valor certo.'
 }
+# Client ID que ja esta aqui nao e erro: e troca de secret.
+#
+# Girar a chave secreta no Dev Dashboard e uma operacao normal - depois de um
+# vazamento, por exemplo. Recusar com "ja esta configurado" obrigaria a editar o
+# .env a mao, que e justamente o que estes scripts existem para evitar.
+$sufixo = $null
 foreach ($linha in $linhas) {
     if ($linha -match "^\s*SHOPIFY_CLIENT_ID(_\d)?\s*=\s*`"?$([regex]::Escape($clientId))`"?\s*$") {
-        throw "Este Client ID ja esta configurado aqui ($($linha.Trim())). Nada a fazer."
+        # Grupo opcional que nao casou nao aparece em $Matches: para o app
+        # principal (SHOPIFY_CLIENT_ID, sem numero) o sufixo e string vazia, e
+        # `$null` aqui mandaria a troca de secret virar "app novo".
+        $sufixo = if ($Matches.ContainsKey(1)) { $Matches[1] } else { '' }
     }
 }
 
-Passo "Escrevendo o app numero $numero no app\.env"
-$linhas += "SHOPIFY_CLIENT_ID_$numero=`"$clientId`""
-$linhas += "SHOPIFY_CLIENT_SECRET_$numero=`"$clientSecret`""
+if ($null -ne $sufixo) {
+    Passo "Trocando o secret do app que ja estava aqui (SHOPIFY_CLIENT_ID$sufixo)"
+    $achou = $false
+    $linhas = $linhas | ForEach-Object {
+        if ($_ -match "^\s*SHOPIFY_CLIENT_SECRET$sufixo\s*=") {
+            $achou = $true
+            "SHOPIFY_CLIENT_SECRET$sufixo=`"$clientSecret`""
+        } else { $_ }
+    }
+    if (-not $achou) { $linhas += "SHOPIFY_CLIENT_SECRET$sufixo=`"$clientSecret`"" }
+    $numero = if ($sufixo -eq '') { 1 } else { [int]$sufixo.TrimStart('_') }
+} else {
+    Passo "Escrevendo o app numero $numero no app\.env"
+    $linhas += "SHOPIFY_CLIENT_ID_$numero=`"$clientId`""
+    $linhas += "SHOPIFY_CLIENT_SECRET_$numero=`"$clientSecret`""
+}
 Set-Content -Path $ArquivoEnv -Value $linhas -Encoding ASCII
 Write-Host '   escrito.'
 

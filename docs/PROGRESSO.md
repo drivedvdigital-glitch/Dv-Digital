@@ -1616,6 +1616,21 @@ Dois consertos, e o segundo é o que fecha o buraco:
 Nenhum dos dois é sofisticado. Os dois existem porque a tela mentiu, e uma tela que mente
 custa mais caro que qualquer bug.
 
+### ✅ Girar a chave secreta virou o mesmo comando (21/09)
+
+Um secret apareceu em texto numa conversa — acontece. O conserto é girar a chave no Dev
+Dashboard, e aí o `adicionar-app.ps1` recusava: *"Este Client ID ja esta configurado aqui"*.
+Sobrava editar o `.env` à mão, que é exatamente o que esses scripts existem para evitar.
+
+Agora Client ID repetido **não é erro, é troca de secret**: ele reconhece o app, substitui só
+o segredo daquele par e diz qual foi. Client ID novo continua virando app novo.
+
+Um bug do próprio conserto, achado pelo teste antes de sair daqui: no app principal
+(`SHOPIFY_CLIENT_ID`, sem número) o grupo opcional da expressão regular não aparece em
+`$Matches`, e a troca viraria "acrescentar app". Dez checagens cobrem os três caminhos —
+trocar o principal, trocar um numerado, acrescentar um novo — e que nenhum deles encosta nos
+outros.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
