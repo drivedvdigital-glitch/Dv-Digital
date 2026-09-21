@@ -138,6 +138,20 @@ powershell -ExecutionPolicy Bypass -File C:\dvfly\deploy\windows\adicionar-app.p
 
 (fora do Windows: `SHOPIFY_CLIENT_ID_2` / `SHOPIFY_CLIENT_SECRET_2` no ambiente, e `_3`, `_4`…)
 
+**A configuração do app novo sai do repositório, não de cliques.** Escopos, webhooks, App URL
+e redirect têm que ser **idênticos** aos do primeiro; duas configurações iguais mantidas à mão
+divergem. O CLI lê um arquivo por app:
+
+```sh
+# 1. crie o app no Dev Dashboard e cole o Client ID dele em shopify.app.colombia.toml
+# 2. publique a configuração NESSE app:
+npx shopify app deploy --config colombia
+```
+
+Sem o `--config`, o CLI usa o `shopify.app.toml` e você publica no app errado. Para uma
+terceira loja, copie o arquivo (`shopify.app.<nome>.toml`), troque `client_id` e `handle` — o
+handle é único por organização.
+
 De qual app é cada requisição sai do **`aud` do ID token** — a escolha decide apenas com qual
 segredo a assinatura é conferida, e uma assinatura forjada continua sendo recusada. Cada loja
 guarda em `Store.clientId` o app que instalou, e é com a credencial dele que o app publica,

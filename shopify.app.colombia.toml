@@ -1,0 +1,54 @@
+# D&VFly — o app da SEGUNDA loja (Colombia), no Dev Dashboard.
+#
+# Existe porque a distribuição custom da Shopify amarra um app a UMA loja: a
+# Colombia está em outra organização, então precisa de um app próprio, com
+# client id e secret próprios. O servidor atende os dois ao mesmo tempo
+# (SHOPIFY_CLIENT_ID_2 no .env) — mesmas páginas, as duas lojas marcáveis em
+# "Publicar em".
+#
+# TUDO abaixo é igual ao `shopify.app.toml` de propósito: mesmo endereço, mesmos
+# escopos, mesmos webhooks. Só mudam o client id, o nome e o handle. Duas
+# configurações que deveriam ser iguais e são mantidas à mão divergem — por isso
+# este arquivo existe em vez de um passo a passo de cliques no painel.
+#
+# Como usar (na sua máquina, na pasta do projeto):
+#
+#   1. crie o app novo no Dev Dashboard e copie o Client ID dele para a linha
+#      `client_id` abaixo (o secret NÃO entra aqui — ele vai para o .env da VM,
+#      pelo deploy\windows\adicionar-app.ps1);
+#   2. npx shopify app deploy --config colombia
+#
+# O `--config colombia` é o que faz o CLI ler ESTE arquivo em vez do principal.
+# Sem ele, você publicaria a configuração no app errado.
+
+# <<< TROQUE pelo Client ID do app novo (Dev Dashboard → Client credentials).
+client_id = "PREENCHA_COM_O_CLIENT_ID_DO_APP_DA_COLOMBIA"
+name = "DVHub Application"
+# Único na organização — por isso não pode ser `dvhub-application`.
+handle = "dvhub-colombia"
+
+# O MESMO servidor das outras lojas. É isto que faz as duas lojas viverem no
+# mesmo D&VFly: dois apps na Shopify, um app rodando.
+application_url = "https://app.megaakciok.shop"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = false
+
+[access_scopes]
+scopes = "write_content,write_themes,write_products"
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = ["https://app.megaakciok.shop/app"]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled", "app/scopes_update"]
+uri = "/webhooks/app"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/webhooks/compliance"
