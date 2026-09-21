@@ -1631,6 +1631,30 @@ Um bug do próprio conserto, achado pelo teste antes de sair daqui: no app princ
 trocar o principal, trocar um numerado, acrescentar um novo — e que nenhum deles encosta nos
 outros.
 
+### 🔴→✅ A segunda loja não entrava, e a culpa era da minha mensagem (21/09)
+
+A Colombia instalou o app — ele aparece na lista de Apps do admin dela —, mas a tela dizia
+*"O script da Shopify (App Bridge) não carregou nesta janela… o escudo do navegador está
+barrando cdn.shopify.com"*. Era a minha mensagem nova, escrita hoje de manhã, apontando com
+segurança para o culpado errado.
+
+Medido em vez de acreditado: subi um servidor com dois apps e pedi o bounce de uma loja que
+ele nunca viu. Ele devolveu a chave do **app 1**. O admin da Colombia embutiu o **app 2** —
+App Bridge com a chave de outro app não inicializa, `window.shopify` nunca existe, e cai no
+mesmo `catch` de quando o script é bloqueado. Duas causas, uma frase só.
+
+A raiz é honesta: para uma loja que ainda não está no banco, **nada na requisição diz de qual
+app ela é** — não há token, não há linha, e o admin não nomeia o app. Com um app configurado a
+pergunta não existia; com dois, escolher o primeiro é cara ou coroa.
+
+Agora, loja desconhecida **tenta um app por vez**: falhou, recarrega com `?app=1`, depois
+`?app=2`, e só depois de acabarem as chaves é que a mensagem aparece. A chave errada custa uma
+recarga; a certa registra a loja, e daí em diante a linha dela responde na hora. Loja conhecida
+não adivinha nada — vai direto no app dela.
+
+12 checagens contra o servidor de produção com dois apps (duas novas: a cadeia de tentativas
+da loja desconhecida e o "loja conhecida não adivinha").
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

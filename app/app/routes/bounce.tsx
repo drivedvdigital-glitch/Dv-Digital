@@ -3,7 +3,7 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { BOUNCED_PARAM } from '../lib/auth.server.ts';
 import { config } from '../lib/config.server.ts';
 import { db } from '../lib/db.server.ts';
-import { clientIdForRequest, SHOP_DOMAIN } from '../lib/shopify.server.ts';
+import { appCredentialsList, SHOP_DOMAIN } from '../lib/shopify.server.ts';
 
 /**
  * The session-token bounce.
@@ -36,10 +36,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
   const shop = new URLSearchParams(target.split('?')[1] ?? '').get('shop')?.toLowerCase() ?? '';
 
-  // The app this store installed, not simply the first one configured — with
-  // two apps on one server, booting App Bridge with the wrong id leaves the
-  // page unembedded and the bounce with nothing to ask.
-  let clientId = await clientIdForRequest(request, shop).catch(() => '');
+  // WHICH app's key boots App Bridge here.
+  //
+  // For a store already in the database, its row says. For a store that is NOT
+  // there yet — a second store, the moment it installs — nothing on this
+  // request says: no token, no row, and the admin does not name the app. With
+  // one app configured that is a non-question; with two, picking the first is a
+  // coin flip, and the wrong key means App Bridge never initialises, the page
+  // never gets a token, and the merchant reads "the Shopify script did not
+  // load" while the script loaded fine.
+  //
+  // So an unknown store TRIES the apps, one per reload: `?app=1`, `?app=2`, …
+  // The wrong key costs one reload; the right one registers the store, and from
+  // then on its row answers immediately.
+  const apps = await appCredentialsList().catch(() => []);
+  const tentativa = Math.max(0, Math.min(apps.length - 1, Number(url.searchParams.get('app') ?? 0) || 0));
+  let clientId = '';
+  if (SHOP_DOMAIN.test(shop)) {
+    const row = await db.store.findUnique({ where: { domain: shop }, select: { clientId: true } }).catch(() => null);
+    clientId = apps.find((app) => app.clientId === row?.clientId)?.clientId ?? '';
+  }
+  const adivinhando = clientId === '';
+  if (!clientId) clientId = apps[tentativa]?.clientId ?? '';
+  // How many are left to try, for the script below. Zero when the store is
+  // known: there is nothing to guess.
+  const faltam = adivinhando ? apps.length - tentativa - 1 : 0;
   if (!clientId && !config.isProduction) {
     const store = await db.store.findFirst({ where: { clientId: { not: null } }, orderBy: { createdAt: 'asc' } });
     clientId = store?.clientId ?? '';
@@ -64,6 +85,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         var token = await window.shopify.idToken();
         window.location.replace(target + '&id_token=' + encodeURIComponent(token));
       } catch (e) {
+        // Ainda há app para tentar: a chave desta vez pode simplesmente não ser
+        // a do app que o admin embutiu. Uma recarga, a próxima chave.
+        if (${faltam} > 0) {
+          var proxima = ${JSON.stringify(`/bounce?app=${tentativa + 1}&to=`).replace(/</g, '\u003c')} + encodeURIComponent(${JSON.stringify(target).replace(/</g, '\u003c')});
+          window.location.replace(proxima);
+          return;
+        }
         // As duas falhas são muito diferentes e levavam o mesmo texto, que
         // mandava o lojista para onde ele já estava ("abra pelo admin") quando
         // o problema era o script bloqueado no navegador dele.
