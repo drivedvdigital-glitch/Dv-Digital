@@ -1,10 +1,17 @@
 <div id="mpp-lp" style="background-color:#FAFAFA!important;color:#2A1F22!important">
-<!-- Fontes: <link> no lugar de @import. O @import só é descoberto depois de baixar e
-     ler o CSS; o <link> começa a baixar junto com o HTML. preconnect abre a conexão
-     antes. Itálico 700 saiu: nenhum estilo da página usa. -->
+<!-- Fontes SEM bloquear a renderização: no ar (21/09) este era o ÚNICO recurso que
+     segurava a pintura da página — um <link rel="stylesheet"> no body trava tudo que vem
+     depois dele até o Google responder. O truque media="print" + onload carrega o CSS
+     sem travar (o mesmo que o tema Dawn usa). display=optional: se a fonte não chegar
+     em ~100 ms, a página usa Georgia/system-ui NESTA visita e a fonte na próxima — sem
+     a troca tardia que re-renderiza o título e joga o LCP lá para frente. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=optional"></noscript>
+<!-- Foto do herói: tamanho pela LARGURA da tela (min(100%, 80vw, 480px)), nunca pela
+     altura — 42dvh mudava quando a barra do navegador do celular some ao rolar.
+     Reveals só abaixo da primeira tela: o herói pinta na hora, sem esperar script. -->
 <style>
 :root {
   --cor-principal-lp: #A0525A;
@@ -133,10 +140,6 @@ button.es-accept-offer,
   #mpp-lp .hero .price { justify-content: center; margin-top: 14px; }
   #mpp-lp .hero .btn { margin-left: auto; margin-right: auto; }
 }
-/* A foto do herói: tamanho pela LARGURA da tela, não pela altura. O 42dvh de antes
-   mudava quando a barra do navegador do celular some ao rolar — e a foto mudava de
-   tamanho junto. A largura da tela não muda ao rolar. (80vw num celular de 412px
-   dá os mesmos ~330px de antes; 480px é o teto para tablet.) */
 #mpp-lp .hero-media .photo { border-radius: var(--r-xl); overflow: hidden; border: 1px solid var(--line); aspect-ratio: 1/1; width: min(100%, 80vw, 480px); height: auto; margin: 0 auto; background: var(--card); }
 #mpp-lp .hero-media .photo img { width: 100% !important; height: 100% !important; object-fit: cover; }
 @container (min-width:840px) { #mpp-lp .hero-media .photo { width: 100%; } }
@@ -274,8 +277,7 @@ button.es-accept-offer,
 #mpp-lp .sticky .w { color: var(--muted); text-decoration: line-through; font-size: calc(0.9rem * var(--fs-ui)); }
 #mpp-lp .sticky .btn { width: auto; min-height: 52px; padding: 13px 22px; font-size: calc(1.05rem * var(--fs-ui)); flex-shrink: 0; }
 
-/* REVEALS — só abaixo da primeira tela. O herói não tem .reveal: a primeira
-   tela pinta na hora, sem esperar o script. */
+/* REVEALS */
 #mpp-lp.js .reveal { opacity: 0; }
 #mpp-lp .reveal.in { animation: mpp-in .7s var(--ease) both; }
 @keyframes mpp-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
