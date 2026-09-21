@@ -23,6 +23,39 @@ Push-Location $Raiz
 git log --oneline -1
 Pop-Location
 
+# A conferencia que so pode ser feita AQUI.
+#
+# "ID token recusado (assinatura)" so tem uma causa: a chave guardada nao e a
+# que a Shopify usou. Conferir isso pela tela do app e impossivel - e a tela e
+# publica, entao ela nao pode mostrar pedaco de chave nenhuma. Nesta janela
+# pode: o fim da chave basta para comparar com o olhinho do Dev Dashboard, e
+# nao serve para quem so ve o print.
+Titulo 'Apps da Shopify configurados (compare com o Dev Dashboard)'
+$arquivoEnv = Join-Path $Raiz 'app\.env'
+if (-not (Test-Path $arquivoEnv)) {
+    Write-Host '   NAO achei o app\.env' -ForegroundColor Red
+} else {
+    $envLinhas = @(Get-Content $arquivoEnv)
+    $achouApp = $false
+    foreach ($sufixo in @('') + (2..9 | ForEach-Object { "_$_" })) {
+        $id = ''; $secret = ''
+        foreach ($linha in $envLinhas) {
+            if ($linha -match "^\s*SHOPIFY_CLIENT_ID$sufixo\s*=\s*`"?([^`"\s]*)`"?\s*$") { $id = $Matches[1] }
+            if ($linha -match "^\s*SHOPIFY_CLIENT_SECRET$sufixo\s*=\s*`"?([^`"\s]*)`"?\s*$") { $secret = $Matches[1] }
+        }
+        if ($id -eq '' -and $secret -eq '') { continue }
+        $achouApp = $true
+        $fim = if ($secret.Length -ge 4) { $secret.Substring($secret.Length - 4) } else { '????' }
+        Write-Host ("   SHOPIFY_CLIENT_ID{0,-3} {1}" -f $sufixo, $id)
+        Write-Host ("       chave secreta: {0} caracteres, terminando em ...{1}" -f $secret.Length, $fim) -ForegroundColor DarkGray
+        if ($secret -eq '') { Write-Host '       SEM CHAVE - o par esta pela metade' -ForegroundColor Red }
+    }
+    if (-not $achouApp) { Write-Host '   nenhum app configurado' -ForegroundColor Red }
+    Write-Host ''
+    Write-Host '   No Dev Dashboard, abra o app que tem ESSE Client ID (nao o do nome parecido)' -ForegroundColor Cyan
+    Write-Host '   e clique no olhinho da chave secreta: o fim dela tem que bater com o de cima.'
+}
+
 Titulo 'Tarefas do Windows'
 foreach ($nome in 'DVFly App', 'DVFly HTTPS') {
     $t = Get-ScheduledTask -TaskName $nome -ErrorAction SilentlyContinue
