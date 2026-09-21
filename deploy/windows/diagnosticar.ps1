@@ -51,6 +51,23 @@ if (-not (Test-Path $arquivoEnv)) {
         if ($secret -eq '') { Write-Host '       SEM CHAVE - o par esta pela metade' -ForegroundColor Red }
     }
     if (-not $achouApp) { Write-Host '   nenhum app configurado' -ForegroundColor Red }
+
+    # Variavel no ambiente do Windows GANHA do .env - e de proposito (num host
+    # de verdade e o ambiente que manda), e e silencioso. Se alguem deixou uma
+    # para tras, o arquivo pode estar perfeito e o app seguir com outra chave,
+    # sem nada na tela ligando as duas coisas.
+    foreach ($alvo in 'Machine', 'User') {
+        try {
+            $doSistema = [Environment]::GetEnvironmentVariables($alvo)
+            foreach ($chave in @($doSistema.Keys)) {
+                if ("$chave" -match '^(SHOPIFY_|DVFLY_|DATABASE_URL)') {
+                    Write-Host ("   ATENCAO: $chave esta no ambiente do Windows ($alvo) e GANHA do .env") -ForegroundColor Red
+                }
+            }
+        } catch {
+            # Sistema que nao tem esse conceito: nao ha o que conferir.
+        }
+    }
     Write-Host ''
     Write-Host '   No Dev Dashboard, abra o app que tem ESSE Client ID (nao o do nome parecido)' -ForegroundColor Cyan
     Write-Host '   e clique no olhinho da chave secreta: o fim dela tem que bater com o de cima.'
