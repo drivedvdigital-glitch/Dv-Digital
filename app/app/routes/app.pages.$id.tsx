@@ -140,7 +140,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   };
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
+/**
+ * Every refusal this screen produces, also in the server's log.
+ *
+ * A refused publish answers HTTP 200 with `{ ok: false, message }` — correct
+ * (nothing broke; the app is saying no on purpose) and invisible: the log
+ * showed a healthy POST while the person stared at a red banner, and the only
+ * copy of the reason was on their screen. The message is written for them, so
+ * it is the right thing to keep.
+ */
+export async function action(args: ActionFunctionArgs) {
+  const result = await handleAction(args);
+  if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
+    console.warn(`[dvfly] recusado em ${new URL(args.request.url).pathname}: ${result.message}`);
+  }
+  return result;
+}
+
+async function handleAction({ request, params }: ActionFunctionArgs) {
   const { shop: currentShop } = await requireShop(request);
   const form = await request.formData();
   const intent = String(form.get('intent'));
