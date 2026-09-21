@@ -28,14 +28,22 @@ import {
 } from '../ui/theme.tsx';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireShop(request);
+  const { shop } = await requireShop(request);
   const pages = await db.page.findMany({
     orderBy: { updatedAt: 'desc' },
-    include: { deployments: { include: { store: true } }, _count: { select: { productLinks: true } } },
+    include: {
+      deployments: { include: { store: true } },
+      // Contados por loja, não no total: uma página de produto ligada a 3
+      // produtos na Colômbia e a nenhum na Hungria mostrava "3" nas duas.
+      productLinks: { select: { storeId: true } },
+    },
   });
   const stores = await db.store.findMany({ orderBy: { createdAt: 'asc' } });
+  const aqui = stores.find((s) => s.domain === shop) ?? null;
   // Only what the list shows — never a store's token or credentials.
   return {
+    shop,
+    storeAtual: aqui ? { id: aqui.id, label: aqui.label, domain: aqui.domain } : null,
     // As lojas com o nome que VOCÊ deu. O nome que a Shopify devolve na
     // instalação é um palpite (e vira o domínio quando a consulta falha, que
     // é como duas lojas acabaram chamadas `49e257-b3` e `01xmv2-7m`).
@@ -46,14 +54,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
       isProduction: s.isProduction,
       unusable: storeUnusableReason(s),
     })),
-    pages: pages.map(({ _count, ...page }) => ({
+    pages: pages.map(({ productLinks, ...page }) => ({
       ...page,
-      productCount: _count.productLinks,
+      productCount: aqui ? productLinks.filter((l) => l.storeId === aqui.id).length : productLinks.length,
+      productCountAll: productLinks.length,
+      // "Desta loja": criada aqui, ou publicada aqui, ou de antes da coluna
+      // existir e nunca publicada (nula) — essa aparece em toda lista, para
+      // não sumir.
+      daqui:
+        !aqui ||
+        page.ownerStoreId === aqui.id ||
+        page.deployments.some((d) => d.storeId === aqui.id) ||
+        (page.ownerStoreId === null && page.deployments.length === 0),
+      ownerLabel: page.ownerStoreId ? (stores.find((s) => s.id === page.ownerStoreId)?.label ?? null) : null,
+      ownerDomain: page.ownerStoreId ? (stores.find((s) => s.id === page.ownerStoreId)?.domain ?? null) : null,
       deployments: page.deployments.map((d) => ({
         id: d.id,
         isPublished: d.isPublished,
         kind: deploymentKind(d.shopifyGid),
-        store: { label: d.store.label, isProduction: d.store.isProduction, unusable: storeUnusableReason(d.store) },
+        store: { label: d.store.label, domain: d.store.domain, isProduction: d.store.isProduction, unusable: storeUnusableReason(d.store) },
       })),
     })),
   };
@@ -66,9 +85,13 @@ async function freeHandle(wanted: string): Promise<string> {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  await requireShop(request);
+  const { shop } = await requireShop(request);
   const form = await request.formData();
   const intent = form.get('intent');
+  // Whatever this screen creates is filed under the store it was opened from.
+  // Null when the store is not registered yet (dev without a store): the page
+  // then shows in every list rather than in none.
+  const ownerStoreId = (await db.store.findUnique({ where: { domain: shop }, select: { id: true } }))?.id ?? null;
 
   if (intent === 'renomear-lojas') {
     // Um nome por loja, todos de uma vez. Vazio significa "volte a chamar pelo
@@ -90,6 +113,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (intent === 'create') {
     const page = await db.page.create({
       data: {
+        ownerStoreId,
         title: 'Nova página',
         handle: `pagina-${Date.now().toString(36)}`,
         doc: JSON.stringify({
@@ -107,8 +131,11 @@ export async function action({ request }: ActionFunctionArgs) {
     // market (250-CO-…, 08-MX-…) and varied from an existing one. The copy
     // is the same kind of page, with the same settings; product links are
     // not copied (one product renders one page).
+    // The copy is filed where it was MADE, not where the original lives: a
+    // Colombian page duplicated from Hungary's admin is the Hungarian variant.
     await db.page.create({
       data: {
+        ownerStoreId,
         title: `${source.title} (cópia)`,
         handle: `${source.handle}-copia-${Date.now().toString(36)}`,
         doc: source.doc,
@@ -185,6 +212,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     const page = await db.page.create({
       data: {
+        ownerStoreId,
         title: payload.title || 'Página importada',
         handle: await freeHandle(payload.handle || `importada-${Date.now().toString(36)}`),
         doc: JSON.stringify(payload.doc),
@@ -270,7 +298,14 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function PagesList() {
-  const { pages, stores } = useLoaderData<typeof loader>();
+  const { pages: todas, stores, storeAtual } = useLoaderData<typeof loader>();
+
+  // Por padrão a lista é a DESTA loja: criadas aqui, publicadas aqui. "Todas
+  // as lojas" existe para o que não é daqui nunca ficar inalcançável — é um
+  // clique, com a contagem do que está do outro lado escrita nele.
+  const [escopo, setEscopo] = useState<'aqui' | 'todas'>('aqui');
+  const pages = escopo === 'todas' || !storeAtual ? todas : todas.filter((p) => p.daqui);
+  const deOutras = todas.length - todas.filter((p) => p.daqui).length;
   const result = useActionData<typeof action>();
   const search = useLocation().search;
   const submit = useSubmit();
@@ -350,9 +385,40 @@ export default function PagesList() {
             <h1 style={listTitle}>Páginas</h1>
             {/* Counted from the data on screen, never hardcoded. */}
             <div style={countLine} data-count>
-              {pages.length} {pages.length === 1 ? 'página' : 'páginas'} · {liveCount} no ar
+              {pages.length} {pages.length === 1 ? 'página' : 'páginas'}
+              {storeAtual ? (escopo === 'aqui' ? ` de ${storeAtual.label}` : ' em todas as lojas') : ''} · {liveCount} no ar
             </div>
           </div>
+          {storeAtual ? (
+            <div style={scopeRow} role="tablist" aria-label="Quais lojas">
+              <button
+                type="button"
+                role="tab"
+                className="dv-tab"
+                data-scope="aqui"
+                data-on={escopo === 'aqui' ? true : undefined}
+                aria-selected={escopo === 'aqui'}
+                title={`Criadas ou publicadas em ${storeAtual.domain}`}
+                onClick={() => setEscopo('aqui')}
+              >
+                Esta loja
+                <span style={tabCount}>{todas.filter((p) => p.daqui).length}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className="dv-tab"
+                data-scope="todas"
+                data-on={escopo === 'todas' ? true : undefined}
+                aria-selected={escopo === 'todas'}
+                title={deOutras > 0 ? `Mais ${deOutras} de outras lojas` : 'Nenhuma página de outra loja'}
+                onClick={() => setEscopo('todas')}
+              >
+                Todas as lojas
+                <span style={tabCount}>{todas.length}</span>
+              </button>
+            </div>
+          ) : null}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="dv-btn dv-secondary dv-icon-btn" />
             <button
@@ -445,10 +511,26 @@ export default function PagesList() {
               <span style={emptyIcon}>
                 <Icon name="page" size={20} />
               </span>
-              <div style={{ fontWeight: 600, color: 'var(--dv-ink)' }}>Nenhuma página ainda</div>
-              <div>
-                Clique em <strong>Criar página</strong> para começar.
-              </div>
+              {deOutras > 0 && escopo === 'aqui' ? (
+                // Vazio AQUI, mas não vazio: diz onde as páginas estão e abre.
+                <>
+                  <div style={{ fontWeight: 600, color: 'var(--dv-ink)' }}>Nenhuma página de {storeAtual?.label} ainda</div>
+                  <div>
+                    Há {deOutras} de outras lojas —{' '}
+                    <button type="button" className="dv-btn dv-plain" style={{ padding: '0 2px' }} onClick={() => setEscopo('todas')} data-ver-todas>
+                      ver todas as lojas
+                    </button>
+                    . Ou clique em <strong>Criar página</strong>.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontWeight: 600, color: 'var(--dv-ink)' }}>Nenhuma página ainda</div>
+                  <div>
+                    Clique em <strong>Criar página</strong> para começar.
+                  </div>
+                </>
+              )}
             </div>
           ) : visible.length === 0 ? (
             <div style={emptyState}>Nenhuma página combina com a busca.</div>
@@ -486,9 +568,19 @@ export default function PagesList() {
                       <Link to={`/app/pages/${page.id}${shopSearch(search)}`} style={titleLink} title="Abrir no editor">
                         {page.title}
                       </Link>
+                      {!page.daqui ? (
+                        // Só aparece em "Todas as lojas": diz DE QUAL loja é.
+                        <span style={{ ...pillNeutral, marginLeft: 6 }} data-outra-loja title={page.ownerDomain ? `Criada em ${page.ownerDomain}` : undefined}>
+                          {page.ownerLabel ?? 'outra loja'}
+                        </span>
+                      ) : null}
                       <div style={subLine}>
                         {page.pageType === 'product'
-                          ? `${page.productCount} produto${page.productCount === 1 ? '' : 's'} vinculado${page.productCount === 1 ? '' : 's'}`
+                          ? // Nesta loja, os produtos desta loja; em todas, o total.
+                            (() => {
+                              const n = escopo === 'aqui' && storeAtual ? page.productCount : page.productCountAll;
+                              return `${n} produto${n === 1 ? '' : 's'} vinculado${n === 1 ? '' : 's'}${escopo === 'aqui' && storeAtual ? ' nesta loja' : ''}`;
+                            })()
                           : `/pages/${page.handle}`}
                       </div>
                     </td>
@@ -506,7 +598,8 @@ export default function PagesList() {
                             <span
                               key={d.id}
                               style={d.isPublished ? pillSuccess : pillNeutral}
-                              title={d.store.unusable ? `Sem acesso: ${d.store.unusable}` : undefined}
+                              // Two stores may share a name; the domain says which.
+                              title={d.store.unusable ? `${d.store.domain} — sem acesso: ${d.store.unusable}` : d.store.domain}
                             >
                               {d.isPublished ? d.store.label : `${d.store.label} (pausada)`}
                               {d.store.unusable ? ' · sem acesso' : ''}
@@ -702,6 +795,15 @@ const cardToolbar: React.CSSProperties = {
 };
 
 const tabsRow: React.CSSProperties = { display: 'flex', gap: 2 };
+
+// "Esta loja / Todas as lojas", no cabeçalho, ao lado da contagem.
+const scopeRow: React.CSSProperties = {
+  display: 'flex',
+  gap: 2,
+  marginLeft: 16,
+  paddingLeft: 16,
+  borderLeft: '1px solid var(--dv-edge)',
+};
 
 const tabCount: React.CSSProperties = {
   fontSize: 11.5,

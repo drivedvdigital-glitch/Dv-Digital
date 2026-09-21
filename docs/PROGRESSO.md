@@ -1988,6 +1988,82 @@ Verificado dirigindo as duas telas com as três lojas de verdade (16 checagens, 
 incluindo o caso dos dois nomes iguais e o de salvar sem mudar nada, que responde "os nomes já
 estavam assim" em vez de fingir uma gravação.
 
+### "O banco está se juntando" — a lista separada por loja
+
+A queixa era exata: abrindo o app pela Hungria, a lista mostrava as páginas da Colômbia, e
+vice-versa. Em `app._index.tsx` o loader chamava `requireShop` (que diz de qual loja você veio)
+e em seguida `db.page.findMany()` sem filtro nenhum. E era de propósito — está escrito no
+schema: *"a page deliberately does not belong to a store"*, a decisão que permite publicar a
+mesma página em várias lojas. O efeito colateral é uma lista só, com tudo.
+
+Decisão (do Miguel, com as duas opções na mesa): **a página continua podendo ser publicada em
+várias lojas, mas a lista vem filtrada.** A alternativa — cada página presa a uma loja — daria
+uma lista limpa ao custo de perder a publicação nas duas Colômbias de uma vez.
+
+O que mudou:
+
+- `Page.ownerStoreId` — a loja de cujo admin a página foi criada. **Regra de arquivamento,
+  não de propriedade**: decide em qual lista a página aparece primeiro, e só. Criar, duplicar
+  e importar arquivam na loja de onde o gesto veio (a cópia é arquivada onde foi FEITA, não
+  onde o original mora — a variante húngara de uma página colombiana é húngara).
+- A lista, por padrão, mostra o que é **desta loja**: criada aqui, ou publicada aqui. A aba
+  "Todas as lojas" traz o resto, com a contagem escrita nela, e cada página de fora leva a
+  pastilha da loja dona. Loja sem página nenhuma diz quantas há nas outras e abre a aba num
+  clique — vazio que aponta o caminho, não vazio que esconde.
+- Produtos vinculados contados **por loja**: uma página de produto com 2 produtos na
+  Colômbia e 1 na Snevy mostrava "3" nas duas; agora mostra "2 nesta loja" / "1 nesta loja".
+- **Página de antes da coluna e nunca publicada fica com dona nula e aparece em toda lista.**
+  Perder uma página escrita antes disto existir seria pior do que mostrá-la demais.
+- A migration faz o backfill: a dona é a loja da **primeira** publicação. `ON DELETE SET NULL`
+  — apagar uma loja não pode levar as páginas escritas a partir dela.
+
+Verificado em três lugares, porque cada um julga uma coisa diferente:
+
+1. **Postgres 16 de verdade** (o SQLite não julga `UPDATE "Page" p SET` nem a FK): migrations
+   antigas + dados de antes + a nova → `p-co → co` (publicada primeiro na Colômbia, depois na
+   Hungria: ganhou a Colômbia), `p-hu → hu`, `p-nunca → NULL`; `DELETE` da loja → `p-co|NULL`,
+   página viva. E `prisma migrate deploy` do zero, pelo `db-sync.mjs`, aplicou as 3.
+   Primeira tentativa falhou com *"the URL must start with file:"*: o `schema.prisma` no disco
+   estava gerado para SQLite — a armadilha do CLAUDE.md, repaga uma vez e anotada.
+2. **Navegador** (15 checagens, 3 lojas, uma página publicada em duas, uma velha sem dona):
+   Hungria não vê a Colômbia; "Todas" mostra 5 e marca as 3 de fora; a dupla aparece na Snevy
+   por estar publicada lá sem ser dela; criar na Snevy aparece na Snevy e não na Hungria.
+   Uma "falha" era conta minha errada (esperei 4, a lista mostrou os 3 certos).
+3. **Print**: pastilha `Côlombia` `Côlombia` na coluna "Lojas" — duas iguais, sem dizer qual
+   é qual. Domínio no tooltip das pastilhas, o mesmo desempate do resto da tela.
+
+### O D&VFly está pesando na página do cliente? Medido: não
+
+Relatório do PageSpeed da `snevy.co/products/mini-plancha` (celular): desempenho **96**, FCP
+3,7 s, CLS 0, e `LCP: Error! NO_LCP`. A pergunta era se o app, por atender várias lojas,
+pesava na página. Medição na página publicada de verdade:
+
+| | |
+|---|---|
+| JavaScript nosso | **0 bytes** — nenhum script do D&VFly |
+| Chamadas ao nosso servidor | **0** — nenhuma menção a dvfly/vercel/túnel no HTML |
+| CSS nosso | 23,6 KB crus → **4,9 KB gzip** (HTML inteiro: 35,8 KB gzip) |
+| DOM | 543 nós, 439 nossos — 543 é pouco; o Lighthouse reclama de verdade acima de ~800 |
+
+A página publicada é HTML+CSS estático morando na Shopify e não conhece o servidor (invariante
+I1/I4): 3 lojas ou 300, ela não muda um byte. O JavaScript ali é da Shopify, do tema e do app
+EasySell COD (4 arquivos).
+
+O que **está** pesando, e dois são nossos:
+
+- **8 das 10 imagens apontam para `via.placeholder.com`, que está fora do ar** — não é o
+  ambiente: `example.com` e `placehold.co` respondem 200 pelo mesmo proxy, e esse host não
+  completa nem o TLS. São as imagens de exemplo do bloco que nunca foram trocadas. Oito
+  pedidos que o celular tenta e só desiste no tempo limite — o tipo de lentidão que o
+  Lighthouse não pontua (pedido que falha não pesa).
+- **A imagem principal tem 250 KB na resolução cheia**, sem `?width=` (a Shopify redimensiona
+  de graça) e sem `width`/`height` — as 10 estão sem. É o "Melhorar a entrega de imagens —
+  122 KiB" do relatório, e é **conserto nosso, no compilador**. Próxima entrega.
+
+**`NO_LCP` fica em aberto.** Achei que fossem as imagens mortas e testei: cópia local servida
+com elas mortas e com elas respondendo — o LCP apareceu nos dois casos (em texto). A hipótese
+estava errada e não vou substituí-la por outro palpite.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

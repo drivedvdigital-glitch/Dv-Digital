@@ -42,13 +42,27 @@ model Store {
   createdAt     DateTime     @default(now())
   deployments   Deployment[]
   productLinks  ProductLink[]
+  /// Pages created from this store's admin. See `Page.ownerStore`.
+  ownedPages    Page[]       @relation("PaginasDaLoja")
 }
 
 /// A page is authored once and deployed to many stores. It deliberately does
-/// not belong to a store — that is the difference between "export and import"
+/// not BELONG to a store — that is the difference between "export and import"
 /// and multi-store publishing as a first-class operation.
+///
+/// What it does have is an owner: the store whose admin it was created from.
+/// That is a filing rule, not an ownership rule — it decides which list the
+/// page shows up in first, and nothing else. Publishing still reaches any
+/// store, and the list has a tab that shows every page regardless of owner,
+/// because a page you cannot find is worse than a list that is too long.
 model Page {
   id        String    @id @default(cuid())
+  /// The store this page was created from. Null for pages that predate the
+  /// column and were never published anywhere — those show in every list, so
+  /// nothing written before this existed can go missing. `SetNull` on delete:
+  /// forgetting a store must never delete the pages authored from it.
+  ownerStoreId String?
+  ownerStore   Store?  @relation("PaginasDaLoja", fields: [ownerStoreId], references: [id], onDelete: SetNull)
   title     String
   handle    String
   /// Block document as JSON. For now usually a single html block.
