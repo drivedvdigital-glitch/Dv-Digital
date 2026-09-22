@@ -54,6 +54,11 @@ export interface OptimizeOptions {
    * its own function in. Absent, this block is the whole page.
    */
   claimImage?: (image: ImageClaim) => { role: ImageRole };
+  /**
+   * What a `rem` is worth when the author's CSS does not say: the store
+   * theme's root (`themeRootPx`), or the browser's 16px. See `authorRootPx`.
+   */
+  rootPx?: number;
 }
 
 export interface OptimizeResult {
@@ -96,30 +101,92 @@ export interface OptimizeResult {
 }
 
 /** What `1rem` means in a page that declares nothing: the browser default. */
-const DEFAULT_ROOT_PX = 16;
+export const DEFAULT_ROOT_PX = 16;
 
 /**
  * Reads what the author's own markup says a `rem` is worth.
  *
  * A standalone page that writes `html{font-size:62.5%}` means `2rem` = 20px;
- * one that says nothing means 16px. We need this because the value cannot be
- * preserved on the storefront (see `rebaseRem`): the theme owns `<html>`.
+ * one that says nothing means `fallback` — the browser's 16px, or, when the
+ * compiler knows it, the root of the store's theme (see `themeRootPx`). We
+ * need this because the value cannot be preserved on the storefront (see
+ * `rebaseRem`): the theme owns `<html>`.
  */
-export function authorRootPx(css: string): number {
-  let px = DEFAULT_ROOT_PX;
-  const rules = /(?:^|[{}；;])\s*(?::root|html)\s*\{([^}]*)\}/gi;
+export function authorRootPx(css: string, fallback = DEFAULT_ROOT_PX): number {
+  const declared = rootFontSizePx(css, {});
+  return declared ?? fallback;
+}
+
+/**
+ * The root font-size a store's theme sets, read from its stylesheets: what a
+ * `rem` was worth on every page the merchant ever previewed a pasted landing
+ * page in. Dawn writes `html{font-size:calc(var(--font-body-scale) * 62.5%)}`
+ * with the variable in the settings block, so the variables of every source
+ * are collected first. No declaration → the browser default.
+ *
+ * Why this is the fallback for pasted HTML (22/09): the same landing page
+ * rendered 1.6× larger on our minimal layout than on the theme it was
+ * designed in — the h1 at 60.8px instead of 38px, the price and the buy
+ * button pushed below the first screen of a phone. The author's `3.8rem`
+ * meant 38px there, and "there" is where the page was approved.
+ */
+export function themeRootPx(sources: string[]): number {
+  const vars: Record<string, string> = {};
+  for (const source of sources) {
+    for (const match of source.matchAll(/(--[\w-]+)\s*:\s*([^;{}]+)/g)) vars[match[1]] = match[2].trim();
+  }
+  for (const source of sources) {
+    const px = rootFontSizePx(source, vars);
+    if (px !== null) return px;
+  }
+  return DEFAULT_ROOT_PX;
+}
+
+/** The last `html`/`:root` font-size in `css`, in px, or null when there is none it can read. */
+function rootFontSizePx(css: string, vars: Record<string, string>): number | null {
+  let px: number | null = null;
+  // A lookbehind, not a consumed group: the `}` closing one rule is also what
+  // the next rule needs to see before its selector.
+  const rules = /(?<=(?:^|[{};])\s*)(?::root|html)(?:\s*,\s*(?::root|html|body))*\s*\{([^}]*)\}/gi;
   for (const rule of css.matchAll(rules)) {
     const match = /(?:^|;)\s*font-size\s*:\s*([^;]+)/i.exec(rule[1]);
     if (!match) continue;
-    const value = match[1].trim();
-    const number = parseFloat(value);
-    if (!Number.isFinite(number)) continue;
-    if (value.endsWith('%')) px = (DEFAULT_ROOT_PX * number) / 100;
-    else if (value.endsWith('px')) px = number;
-    else if (value.endsWith('em')) px = DEFAULT_ROOT_PX * number; // rem and em are the same at the root
-    else if (value.endsWith('pt')) px = (number * 96) / 72;
+    const value = lengthPx(match[1].trim(), vars);
+    if (value !== null) px = value;
   }
   return px;
+}
+
+/** `62.5%`, `10px`, `0.625em`, `8pt`, `var(--x)` or `calc(var(--x) * 62.5%)` as root px; null otherwise. */
+function lengthPx(raw: string, vars: Record<string, string>, depth = 0): number | null {
+  const value = raw.trim().toLowerCase();
+  if (depth > 4) return null;
+  const variable = /^var\((--[\w-]+)\)$/.exec(value);
+  if (variable) return variable[1] in vars ? lengthPx(vars[variable[1]], vars, depth + 1) : null;
+  const calc = /^calc\(\s*(.+?)\s*\*\s*(.+?)\s*\)$/.exec(value);
+  if (calc) {
+    const [left, right] = [calc[1], calc[2]].map((part) => factor(part, vars, depth + 1));
+    // One factor is the length, the other a plain number (a scale).
+    const length = [calc[1], calc[2]].find((part) => /[a-z%]$/.test(part.trim()) || part.trim().startsWith('var('));
+    if (left === null || right === null || !length) return null;
+    return left * right;
+  }
+  const number = parseFloat(value);
+  if (!Number.isFinite(number)) return null;
+  if (value.endsWith('%')) return (DEFAULT_ROOT_PX * number) / 100;
+  if (value.endsWith('px')) return number;
+  if (value.endsWith('em')) return DEFAULT_ROOT_PX * number; // rem and em are the same at the root
+  if (value.endsWith('pt')) return (number * 96) / 72;
+  return null;
+}
+
+/** A calc() factor: a length (in root px), a variable, or a unitless number. */
+function factor(raw: string, vars: Record<string, string>, depth: number): number | null {
+  const value = raw.trim();
+  if (/^-?(?:\d+\.?\d*|\.\d+)$/.test(value)) return Number(value);
+  const variable = /^var\((--[\w-]+)\)$/.exec(value);
+  if (variable) return variable[1] in vars ? factor(vars[variable[1]], vars, depth + 1) : null;
+  return lengthPx(value, vars, depth);
 }
 
 /** A `rem` length, ignoring matches that are part of a longer identifier. */
@@ -509,7 +576,7 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
   // What a `rem` was worth in the author's file. Read before anything is
   // rewritten, because scoping turns his `html{...}` into `.dvf-page{...}`.
   const styleBlocks = root.querySelectorAll('style');
-  const rootPx = authorRootPx(styleBlocks.map((style) => style.innerHTML).join('\n'));
+  const rootPx = authorRootPx(styleBlocks.map((style) => style.innerHTML).join('\n'), options.rootPx);
 
   // --- 1. Inline styles stay exactly where the author put them -------------
   //

@@ -50,6 +50,7 @@ import {
   retireOtherKind,
   switchPage,
 } from '../lib/publish.server.ts';
+import { readThemeStyle, storeForThemeStyle } from '../lib/theme-style.server.ts';
 import { openWithToken, shopSearch } from '../ui/embedded.ts';
 import { BLOCK_ICONS, Icon, type IconName } from '../ui/icons.tsx';
 import {
@@ -80,15 +81,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const { shop } = await requireShop(request);
   // Independent queries, one round trip: on a remote Postgres each await is
   // tens of milliseconds the person waits for the editor to appear.
-  const [page, stores] = await Promise.all([
+  const [page, stores, theme] = await Promise.all([
     db.page.findUniqueOrThrow({
       where: { id: params.id },
       include: { deployments: { include: { store: true } }, productLinks: { orderBy: { createdAt: 'asc' } } },
     }),
     db.store.findMany({ orderBy: { isProduction: 'asc' } }),
+    storeForThemeStyle(shop).then((store) => readThemeStyle(store?.domain)),
   ]);
   const doc = JSON.parse(page.doc) as Doc;
-  const compiled = compile(doc);
+  // The numbers the status bar opens with, built the way the canvas builds:
+  // pasted HTML rebased on the theme's rem, not the browser's.
+  const compiled = compile(doc, { rootPx: theme.rootPx });
 
   // A product page has no URL of its own: it is seen at the URL of every
   // product that adopted it. "Ver no ar" opens the first linked product of
@@ -297,7 +301,13 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   if (unreachable.length > 0) {
     return { ok: false, message: `Sem acesso a ${unreachable.map(([l, why]) => `${l} (${why})`).join('; ')}.`, saved: true };
   }
-  const compiled = compile(doc);
+  // The `rem` base of pasted HTML is the theme's root font-size, read from
+  // the store this editor was opened in — the same store whose theme the
+  // canvas rendered against, so what was approved there is what ships (I1).
+  // (Every store the page goes to gets the same bytes; a page is designed
+  // once, not once per store.)
+  const theme = await readThemeStyle((await storeForThemeStyle(currentShop))?.domain);
+  const compiled = compile(doc, { rootPx: theme.rootPx });
   const fragment = toFragment(compiled);
   const confirmouOutras = form.get('allowProduction') === 'on';
 
@@ -633,10 +643,12 @@ const matchesQuery = (label: string, query: string) => !query.trim() || fold(lab
 
 interface PreviewStats {
   bytes: { html: number; css: number; js: number; total: number };
-  htmlOptimization: { inlineStylesKept: number };
+  htmlOptimization: { inlineStylesKept: number; remRebased?: number };
   cssRules: number;
   /** Images across the page: how many, how many served responsively, and the one fetched first. */
   images?: { total: number; responsive: number; lcp: string | null };
+  /** What a `rem` in pasted HTML was worth in this build (the theme's root, or 16). */
+  rootPx?: number;
 }
 
 /**
@@ -1023,6 +1035,10 @@ export default function PageEditor() {
       chrome: showChrome && !bare,
       // Where the theme's own product sections sit relative to our content.
       productSections: pageType === 'product' && !bare ? (productContentAbove ? 'below' : 'above') : null,
+      // What the theme makes a `rem` worth: pasted HTML is rebased on it here
+      // and at publish time alike. Absent until the theme arrives (then
+      // `themeTick` rebuilds the canvas with it).
+      rootPx: themeStyleRef.current?.rootPx,
     });
     // A big document (a pasted landing page) is where people type fastest
     // and where each rebuild of the canvas costs most; it waits a bit longer
@@ -1615,6 +1631,13 @@ export default function PageEditor() {
             </span>
           ) : null}
           · {live.stats.cssRules} regras de CSS
+          {live.stats.rootPx && live.stats.rootPx !== 16 && live.stats.htmlOptimization.remRebased ? (
+            // Said only when it changes something: pasted HTML with `rem`, on a
+            // theme whose root is not the browser's. Sizes follow the theme.
+            <span data-rem-stat>
+              {' '}· 1 rem = {live.stats.rootPx} px, como no tema da loja
+            </span>
+          ) : null}
           {live.stats.images && live.stats.images.total > 0 ? (
             // Counted from the compiled page, blocks and pasted HTML alike.
             <span data-images-stat>

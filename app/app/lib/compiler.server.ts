@@ -7,6 +7,7 @@
  */
 export { compile, toFragment } from '../../../packages/compiler/src/compile.ts';
 export { ANIMATION_CSS } from '../../../packages/compiler/src/blocks.ts';
+export { DEFAULT_ROOT_PX, themeRootPx } from '../../../packages/compiler/src/html-optimize.ts';
 export { audit, score } from '../../../packages/compiler/src/audit.ts';
 export { BUDGET_BYTES, PAGE_BODY_LIMIT_BYTES, TEMPLATE_LIMIT_BYTES } from '../../../packages/compiler/src/limits.ts';
 export type { Doc, Node } from '../../../packages/compiler/src/schema.ts';

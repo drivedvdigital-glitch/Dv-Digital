@@ -51,6 +51,8 @@ export interface ThemeStyleData {
   heading: string | null;
   links: string[];
   css: string;
+  /** What the theme makes `1rem` worth, in px (16 when it says nothing). */
+  rootPx: number;
 }
 
 /**

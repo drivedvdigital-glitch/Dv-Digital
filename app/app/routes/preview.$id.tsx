@@ -20,9 +20,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const page = await db.page.findUnique({ where: { id: params.id } });
   if (!page) throw new Response('Página não encontrada', { status: 404 });
 
-  const compiled = compile(JSON.parse(page.doc) as Doc);
   const store = await storeForThemeStyle(new URL(request.url).searchParams.get('shop'));
   const theme = await readThemeStyle(store?.domain);
+  // Same rem base as the canvas and the publish (I1): the theme's.
+  const compiled = compile(JSON.parse(page.doc) as Doc, { rootPx: theme.rootPx });
   const html = `<!doctype html>
 <html lang="pt-BR">
 <head>

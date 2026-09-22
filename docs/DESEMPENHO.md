@@ -23,6 +23,7 @@ sobre LCP, INP e `content-visibility`.
 | **Seções abaixo da dobra renderizam quando chegam perto** (`content-visibility:auto` + `contain-intrinsic-size:auto 600px`) — só as seções de topo depois do primeiro bloco. Medido: relayout completo de 120 seções, 115 ms → 2,6 ms. | `BELOW_FOLD_CSS`, `compile.ts` | web.dev `content-visibility`; web.dev INP: "use content-visibility for lazy rendering of off-screen elements" |
 | **HTML colado sai sem comentários** (`comment:false` no parser) e com o CSS do autor sem comentários (`scopeCss`). | `html-optimize.ts` | bytes |
 | **Bloco escondido não vai** (omissão, não `display:none`). | `compile.ts` `render` | bytes, DOM menor (web.dev INP: "reduce DOM size") |
+| **O `rem` do HTML colado vale o que vale no tema da loja.** O servidor lê as folhas do tema (`html{font-size:calc(var(--font-body-scale)*62.5%)}` → 10 px) e o compilador converte cada `rem` para os px que o autor quis lá — no canvas, na pré-visualização e na publicação, com o mesmo número (I1). Autor que declara a própria raiz (`html{font-size:…}`) ganha do tema. A barra de status avisa ("1 rem = 10 px, como no tema da loja"). | `theme-style.server.ts` `rootPx`, `html-optimize.ts` `themeRootPx`/`authorRootPx`, `compile({ rootPx })` | Medido em 22/09: com base 16 a LP saía 1,6× maior (h1 60,8 px em vez de 38), preço e botão fora da primeira tela do celular — LCP e texto acima da dobra mudam com isso |
 | **Sem `<style>`/`<link>` em cascata sobre o tema**: o CSS do autor é escopado ao `.dvf-page`; o do tema não entra no `[data-dvf-raw]`. | `scopeCss`, `GEOMETRY_SAFE_RESET` | Shopify: "animate with transform/opacity" (não regra de peso, de correção) |
 
 ## 2. O que fica com o autor — e o aviso que o editor dá
@@ -88,3 +89,14 @@ checkout desta página e fica; o CSS "não usado" de 14 KB e o `COUNTRIES-CO.js`
 - CLS que aparece do nada depois de uma mudança de fonte é troca de fonte (`display=swap`).
 - Medir o que está no ar, não o que está no repositório: em 22/09 a página no ar tinha a
   LP com `display=swap` e o `<link>` bloqueante — a versão corrigida estava só no repo.
+- **Comparar com outra loja só depois de ler o tema dela.** A mesma LP no PageFly
+  (ofertascolombianas.shop) dava 95 fixo enquanto a nossa (snevy.co) oscilava 68–95. Lido o
+  HTML dela: o tema tem no `<head>` um `<div id="fv-loading-icon">` com um glifo de 190vw e
+  `opacity:0.0001` — para o Lighthouse ele É o LCP, pintado junto com o FCP — e scripts
+  empacotados que reconhecem o user-agent do Lighthouse e se desligam no laboratório. Sem o
+  chamariz, a página dela mede FCP 1,8 s / LCP 3,2 s, pior que a nossa. Não é referência
+  de desempenho; é referência do que não fazer (um LCP que o visitante não vê é 96 com
+  `NO_LCP` de outro jeito).
+- A oscilação da nossa nota entre corridas com o MESMO HTML é do laboratório (simulação
+  Lantern + os scripts que a Shopify injeta por loja: wpm, trekkie, perf-kit, apps). Mediana
+  de 3 corridas, nunca uma.

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import { compile } from '../src/compile.ts';
 import { StyleSheet } from '../src/css.ts';
-import { optimizeHtml, scopeCss } from '../src/html-optimize.ts';
+import { authorRootPx, optimizeHtml, scopeCss, themeRootPx } from '../src/html-optimize.ts';
 import type { Doc } from '../src/schema.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -87,6 +87,65 @@ test('rem inside a string or a url is not a length', () => {
   assert.match(result.html, /url\(3rem\.png\)/);
   assert.match(result.html, /content:"2rem"/);
   assert.equal(result.stats.remRebased, 0);
+});
+
+// --- the rem base comes from the store theme when the author says nothing ---
+
+test("the theme's root font-size is what a rem is worth when the author is silent", () => {
+  // The defect of 22/09: `3.8rem` meant 38px on the theme the page was
+  // designed in (root 10px); rebased at 16px it shipped at 60.8px.
+  const sheet = new StyleSheet();
+  const result = optimizeHtml('<style>.h{font-size:3.8rem}</style><p class="h">x</p>', {
+    sheet,
+    scope: 'dvf-page',
+    rootPx: 10,
+  });
+  assert.match(result.html, /font-size:38px/);
+  assert.equal(result.stats.remRebased, 1);
+});
+
+test("the author's own root wins over the theme's", () => {
+  const sheet = new StyleSheet();
+  const result = optimizeHtml('<style>html{font-size:20px}.h{font-size:2rem}</style><p class="h">x</p>', {
+    sheet,
+    scope: 'dvf-page',
+    rootPx: 10,
+  });
+  assert.match(result.html, /font-size:40px/);
+});
+
+test('authorRootPx reads %, px, em and pt, and falls back when nothing is declared', () => {
+  assert.equal(authorRootPx('html{font-size:62.5%}'), 10);
+  assert.equal(authorRootPx(':root{font-size:14px}'), 14);
+  assert.equal(authorRootPx('html{font-size:.75em}'), 12);
+  assert.equal(authorRootPx('html{font-size:12pt}'), 16);
+  assert.equal(authorRootPx('.h{font-size:2rem}'), 16);
+  assert.equal(authorRootPx('.h{font-size:2rem}', 10), 10);
+  // `.foo html{}` is not the root; the last root declaration wins.
+  assert.equal(authorRootPx('.foo html{font-size:50%} html{font-size:62.5%} :root{font-size:75%}'), 12);
+});
+
+test("themeRootPx resolves Dawn's calc(var(--font-body-scale) * 62.5%) across sources", () => {
+  const baseCss = 'html{box-sizing:border-box;font-size:calc(var(--font-body-scale) * 62.5%);height:100%}';
+  const settings = ':root{--font-body-family:Assistant,sans-serif;--font-body-scale:1.0;--font-heading-scale:1.2}';
+  assert.equal(themeRootPx([baseCss, settings]), 10);
+  assert.equal(themeRootPx([baseCss, settings.replace('1.0', '1.1')]), 11);
+  // The variable may sit in a later source than the rule that uses it.
+  assert.equal(themeRootPx(['html{font-size:calc(var(--font-body-scale)*62.5%)}', settings]), 10);
+  // A theme that says nothing, or whose variable is missing: the browser default.
+  assert.equal(themeRootPx(['body{margin:0}']), 16);
+  assert.equal(themeRootPx([baseCss]), 16);
+  assert.equal(themeRootPx([]), 16);
+});
+
+test('the compile option reaches pasted HTML and is reported in the stats', () => {
+  const doc = docWith('<style>.h{font-size:3.8rem}</style><h1 class="h">x</h1><a href="/x">cta</a>');
+  const themed = compile(doc, { rootPx: 10 });
+  assert.match(themed.html, /font-size:38px/);
+  assert.equal(themed.stats.rootPx, 10);
+  const plain = compile(doc);
+  assert.match(plain.html, /font-size:60.8px/);
+  assert.equal(plain.stats.rootPx, 16);
 });
 
 // --- scoping author CSS ----------------------------------------------------

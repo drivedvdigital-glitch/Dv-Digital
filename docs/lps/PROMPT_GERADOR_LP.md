@@ -83,6 +83,11 @@ LAYOUT E MOVIMENTO
 17. Sem rolagem horizontal: max-width:100% em imagens e mídia; um letreiro/marquee usa
     overflow:hidden no contêiner. Alvos de toque com pelo menos 44×44 px. Texto do corpo
     com pelo menos 16 px no celular.
+    Tamanhos em px, não em rem: o trecho vai viver dentro do tema da loja, e é o tema que
+    decide quanto vale 1rem (nos temas da Shopify, 10 px — não os 16 px do navegador). Se
+    usar rem mesmo assim, declare no seu <style> a raiz em que desenhou
+    (html{font-size:62.5%} para 1rem = 10 px), e o D&VFly converte cada rem para os px
+    que você quis.
 18. Sticky bar (barra fixa de compra), se houver, no fim do trecho, position:fixed,
     aparecendo por classe adicionada no scroll — não por setInterval.
 

@@ -364,7 +364,13 @@ export async function action({ request }: ActionFunctionArgs) {
   if (raw.length > PREVIEW_INPUT_LIMIT) {
     return Response.json({ error: 'Documento grande demais para pré-visualizar.' }, { status: 413 });
   }
-  let body: { doc?: Doc; html?: string; chrome?: boolean; productSections?: 'above' | 'below' | null };
+  let body: {
+    doc?: Doc;
+    html?: string;
+    chrome?: boolean;
+    productSections?: 'above' | 'below' | null;
+    rootPx?: unknown;
+  };
   try {
     body = JSON.parse(raw);
   } catch {
@@ -374,8 +380,16 @@ export async function action({ request }: ActionFunctionArgs) {
     version: 1,
     root: [{ id: 'html', type: 'html', props: { html: body.html ?? '' } }],
   };
+  // What the store theme makes a `rem` worth — the editor read it from the
+  // theme and sends it along, so the canvas and the published page rebase
+  // pasted HTML on the same number (I1). Anything outside a sane root size
+  // (a typo, a hostile client) falls back to the browser default.
+  const rootPx =
+    typeof body.rootPx === 'number' && Number.isFinite(body.rootPx) && body.rootPx >= 4 && body.rootPx <= 64
+      ? body.rootPx
+      : undefined;
 
-  const compiled = compile(doc, { nodeIds: true, editorHints: true });
+  const compiled = compile(doc, { nodeIds: true, editorHints: true, rootPx });
 
   // Editor-only framing, never part of the compiled page: the theme's header
   // and footer as gray placeholders (so the page is seen inside its real

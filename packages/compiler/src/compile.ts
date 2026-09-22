@@ -26,7 +26,7 @@ import {
 } from './blocks.ts';
 import { CLASS_PREFIX, StyleSheet } from './css.ts';
 import { tag } from './html.ts';
-import { optimizeHtml } from './html-optimize.ts';
+import { DEFAULT_ROOT_PX, optimizeHtml } from './html-optimize.ts';
 import { isHeroCandidate, isPreloadable, type LcpImage } from './images.ts';
 import { validate, type Doc, type Node } from './schema.ts';
 
@@ -58,6 +58,8 @@ export interface CompileResult {
       /** The first image on the page — fetched first, never lazy — or null. */
       lcp: string | null;
     };
+    /** What a `rem` in pasted HTML was worth in this build (see `CompileOptions.rootPx`). */
+    rootPx: number;
   };
   /** Problems found in author-written HTML while compiling. */
   findings: Finding[];
@@ -78,6 +80,13 @@ export interface CompileOptions {
    * fixes them. Published output still emits nothing for those blocks.
    */
   editorHints?: boolean;
+  /**
+   * What a `rem` in pasted HTML is worth when the author's CSS does not say:
+   * the root font-size of the store's theme, where the page was designed and
+   * approved. Default: the browser's 16px. Preview and publish must pass the
+   * same value (I1), or the canvas shows one page and the visitor another.
+   */
+  rootPx?: number;
 }
 
 export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
@@ -153,6 +162,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
         sheet,
         scope: `${CLASS_PREFIX}-page`,
         claimImage: ctx.claimImage,
+        rootPx: options.rootPx,
       });
       findings.push(...result.findings);
       htmlOptimization.inlineStylesKept += result.stats.inlineStylesKept;
@@ -301,6 +311,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       bytes,
       htmlOptimization,
       images: { total: imageOrdinal, responsive: imagesResponsive, lcp: hero?.src ?? null },
+      rootPx: options.rootPx ?? DEFAULT_ROOT_PX,
     },
     findings,
   };

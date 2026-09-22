@@ -2446,6 +2446,57 @@ CSS de terceiro.
 
 Testes: compilador 84, Shopify 47, app 38; typecheck limpo.
 
+### "Mesmo código, 95 no PageFly e 68 no D&VFly" — o que os agentes acharam, e o defeito nosso (22/09, noite)
+
+A mesma LP publicada nas duas ferramentas, medida à mesma hora: 95 estável lá
+(ofertascolombianas.shop), 68 aqui (snevy.co). Três agentes, três perguntas fechadas, e a
+resposta honesta é: **duas das três diferenças não são nossas; a terceira era.**
+
+**1. O 95 dela é do tema, não da ferramenta.** No `<head>` da loja do PageFly há um
+`<div id="fv-loading-icon">` com um glifo de 190vw e `opacity:0.0001`: para o Lighthouse ele
+é o maior elemento pintado, e pinta junto com o primeiro texto — LCP = FCP, sempre. Os
+scripts empacotados do tema ainda reconhecem o user-agent do Lighthouse e se desligam no
+laboratório. Reproduzido no Chromium daqui: **sem** o chamariz, a página dela dá FCP 1,8 s e
+LCP 3,2 s — pior que a nossa. Não copiamos isso (é o 96 com `NO_LCP` de 21/09 com outra
+roupa: uma nota que o visitante não sente).
+
+**2. `preload` + `fetchpriority` do herói: hipótese testada e rejeitada.** Um agente mediu as
+quatro combinações; em todas o herói termina 0,3–0,65 s depois do FCP (a rede é a fila, não
+a prioridade), e `preload` sem `fetchpriority` cai para prioridade Low e piora. Fica como
+está: preload com `fetchpriority="high"`, nunca um sem o outro.
+
+**3. A oscilação (95 → 64 com o mesmo HTML) é do laboratório**: simulação Lantern sobre uma
+observação sem limite, mais o que a Shopify injeta por loja e por hora (wpm, trekkie,
+perf-kit, EasySell, sincronização do canal Shop). Regra: mediana de 3 corridas.
+
+**O defeito nosso: a base do `rem`.** O compilador convertia cada `rem` do HTML colado a
+16 px (a raiz do navegador). O tema da loja diz `html{font-size:calc(var(--font-body-scale)
+* 62.5%)}` — 1rem = 10 px — e foi nesse tema que a LP foi desenhada e aprovada. Resultado
+medido em 412 px de largura: h1 com 60,8 px em vez de 38, herói começando em 423 px em vez
+de 265, **preço e botão de comprar fora da primeira tela**. Tudo 1,6× maior que o aprovado.
+Conserto:
+
+- `themeRootPx(sources)` lê a raiz do tema (variáveis coletadas de todas as fontes,
+  `calc(var(--x) * 62.5%)` resolvido; sem declaração, 16); `authorRootPx(css, fallback)`
+  continua dando a vez ao autor que declara `html{font-size:…}`.
+- `readThemeStyle` passou a baixar as folhas do tema (paralelo, 6 s, 256 KB cada, uma vez a
+  cada 10 min) e devolve `rootPx`; o editor manda esse número no pedido de preview
+  (`/api/preview` aceita 4–64, fora disso ignora), o loader, o `/preview/:id` e a publicação
+  compilam com o mesmo `readThemeStyle(storeForThemeStyle(loja aberta))` (I1). Barra de
+  status: "1 rem = 10 px, como no tema da loja", só quando há `rem` convertido e a raiz não
+  é 16.
+- Prompt do gerador ganhou a regra (item 17): tamanhos em px; se usar rem, declare a raiz.
+
+Dirigido contra a loja de verdade (`drive-rem.mjs`, rede real pelo proxy): `/api/theme-style`
+lê 4 folhas de snevy.co e responde `rootPx: 10`; o SSR do editor, o pedido de preview, a
+barra de status e o `/preview/:id` saem com 38 px; no canvas, com o tema por cima, o h1 mede
+38 px e o parágrafo 16 px; autor com `html{font-size:20px}` ganha (2rem = 40 px); `rootPx:
+1000` cai no 16. 8/8. Testes: compilador 89, Shopify 47, app 38; typecheck limpo.
+
+O que continua na mão do lojista para a nota subir de verdade: apagar o pixel `GTM-000000`
+no EasySell, colar a LP mais nova, trocar os 7 placeholders por foto real, publicar e medir
+3× no celular.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
