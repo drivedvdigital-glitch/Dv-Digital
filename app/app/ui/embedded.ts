@@ -40,10 +40,26 @@ export function forgetUrlToken(): void {
 }
 
 export function openWithToken(path: string): void {
-  const tab = window.open('', '_blank', 'noopener');
+  // No `noopener` here: with it `window.open` returns null by design, so the
+  // tab could never be pointed anywhere — it stayed `about:blank` and the
+  // fallback below navigated the app's OWN frame, putting the preview inside
+  // the admin (22/09). The link to the opener is cut by hand instead.
+  const tab = window.open('', '_blank');
+  if (tab) {
+    tab.opener = null;
+    try {
+      tab.document.write('<p style="font:14px system-ui;padding:24px">Abrindo…</p>');
+    } catch {
+      // A tab we cannot write into still navigates below.
+    }
+  }
   const go = (url: string) => {
-    if (tab) tab.location.replace(url);
-    else window.location.assign(url);
+    if (tab && !tab.closed) tab.location.replace(url);
+    // No tab (blocked): outside the admin the page opens here; inside it,
+    // never — the admin's frame is the app, and the preview must not
+    // replace it. One more try at a tab is all that is safe.
+    else if (window.top === window) window.location.assign(url);
+    else window.open(url, '_blank');
   };
   const mint = window.shopify?.idToken;
   if (!mint) {

@@ -17,7 +17,7 @@
  */
 
 import { escapeText, safeUrl, tag } from './html.ts';
-import { responsiveImage } from './images.ts';
+import { responsiveImage, type ImageClaim, type ImageRole } from './images.ts';
 import type { Node } from './schema.ts';
 
 export interface RenderContext {
@@ -47,12 +47,13 @@ export interface RenderContext {
   /** Runs author-written markup through the optimization pass. */
   optimizeHtml: (source: string) => string;
   /**
-   * Registers an image in page order and says whether it is the first one —
-   * the LCP candidate, which the page fetches before anything else. Counted
-   * across blocks, because "first on the page" is a page-level fact that no
-   * single block can know.
+   * Registers an image in page order and says what it is to the page: the
+   * hero (the LCP candidate, fetched before anything else), something before
+   * the hero (a logo, a badge — above the fold, so never lazy) or something
+   * after it (lazy). Decided across blocks, because "the first big image on
+   * the page" is a page-level fact that no single block can know.
    */
-  claimImage: (image: { src: string; srcset?: string; sizes?: string }) => { first: boolean };
+  claimImage: (image: ImageClaim) => { role: ImageRole };
 }
 
 export type RuntimeModule = 'countdown' | 'reveal' | 'tabs' | 'contact';
@@ -81,7 +82,7 @@ export const ANIMATIONS = ['fade', 'rise', 'zoom'] as const;
 export const TABS_CSS = `.dvf-tabs-list{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;padding:0}
 .dvf-tab-btn{border:1px solid #d0d0d0;background:#fff;color:#17201c;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit;font-size:14px}
 .dvf-tab-btn[aria-selected="true"]{background:#17201c;color:#fff;border-color:#17201c}
-.dvf-tab-panel[hidden]{display:none}`;
+[data-dvf-tab-panel][hidden]{display:none}`;
 
 /**
  * Sections below the first one skip layout and paint until they are about to
@@ -150,10 +151,11 @@ const image: Renderer = (node, ctx) => {
   const srcset = authorSrcset ?? responsive?.srcset;
   const sizes = srcset ? (authorSizes ?? responsive?.sizes ?? '100vw') : undefined;
 
-  // The first image on the page is the LCP candidate: fetched first, never
-  // lazy. `eager` lets the author say so about any other one.
-  const { first } = ctx.claimImage({ src: finalSrc, srcset, sizes });
-  const eager = first || prop(node, 'eager', false);
+  // The page's first big image is the LCP candidate: fetched first, never
+  // lazy. Whatever comes before it (a logo) is above the fold too, so not
+  // lazy either. `eager` lets the author say so about any other one.
+  const { role } = ctx.claimImage({ src: finalSrc, srcset, sizes, width });
+  const eager = role !== 'after-hero' || prop(node, 'eager', false);
 
   return tag('img', {
     ...ctx.baseAttrs(node),
@@ -166,7 +168,7 @@ const image: Renderer = (node, ctx) => {
     width,
     height,
     loading: eager ? undefined : 'lazy',
-    fetchpriority: first ? 'high' : undefined,
+    fetchpriority: role === 'hero' ? 'high' : undefined,
     decoding: 'async',
   });
 };

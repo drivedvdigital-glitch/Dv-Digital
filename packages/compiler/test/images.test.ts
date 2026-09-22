@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import { audit } from '../src/audit.ts';
 import { compile } from '../src/compile.ts';
 import { StyleSheet } from '../src/css.ts';
-import { optimizeHtml } from '../src/html-optimize.ts';
+import { optimizeHtml, type OptimizeOptions } from '../src/html-optimize.ts';
 import {
   cdnWidth,
   isAuthorSized,
@@ -28,8 +28,8 @@ import type { Doc } from '../src/schema.ts';
 const SHARED = 'https://cdn.shopify.com/s/files/1/0854/7686/8338/files/clean-2_galeria.webp?v=1790014608';
 const SHOP = '//snevy.co/cdn/shop/files/foto.jpg?v=123';
 
-const run = (html: string, imageOffset = 0) =>
-  optimizeHtml(html, { sheet: new StyleSheet(), scope: 'dvf-page', imageOffset });
+const run = (html: string, claimImage?: OptimizeOptions['claimImage']) =>
+  optimizeHtml(html, { sheet: new StyleSheet(), scope: 'dvf-page', claimImage });
 
 // --- the CDN helper ---------------------------------------------------------
 
@@ -105,10 +105,33 @@ test('a pasted CDN image leaves with src/srcset/sizes; the first one is the LCP 
 });
 
 test('an image the page already counted before this block is not crowned hero twice', () => {
-  const r = run(`<img src="${SHARED}" alt="">`, 3);
+  const r = run(`<img src="${SHARED}" alt="">`, () => ({ role: 'after-hero' }));
   assert.match(r.html, /loading="lazy"/);
   assert.doesNotMatch(r.html, /fetchpriority/);
   assert.equal(r.stats.firstImage, null);
+});
+
+test('a small image first (a logo, a badge) is not the hero: the first big one is, and the logo is not lazy', () => {
+  const r = run(
+    `<img src="${SHARED}" alt="Logo" width="120" height="40">` +
+      `<img src="data:image/svg+xml,%3Csvg%3E" alt="Selo" width="600" height="200">` +
+      `<img src="${SHARED}" alt="Hero" width="1200" height="800">` +
+      `<img src="${SHARED}" alt="Depois" width="1200" height="800">`,
+  );
+  const [logo, badge, hero, after] = r.html.match(/<img[^>]*>/g)!;
+  assert.doesNotMatch(logo, /loading=|fetchpriority/, 'above the fold, before the hero: eager, not the LCP');
+  assert.doesNotMatch(badge, /loading=|fetchpriority/, 'an inline placeholder can never be the hero');
+  assert.match(hero, /fetchpriority="high"/);
+  assert.doesNotMatch(hero, /loading=/);
+  assert.match(after, /loading="lazy"/);
+  assert.match(r.stats.firstImage!.src, /clean-2_galeria/);
+  assert.match(r.stats.firstImage!.sizes!, /1200px/);
+});
+
+test('SVG and GIF on the CDN get no srcset: the CDN does not resize them', () => {
+  assert.equal(responsiveImage('https://cdn.shopify.com/s/files/1/0001/files/logo.svg?v=1'), null);
+  assert.equal(responsiveImage('https://cdn.shopify.com/s/files/1/0001/files/anim.gif'), null);
+  assert.ok(responsiveImage('https://cdn.shopify.com/s/files/1/0001/files/foto.gif.jpg'), 'only the real extension counts');
 });
 
 test("a pasted srcset of the author's own is respected untouched", () => {
@@ -126,6 +149,23 @@ test('a placeholder image in pasted HTML is an error the editor can show', () =>
 });
 
 // --- the whole page ----------------------------------------------------------
+
+test('the hero is a fact about the page: a logo block first, the hero in the HTML after it', () => {
+  const result = compile({
+    version: 1,
+    root: [
+      { id: 'logo', type: 'image', props: { src: SHOP, alt: 'Logo', width: 160, height: 48 } },
+      { id: 'h', type: 'html', props: { html: `<img src="${SHARED}" alt="Hero" width="1000" height="1000">` } },
+      { id: 'i', type: 'image', props: { src: SHOP, alt: 'Depois', width: 800, height: 600 } },
+    ],
+  });
+  const [logo, hero, after] = result.html.match(/<img[^>]*>/g)!;
+  assert.doesNotMatch(logo, /loading=|fetchpriority/);
+  assert.match(hero, /fetchpriority="high"/);
+  assert.match(after, /loading="lazy"/);
+  assert.match(result.stats.images.lcp!, /clean-2_galeria/);
+  assert.match(result.html, /^<div class="dvf-page"><link rel="preload" as="image" href="[^"]*clean-2_galeria/);
+});
 
 test('"first image" is a fact about the page: the counter runs across blocks', () => {
   const doc: Doc = {

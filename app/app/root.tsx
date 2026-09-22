@@ -60,8 +60,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
           data-api-key={data?.clientId || undefined}
         />
-        {/* Polaris web components: the admin look, without the deprecated React package. */}
-        <script src="https://cdn.shopify.com/shopifycloud/polaris.js" type="module" />
+        {/* Polaris web components are loaded by the error screen alone (the
+            only place that uses them): 100 KB gzipped of script on every
+            page load, competing with the editor on a phone, for a screen
+            that is not on the page. */}
         {/*
           ui-nav-menu holds the links App Bridge mirrors into the admin sidebar.
           Outside the admin App Bridge never registers the element, which would
@@ -113,9 +115,12 @@ export function ErrorBoundary() {
   // wrong, and a reload is the whole fix — so the screen says that, not
   // "Failed to fetch".
   const offline = error instanceof Error && /failed to fetch|networkerror|load failed|network request failed/i.test(error.message);
+  // The admin look for this screen alone — see the note in Layout.
+  const polaris = <script src="https://cdn.shopify.com/shopifycloud/polaris.js" type="module" />;
   if (offline) {
     return (
       <s-page heading="Sem conexão com o servidor do DVFly">
+        {polaris}
         <s-banner tone="warning" heading="O navegador não conseguiu falar com o servidor">
           <s-paragraph>
             Isso acontece quando o túnel cai ou muda de endereço, ou quando o servidor está
@@ -138,6 +143,7 @@ export function ErrorBoundary() {
 
   return (
     <s-page heading="Algo deu errado">
+      {polaris}
       <s-banner tone="critical" heading={message}>
         <s-paragraph>
           Manda um print desta tela inteira — o texto abaixo diz exatamente o que falhou.

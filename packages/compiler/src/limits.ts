@@ -22,5 +22,11 @@ export const TEMPLATE_LIMIT_BYTES = 256 * 1024;
  */
 export const PAGE_BODY_LIMIT_BYTES = 64 * 1024;
 
-/** Our own target, well below both ceilings, so complex pages keep headroom. */
+/**
+ * Our own target: past it a page is heavy for a phone even where Shopify
+ * still accepts it (the two ceilings above are Shopify's; this one is ours).
+ * The editor's status bar says so, the CLI report measures against it. Raw
+ * bytes — gzip takes a landing page to roughly a fifth, but the parser and
+ * the memory of a cheap phone see the raw size.
+ */
 export const BUDGET_BYTES = 100 * 1024;

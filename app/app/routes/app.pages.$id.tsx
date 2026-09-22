@@ -8,10 +8,11 @@ import {
   useNavigation,
   useSubmit,
 } from 'react-router';
-import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
+import type { ActionFunctionArgs, LoaderFunctionArgs, ShouldRevalidateFunctionArgs } from 'react-router';
 
 import { COMPILER_VERSION, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
 import {
+  BUDGET_BYTES,
   PAGE_BODY_LIMIT_BYTES,
   SOLO_SUFFIX,
   TEMPLATE_LIMIT_BYTES,
@@ -77,11 +78,15 @@ import {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { shop } = await requireShop(request);
-  const page = await db.page.findUniqueOrThrow({
-    where: { id: params.id },
-    include: { deployments: { include: { store: true } }, productLinks: { orderBy: { createdAt: 'asc' } } },
-  });
-  const stores = await db.store.findMany({ orderBy: { isProduction: 'asc' } });
+  // Independent queries, one round trip: on a remote Postgres each await is
+  // tens of milliseconds the person waits for the editor to appear.
+  const [page, stores] = await Promise.all([
+    db.page.findUniqueOrThrow({
+      where: { id: params.id },
+      include: { deployments: { include: { store: true } }, productLinks: { orderBy: { createdAt: 'asc' } } },
+    }),
+    db.store.findMany({ orderBy: { isProduction: 'asc' } }),
+  ]);
   const doc = JSON.parse(page.doc) as Doc;
   const compiled = compile(doc);
 
@@ -139,6 +144,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     stats: compiled.stats,
     findings: compiled.findings,
   };
+}
+
+/**
+ * A plain save changes nothing the loader reports (the screen keeps its own
+ * copy of the document and the settings), so re-running three queries, a
+ * compile and a 60 KB download after every Ctrl+S is work nobody sees.
+ * Publishing, unpublishing and product links do change what the loader
+ * says, and revalidate as usual.
+ */
+export function shouldRevalidate({ formData, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) {
+  if (formData?.get('intent') === 'save') return false;
+  return defaultShouldRevalidate;
 }
 
 /**
@@ -725,17 +742,28 @@ export default function PageEditor() {
   const [themeTick, setThemeTick] = useState(0);
   const [themeStyle, setThemeStyle] = useState<ThemeStyleData | null>(null);
   const themeStyleRef = useRef<ThemeStyleData | null>(null);
+  // The first canvas write waits for the theme (briefly): written before it,
+  // the page would be built twice — once bare, once again with the theme a
+  // moment later — and the bare one is a flash of the wrong page. A theme
+  // that takes longer than the cap is not worth a blank canvas, though.
+  const [themeReady, setThemeReady] = useState(false);
   useEffect(() => {
+    const cap = setTimeout(() => setThemeReady(true), 1500);
     fetch(`/api/theme-style${shop ? `?shop=${encodeURIComponent(shop)}` : ''}`)
       .then((r) => r.json())
       .then((style: ThemeStyleData) => {
         themeStyleRef.current = style;
         setThemeStyle(style);
-        // The canvas already on screen was written without the theme; rewrite
-        // it by nudging the preview effect (the document is rebuilt there).
+        // A canvas already on screen (the cap fired first) was written without
+        // the theme; rewrite it by nudging the preview effect.
         setThemeTick((tick) => tick + 1);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(cap);
+        setThemeReady(true);
+      });
+    return () => clearTimeout(cap);
   }, []);
 
   // Page settings travel as controlled state + hidden inputs, so they reach
@@ -982,26 +1010,37 @@ export default function PageEditor() {
   // bytes that get published (I1). The editor build adds node id stamps and the
   // selection bridge; published output carries neither.
   useEffect(() => {
+    if (!themeReady) return;
     // A newer edit cancels this one: whatever this request brings back is
-    // stale by then and must not overwrite the canvas or the numbers.
+    // stale by then and must not overwrite the canvas or the numbers — and
+    // the upload itself is aborted, so a slow uplink is not kept busy
+    // sending documents nobody will look at.
     let stale = false;
+    const controller = new AbortController();
+    const body = JSON.stringify({
+      doc,
+      // Bare: nothing of the theme is drawn, because nothing of it is published.
+      chrome: showChrome && !bare,
+      // Where the theme's own product sections sit relative to our content.
+      productSections: pageType === 'product' && !bare ? (productContentAbove ? 'below' : 'above') : null,
+    });
+    // A big document (a pasted landing page) is where people type fastest
+    // and where each rebuild of the canvas costs most; it waits a bit longer
+    // for the typing to pause.
+    const delay = body.length > 30_000 ? 600 : 250;
     const timer = setTimeout(async () => {
       let payload: { fragment?: string; stats?: PreviewStats; findings?: { message: string }[]; error?: string };
       try {
         const response = await fetch(`/api/preview/${data.page.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            doc,
-            // Bare: nothing of the theme is drawn, because nothing of it is published.
-            chrome: showChrome && !bare,
-            // Where the theme's own product sections sit relative to our content.
-            productSections: pageType === 'product' && !bare ? (productContentAbove ? 'below' : 'above') : null,
-          }),
+          body,
+          signal: controller.signal,
         });
         payload = await response.json();
         if (!response.ok) payload.stats = undefined;
       } catch {
+        if (controller.signal.aborted) return;
         payload = { error: 'Sem resposta do servidor de pré-visualização.' };
       }
       if (stale) return;
@@ -1034,13 +1073,14 @@ export default function PageEditor() {
           '*',
         );
       }
-    }, 250);
+    }, delay);
     return () => {
       stale = true;
+      controller.abort();
       clearTimeout(timer);
     };
     // `themeTick` re-renders the canvas once the theme's styling arrives.
-  }, [doc, data.page.id, showChrome, pageType, productContentAbove, bare, themeTick]);
+  }, [doc, data.page.id, showChrome, pageType, productContentAbove, bare, themeTick, themeReady]);
 
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
@@ -1567,6 +1607,13 @@ export default function PageEditor() {
           Total {kb(live.stats.bytes.total)} ·{' '}
           {((live.stats.bytes.total / (pageType === 'product' ? TEMPLATE_LIMIT_BYTES : PAGE_BODY_LIMIT_BYTES)) * 100).toFixed(1)}%
           do teto da Shopify ({pageType === 'product' ? `${kb(TEMPLATE_LIMIT_BYTES)}, seção do tema` : `${kb(PAGE_BODY_LIMIT_BYTES)}, corpo da página`})
+          {live.stats.bytes.total > BUDGET_BYTES ? (
+            // Shopify's ceiling is not the visitor's: above our own budget the
+            // page is heavy for a phone long before Shopify refuses it.
+            <span style={{ color: 'var(--dv-warning-ink, #8a6116)' }} data-budget-warning>
+              {' '}· pesada para celular: acima de {kb(BUDGET_BYTES)}
+            </span>
+          ) : null}
           · {live.stats.cssRules} regras de CSS
           {live.stats.images && live.stats.images.total > 0 ? (
             // Counted from the compiled page, blocks and pasted HTML alike.

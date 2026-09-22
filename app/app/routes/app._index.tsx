@@ -29,16 +29,21 @@ import {
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { shop } = await requireShop(request);
-  const pages = await db.page.findMany({
-    orderBy: { updatedAt: 'desc' },
-    include: {
-      deployments: { include: { store: true } },
-      // Contados por loja, não no total: uma página de produto ligada a 3
-      // produtos na Colômbia e a nenhum na Hungria mostrava "3" nas duas.
-      productLinks: { select: { storeId: true } },
-    },
-  });
-  const stores = await db.store.findMany({ orderBy: { createdAt: 'asc' } });
+  const [pages, stores] = await Promise.all([
+    db.page.findMany({
+      orderBy: { updatedAt: 'desc' },
+      // The list never shows a document, and a landing page is 60 KB of it:
+      // thirty pages would put nearly 2 MB into every load of this screen.
+      omit: { doc: true },
+      include: {
+        deployments: { include: { store: true } },
+        // Contados por loja, não no total: uma página de produto ligada a 3
+        // produtos na Colômbia e a nenhum na Hungria mostrava "3" nas duas.
+        productLinks: { select: { storeId: true } },
+      },
+    }),
+    db.store.findMany({ orderBy: { createdAt: 'asc' } }),
+  ]);
   const aqui = stores.find((s) => s.domain === shop) ?? null;
   // Only what the list shows — never a store's token or credentials.
   return {

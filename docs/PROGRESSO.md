@@ -2339,6 +2339,68 @@ duas: ler tudo, depois escrever tudo (`docs/lps/mini-plancha-lp.html`). Precisa 
 **"Mais de quatro preconnect"**: no HTML há 3 (o nosso ao CDN e os 2 das fontes da LP) + 1
 `dns-prefetch` da Shopify; os demais são inseridos por script de terceiros.
 
+### Auditoria por agentes: o que no D&VFly ainda pesava (22/09)
+
+Dois agentes leram o código inteiro em paralelo — um o caminho da página publicada, outro o
+editor — com a ordem de apontar `arquivo:linha`, custo e conserto mínimo, e de dizer o que é
+desprezível. O que passou no filtro e foi feito:
+
+**Página publicada** (`packages/compiler`):
+- **A imagem principal não é "a primeira", é a primeira grande.** A regra antiga coroava a
+  primeira `<img>` do documento como LCP: um logotipo ou selo antes do herói ficava com
+  `fetchpriority` e o herói de verdade ia de `loading="lazy"` — a falha de campo de 21/09 de
+  novo, em silêncio. Agora: a primeira imagem com largura ≥ 300 px (ou sem largura declarada)
+  que não seja `data:` é o herói; o que vem antes dela é acima da dobra (nunca lazy, sem
+  prioridade); o que vem depois espera. Uma decisão para a página inteira, blocos e HTML
+  colado juntos (`claimImage` passa do compilador para o otimizador de HTML).
+- **SVG e GIF do CDN sem `srcset`**: o CDN não redimensiona nenhum dos dois; eram nove URLs
+  do mesmo arquivo por imagem.
+- **Barra de status avisa "pesada para celular"** acima de 100 KB brutos — o teto da Shopify
+  (256 KB) não é o do visitante, e a barra só falava dele.
+- Correção pequena: a regra `.dvf-tab-panel[hidden]` nunca casava (o painel tem
+  `data-dvf-tab-panel`, não a classe).
+- Verificado limpo, sem mudança: zero resíduo de editor na página no ar, preload e `<img>`
+  com os mesmos candidatos (sem download duplo), `fetchpriority` em exatamente uma imagem,
+  layout mínimo sem nada bloqueante. Fica anotado para quando o bloco for usado: o YouTube
+  ainda carrega o embed inteiro ao rolar (fachada com poster é o próximo passo).
+
+**Editor** (`app/`):
+- **"Pré-visualizar" abria aba em branco e a página aparecia dentro do admin** (relato do
+  Miguel, 09:47). Causa: `window.open('', '_blank', 'noopener')` devolve **null** por
+  definição quando `noopener` está presente — a aba nunca recebia o endereço, e o fallback
+  navegava o frame do próprio app. Conserto: abrir sem `noopener` e cortar o `opener` à mão;
+  sem aba (bloqueador), dentro do admin tenta outra aba e **nunca** navega o frame do app.
+- **Pré-visualização**: o pedido anterior é abortado quando vem uma tecla nova (antes só era
+  ignorado: cada pausa subia o documento inteiro); HTML grande (> 30 KB) espera 600 ms em vez
+  de 250; a primeira escrita do canvas espera o CSS do tema (até 1,5 s) para não construir a
+  página duas vezes.
+- **Salvar não recarrega o loader do editor** (`shouldRevalidate`): eram 3 consultas, uma
+  compilação e o documento inteiro de novo a cada Ctrl+S. Publicar continua recarregando.
+- **Lista sem os documentos** (`omit: { doc: true }`): 30 páginas × 60 KB era ~2 MB em
+  cada abertura da lista. Consultas independentes em paralelo no loader do editor e da lista.
+- **Polaris (100 KB gzip) só na tela de erro**, único lugar que o usa. Era carregado em toda
+  página, competindo com o editor no celular.
+- Não feito, anotado: o canvas ainda é reconstruído com `document.write` a cada pausa
+  (tema + página + bridge); trocar por substituição do conteúdo exigiria reexecutar scripts
+  do autor sem acumular listeners — mudança grande, para outra entrega. E **o editor não tem
+  modo celular** (grade fixa de 52/300/1fr/340 px): num celular ele transborda; essa é a
+  causa de "lentidão" ao editar no celular, e é UX, não bytes.
+
+**Verificado**: compilador 79, Shopify 47, app 38; typecheck e build limpos; editor dirigido
+(9/9: aba de pré-visualização com token e o app parado no lugar, Polaris ausente, salvar sem
+recarregar o loader, 8 teclas num HTML grande = 1 pedido de preview, aviso de peso, lista
+sem documentos) + o roteiro do modo leve (20/20) de novo.
+
+**A medição de 64 (09:49)**: FCP 3,9 s · LCP 6,1 s · TBT 20 ms · CLS 0,135. O HTML no ar
+comparado byte a byte com o de 09:28 (o 95): **a nossa parte é idêntica**; mudou um script
+que a própria Shopify passou a injetar no início do `<head>` (`event_observer.bootstrap`) e o
+id do pedido. A LP colada ainda é a de antes do conserto do reflow (`naTela` ausente). Três
+quadros em branco no filmstrip = o servidor demorou nessa rodada (TTFB medido daqui em 5
+pedidos seguidos: 0,16 s a 0,48 s — varia 3×). O laboratório do PageSpeed varia com o
+momento; a regra passa a ser rodar 3 vezes e olhar a mediana, e o dado de campo (CrUX)
+quando houver. O CLS 0,135 apareceu com `display=optional` no ar, então não é a fonte:
+precisa do item "Causas da troca de layout" aberto para dizer qual elemento.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

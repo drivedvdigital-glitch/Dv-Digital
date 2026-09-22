@@ -28,7 +28,14 @@ import { parse, type HTMLElement as ParsedElement } from 'node-html-parser';
 
 import type { StyleSheet } from './css.ts';
 import type { Finding } from './audit.ts';
-import { placeholderHost, responsiveImage, type LcpImage } from './images.ts';
+import {
+  isHeroCandidate,
+  placeholderHost,
+  responsiveImage,
+  type ImageClaim,
+  type ImageRole,
+  type LcpImage,
+} from './images.ts';
 
 export interface OptimizeOptions {
   /** Shared stylesheet. Kept in the options so a future pass can dedupe against it. */
@@ -41,11 +48,12 @@ export interface OptimizeOptions {
    */
   eagerAttribute?: string;
   /**
-   * Images the page already emitted before this block, in document order.
-   * "The first image on the page" is a page-level fact — with two HTML blocks
-   * each would otherwise crown its own hero — so the compiler passes it in.
+   * The page's decision about each image, in document order (see
+   * `RenderContext.claimImage`). "The hero" is a page-level fact — with two
+   * HTML blocks each would otherwise crown its own — so the compiler passes
+   * its own function in. Absent, this block is the whole page.
    */
-  imageOffset?: number;
+  claimImage?: (image: ImageClaim) => { role: ImageRole };
 }
 
 export interface OptimizeResult {
@@ -364,17 +372,26 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
   // --- 3. Images: the LCP one first, the rest lazy, CDN ones sized ---------
   const images = root.querySelectorAll('img');
   stats.imagesFound = images.length;
-  images.forEach((img, index) => {
+  // Standing alone (tests, the CLI), this block is the page: the first image
+  // big enough is the hero.
+  let localHero = false;
+  const claim =
+    options.claimImage ??
+    ((image: ImageClaim): { role: ImageRole } => {
+      if (localHero) return { role: 'after-hero' };
+      if (!isHeroCandidate(image)) return { role: 'before-hero' };
+      localHero = true;
+      return { role: 'hero' };
+    });
+  images.forEach((img) => {
     let touched = false;
-    // First on the PAGE, not in this block: the offset carries what came before.
-    const first = (options.imageOffset ?? 0) + index === 0;
     const src = img.getAttribute('src') ?? '';
+    const declared = Number(img.getAttribute('width')) || undefined;
 
     // A CDN image the author did not size himself gets served at the width
     // the screen needs. His `width=` attribute (when present) caps it; his
     // own `srcset` is respected untouched.
     if (src && !img.hasAttribute('srcset')) {
-      const declared = Number(img.getAttribute('width')) || undefined;
       const responsive = responsiveImage(src, { width: declared, sizes: img.getAttribute('sizes') ?? undefined });
       if (responsive) {
         img.setAttribute('src', responsive.src);
@@ -385,16 +402,26 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
       }
     }
 
+    // Decided for the PAGE, not for this block: the hero is the first big
+    // image anywhere on it, and what precedes the hero is above the fold.
+    const { role } = claim({
+      src: img.getAttribute('src') ?? '',
+      srcset: img.getAttribute('srcset') ?? undefined,
+      sizes: img.getAttribute('sizes') ?? undefined,
+      width: declared,
+    });
+    const hero = role === 'hero';
+
     if (!img.hasAttribute('loading')) {
-      // The author marks above-the-fold images explicitly. Absent that, only
-      // the first image on the page is treated as the hero and left eager.
-      const eager = img.hasAttribute(eagerAttribute) || first;
+      // The author marks above-the-fold images explicitly; absent that, the
+      // hero and everything before it stay eager, the rest waits.
+      const eager = img.hasAttribute(eagerAttribute) || role !== 'after-hero';
       if (!eager) {
         img.setAttribute('loading', 'lazy');
         touched = true;
       }
     }
-    if (first && !img.hasAttribute('fetchpriority')) {
+    if (hero && !img.hasAttribute('fetchpriority')) {
       img.setAttribute('fetchpriority', 'high');
       touched = true;
     }
@@ -403,7 +430,7 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
       touched = true;
     }
     if (touched) stats.imagesTouched++;
-    if (first && img.getAttribute('src')) {
+    if (hero && img.getAttribute('src')) {
       stats.firstImage = {
         src: img.getAttribute('src')!,
         srcset: img.getAttribute('srcset') ?? undefined,

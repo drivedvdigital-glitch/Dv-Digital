@@ -27,7 +27,7 @@ import {
 import { CLASS_PREFIX, StyleSheet } from './css.ts';
 import { tag } from './html.ts';
 import { optimizeHtml } from './html-optimize.ts';
-import { isPreloadable, type LcpImage } from './images.ts';
+import { isHeroCandidate, isPreloadable, type LcpImage } from './images.ts';
 import { validate, type Doc, type Node } from './schema.ts';
 
 export interface CompileResult {
@@ -152,7 +152,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       const result = optimizeHtml(source, {
         sheet,
         scope: `${CLASS_PREFIX}-page`,
-        imageOffset: imageOrdinal,
+        claimImage: ctx.claimImage,
       });
       findings.push(...result.findings);
       htmlOptimization.inlineStylesKept += result.stats.inlineStylesKept;
@@ -162,17 +162,19 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       htmlOptimization.remRebased += result.stats.remRebased;
       htmlHeadings.push(...result.stats.headingLevels);
       htmlInteractive += result.stats.interactiveElements;
-      imageOrdinal += result.stats.imagesFound;
-      imagesResponsive += result.stats.imagesResponsive;
-      if (result.stats.firstImage) lcp.image = result.stats.firstImage;
       return result.html;
     },
+    // One decision for the whole page, blocks and pasted HTML alike: the
+    // first image big enough to be the main picture is the hero. What comes
+    // before it is above the fold (never lazy, but not the LCP); what comes
+    // after it waits.
     claimImage: (image) => {
-      const first = imageOrdinal === 0;
       imageOrdinal++;
       if (image.srcset) imagesResponsive++;
-      if (first) lcp.image = image;
-      return { first };
+      if (lcp.image) return { role: 'after-hero' };
+      if (!isHeroCandidate(image)) return { role: 'before-hero' };
+      lcp.image = image;
+      return { role: 'hero' };
     },
     belowFold: (node) => belowFold.has(node),
   };

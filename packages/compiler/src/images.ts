@@ -39,6 +39,44 @@ export function isShopifyCdn(url: string): boolean {
   return CDN_URL.test(url.trim());
 }
 
+/**
+ * Formats the CDN does not resize (SVG is vector; a resized GIF loses its
+ * animation). A `srcset` for them is nine URLs that all return the same
+ * file — bytes in the page for nothing.
+ */
+function isUnresizable(url: string): boolean {
+  const path = url.trim().split(/[?#]/)[0];
+  return /\.(?:svg|gif)$/i.test(path);
+}
+
+/**
+ * Narrower than this, an image is not the page's main picture: a logo, a
+ * badge, a trust icon — and a page that opens with one of those is common.
+ * Crowning it the LCP candidate would leave the real hero lazy, which is
+ * exactly the failure the field data of 21/09 showed.
+ */
+export const HERO_MIN_WIDTH = 300;
+
+/** What the page decided about an image, in document order. */
+export type ImageRole = 'hero' | 'before-hero' | 'after-hero';
+
+export interface ImageClaim {
+  src: string;
+  srcset?: string;
+  sizes?: string;
+  /** Declared width in CSS pixels, when the author gave one. */
+  width?: number;
+}
+
+/**
+ * Can this image be the hero? Not a small one, and not an inline `data:`
+ * placeholder (nothing to fetch early).
+ */
+export function isHeroCandidate(image: ImageClaim): boolean {
+  if (/^data:/i.test(image.src.trim())) return false;
+  return image.width === undefined || image.width >= HERO_MIN_WIDTH;
+}
+
 /** True when the URL already carries the author's own sizing decisions. */
 export function isAuthorSized(url: string): boolean {
   return /[?&](?:width|height|crop)=/i.test(url);
@@ -76,7 +114,7 @@ export function responsiveImage(
   options: { width?: number; sizes?: string } = {},
 ): ResponsiveImage | null {
   const url = src.trim();
-  if (!isShopifyCdn(url) || isAuthorSized(url)) return null;
+  if (!isShopifyCdn(url) || isAuthorSized(url) || isUnresizable(url)) return null;
 
   const declared = options.width && options.width > 0 ? Math.round(options.width) : undefined;
   const cap = declared ? declared * 2 : MAX_WIDTH;
