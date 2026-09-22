@@ -25,6 +25,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     pageType: page.pageType,
     showChrome: page.showChrome,
     productContentAbove: page.productContentAbove,
+    bareLayout: page.bareLayout,
     doc: JSON.parse(page.doc),
   };
 

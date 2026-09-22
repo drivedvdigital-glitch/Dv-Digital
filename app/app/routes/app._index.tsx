@@ -142,6 +142,7 @@ export async function action({ request }: ActionFunctionArgs) {
         pageType: source.pageType,
         showChrome: source.showChrome,
         productContentAbove: source.productContentAbove,
+        bareLayout: source.bareLayout,
       },
     });
     return null;
@@ -192,6 +193,7 @@ export async function action({ request }: ActionFunctionArgs) {
       pageType?: unknown;
       showChrome?: unknown;
       productContentAbove?: unknown;
+      bareLayout?: unknown;
       doc?: Doc;
     };
     try {
@@ -220,6 +222,7 @@ export async function action({ request }: ActionFunctionArgs) {
         pageType: payload.pageType === 'product' ? 'product' : 'regular',
         showChrome: payload.showChrome !== false,
         productContentAbove: payload.productContentAbove === true,
+        bareLayout: payload.bareLayout === true,
       },
     });
     return { ok: true, message: `"${page.title}" importada.` };

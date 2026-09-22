@@ -124,6 +124,8 @@ export interface ProductDeployInput {
   contentAbove?: boolean;
   /** Theme header and footer on this page (default true). */
   chrome?: boolean;
+  /** Our section alone on the minimal layout: no theme sections, CSS or JS. */
+  bare?: boolean;
   /** Product ids to point at the template, keyed by store domain. */
   productsByDomain: Record<string, string[] | undefined>;
 }
@@ -156,6 +158,7 @@ export async function deployProductPage(
       fragment: input.fragment,
       contentAbove: input.contentAbove,
       chrome: input.chrome,
+      bare: input.bare,
     });
     const products = input.productsByDomain[store.domain] ?? [];
     const failedProducts: Array<{ id: string; error: string }> = [];

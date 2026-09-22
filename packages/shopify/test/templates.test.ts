@@ -128,6 +128,23 @@ describe('composeProductTemplate', () => {
     assert.equal(JSON.parse(composeProductTemplate(themed, input)).layout, 'theme.alt');
   });
 
+  it('bare: our section alone on the minimal layout, whatever the theme or the merchant had', () => {
+    const out = JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, { ...input, bare: true }));
+    assert.equal(out.layout, 'theme.dvfly');
+    assert.deepEqual(out.order, ['dvfly']);
+    assert.deepEqual(Object.keys(out.sections), ['dvfly']);
+    assert.equal(out.sections.dvfly.type, productSectionType('cmAbC123'));
+    // Needs nothing from the theme: a theme without product.json still publishes.
+    assert.doesNotThrow(() => composeProductTemplate(null, { ...input, bare: true }));
+    // The merchant's edited copy is not consulted either — there is nothing of theirs to keep.
+    const edited = JSON.stringify({ sections: { main: { type: 'main-product' }, dvfly: { type: 'x' } }, order: ['main', 'dvfly'] });
+    assert.deepEqual(JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, { ...input, bare: true }, edited)).order, ['dvfly']);
+    // Bare off again: the theme's own product.json is the base, since the bare copy has no theme sections.
+    const back = JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, JSON.stringify(out)));
+    assert.deepEqual(back.order, ['main', 'related', 'dvfly']);
+    assert.equal(back.layout, undefined);
+  });
+
   it('falls back to the theme default when the existing copy is unreadable or empty', () => {
     assert.deepEqual(
       JSON.parse(composeProductTemplate(THEME_PRODUCT_JSON, input, '{ broken')).order,

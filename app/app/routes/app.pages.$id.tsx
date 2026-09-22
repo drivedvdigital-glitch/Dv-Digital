@@ -112,6 +112,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       pageType: page.pageType,
       showChrome: page.showChrome,
       productContentAbove: page.productContentAbove,
+      bareLayout: page.bareLayout,
     },
     doc: doc as unknown as DocTree,
     // Only what the screen needs — never a store's token or credentials.
@@ -218,6 +219,8 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   const pageType = form.get('pageType') === 'product' ? 'product' : 'regular';
   const showChrome = form.get('showChrome') !== 'off';
   const productContentAbove = form.get('productContentAbove') === 'on';
+  // Product pages only: a regular page has no theme sections to leave out.
+  const bareLayout = pageType === 'product' && form.get('bareLayout') === 'on';
 
   let doc: Doc;
   try {
@@ -245,7 +248,7 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   // later compiler change cannot rewrite what was already published (I2).
   await db.page.update({
     where: { id: pageId },
-    data: { title, handle, doc: JSON.stringify(doc), pageType, showChrome, productContentAbove },
+    data: { title, handle, doc: JSON.stringify(doc), pageType, showChrome, productContentAbove, bareLayout },
   });
   const version = await db.version.create({
     data: { pageId, doc: JSON.stringify(doc), compilerVersion: COMPILER_VERSION },
@@ -341,7 +344,7 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
       : '';
 
   if (pageType === 'product') {
-    return publishProductPage({ pageId, title, fragment, bytes: fragmentBytes, rows, versionId: version.id, productContentAbove, showChrome, allowProduction, retiredNote });
+    return publishProductPage({ pageId, title, fragment, bytes: fragmentBytes, rows, versionId: version.id, productContentAbove, showChrome, bareLayout, allowProduction, retiredNote });
   }
 
   // Each store's page from the last publish, so a renamed handle updates the
@@ -427,6 +430,7 @@ async function publishProductPage(input: {
   versionId: string;
   productContentAbove: boolean;
   showChrome: boolean;
+  bareLayout: boolean;
   allowProduction: boolean;
   retiredNote: string;
 }) {
@@ -443,6 +447,7 @@ async function publishProductPage(input: {
         fragment: input.fragment,
         contentAbove: input.productContentAbove,
         chrome: input.showChrome,
+        bare: input.bareLayout,
         productsByDomain,
       },
       { allowProduction: input.allowProduction, clientFor: clientForStore },
@@ -738,6 +743,9 @@ export default function PageEditor() {
   const [pageType, setPageType] = useState(data.page.pageType);
   const [showChrome, setShowChrome] = useState(data.page.showChrome);
   const [productContentAbove, setProductContentAbove] = useState(data.page.productContentAbove);
+  const [bareLayout, setBareLayout] = useState(data.page.bareLayout);
+  // Bare mode is a product-page thing: it only counts while the page is one.
+  const bare = pageType === 'product' && bareLayout;
 
   // "Salvar" only exists while there is something to save — the reference
   // behavior. Dirty is: the document differs from the last saved snapshot, or
@@ -983,9 +991,10 @@ export default function PageEditor() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             doc,
-            chrome: showChrome,
+            // Bare: nothing of the theme is drawn, because nothing of it is published.
+            chrome: showChrome && !bare,
             // Where the theme's own product sections sit relative to our content.
-            productSections: pageType === 'product' ? (productContentAbove ? 'below' : 'above') : null,
+            productSections: pageType === 'product' && !bare ? (productContentAbove ? 'below' : 'above') : null,
           }),
         });
         payload = await response.json();
@@ -1029,7 +1038,7 @@ export default function PageEditor() {
       clearTimeout(timer);
     };
     // `themeTick` re-renders the canvas once the theme's styling arrives.
-  }, [doc, data.page.id, showChrome, pageType, productContentAbove, themeTick]);
+  }, [doc, data.page.id, showChrome, pageType, productContentAbove, bare, themeTick]);
 
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
@@ -1182,6 +1191,7 @@ export default function PageEditor() {
       <input type="hidden" name="pageType" value={pageType} />
       <input type="hidden" name="showChrome" value={showChrome ? 'on' : 'off'} />
       <input type="hidden" name="productContentAbove" value={productContentAbove ? 'on' : 'off'} />
+      <input type="hidden" name="bareLayout" value={bareLayout ? 'on' : 'off'} />
 
       {/* ---- top bar ------------------------------------------------------ */}
       <header style={topBar}>
@@ -2029,26 +2039,52 @@ export default function PageEditor() {
                   />
                 ))}
 
-                <div style={{ ...groupLabel, marginTop: 14 }}>Posição do conteúdo</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-content-position>
+                {/* Bare mode: our section alone on the minimal layout. The two
+                    settings below it stop mattering then — they stay visible,
+                    gray, with the reason, so nobody hunts for them. */}
+                <div style={{ ...groupLabel, marginTop: 14 }}>Modo leve</div>
+                <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <input
+                    type="checkbox"
+                    data-settings="bareLayout"
+                    checked={bareLayout}
+                    onChange={(e) => setBareLayout(e.target.checked)}
+                    style={{ marginTop: 2 }}
+                  />
+                  <span>
+                    Só a página, sem o tema
+                    <span style={{ ...metaLine, display: 'block' }}>
+                      Publica num modelo mínimo do D&VFly: sem as seções de produto do tema, sem
+                      cabeçalho e rodapé, e sem o CSS e o JS que o tema carrega em toda página. Para
+                      landing page que traz tudo o que precisa (imagens, preço, botão de compra). Os
+                      apps embutidos da loja (formulário de pedido, pixels) continuam. Vale a partir
+                      da próxima publicação.
+                    </span>
+                  </span>
+                </label>
+
+                <div style={{ ...groupLabel, marginTop: 14, opacity: bare ? 0.55 : 1 }}>Posição do conteúdo</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, opacity: bare ? 0.55 : 1 }} data-content-position>
                   {[
                     { value: false, label: 'Abaixo das seções de produto do tema (imagens, preço, comprar)' },
                     { value: true, label: 'Acima das seções de produto do tema' },
                   ].map((option) => (
-                    <label key={String(option.value)} style={{ ...fieldLabel, display: 'flex', gap: 8, marginBottom: 0, cursor: 'pointer' }}>
+                    <label key={String(option.value)} style={{ ...fieldLabel, display: 'flex', gap: 8, marginBottom: 0, cursor: bare ? 'default' : 'pointer' }}>
                       <input
                         type="radio"
                         name="content-position"
                         checked={productContentAbove === option.value}
+                        disabled={bare || undefined}
                         onChange={() => setProductContentAbove(option.value)}
                       />
                       {option.label}
                     </label>
                   ))}
                 </div>
-                <div style={{ ...metaLine, marginTop: 6 }}>
-                  As seções do tema continuam lá — e dá para reordenar ou esconder qualquer uma
-                  no editor de temas da Shopify depois de publicar.
+                <div style={{ ...metaLine, marginTop: 6 }} data-content-position-note>
+                  {bare
+                    ? 'No modo leve não há seções do tema na página — a posição não se aplica.'
+                    : 'As seções do tema continuam lá — e dá para reordenar ou esconder qualquer uma no editor de temas da Shopify depois de publicar.'}
                 </div>
               </>
             ) : (
@@ -2066,19 +2102,22 @@ export default function PageEditor() {
               </label>
             )}
 
-            <div style={{ ...groupLabel, marginTop: 14 }}>Seções do tema</div>
-            <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <div style={{ ...groupLabel, marginTop: 14, opacity: bare ? 0.55 : 1 }}>Seções do tema</div>
+            <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start', opacity: bare ? 0.55 : 1 }}>
               <input
                 type="checkbox"
                 data-settings="showChrome"
-                checked={showChrome}
+                checked={showChrome && !bare}
+                disabled={bare || undefined}
                 onChange={(e) => setShowChrome(e.target.checked)}
                 style={{ marginTop: 2 }}
               />
               <span>
                 Mostrar cabeçalho e rodapé do tema
-                <span style={{ ...metaLine, display: 'block' }}>
-                  {pageType === 'product'
+                <span style={{ ...metaLine, display: 'block' }} data-chrome-note>
+                  {bare
+                    ? 'No modo leve o modelo não tem cabeçalho nem rodapé — desligue o modo leve para escolher.'
+                    : pageType === 'product'
                     ? 'Desligado, só ESTA página de produto perde o cabeçalho e o rodapé — a loja continua com eles. (Escondê-los no editor de temas tiraria da loja inteira.) As seções de produto do tema continuam iguais. Vale a partir da próxima publicação.'
                     : 'Desligado, a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e o rodapé da loja — bom para landing pages. A mudança vale a partir da próxima publicação.'}
                 </span>

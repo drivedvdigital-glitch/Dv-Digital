@@ -73,6 +73,29 @@ Verificado ao vivo em megakciok.shop (produto `pinkjuice`): a URL do produto pas
 renderizar nosso conteúdo **e** as seções do tema; desvincular devolveu o produto na hora;
 no fim, `templateSuffix` null e zero arquivos `dvfly` no tema.
 
+### Modo leve (Configurações da página → Modo leve) — 22/09
+
+Terceiro jeito de publicar uma página de produto, feito para landing page que traz tudo o que
+precisa (imagens, preço, botão de compra dentro do HTML): `Page.bareLayout`. O template vira
+`{ layout: "theme.dvfly", sections: { dvfly }, order: ["dvfly"] }` — **só a nossa seção**, no
+mesmo layout mínimo que as páginas normais sem cabeçalho já usam (`layout/theme.dvfly.liquid`:
+`content_for_header` + `content_for_layout`, nada mais). Nada do `product.json` do tema
+sobrevive: nem as seções, nem o layout do tema, nem o CSS/JS que o `theme.liquid` carrega em
+toda página. O que continua: o `<head>` da Shopify (pixels, apps embutidos como o formulário
+COD, que entram pelo `content_for_header`).
+
+Por que existe: medido na primeira LP no ar (snevy.co, 21/09), o layout do tema — mesmo sem
+cabeçalho e rodapé — trazia **9 pedidos e ~21 KB gzip** de CSS/JS (global.js, base.css,
+animations, search, modal…) mais ~10 KB de CSS inline, para uma página que não usava nada
+disso. O modo "sem cabeçalho e rodapé" mantém esse custo de propósito (as seções de produto do
+tema precisam dele); o modo leve não tem seções do tema, então não tem por que pagar.
+
+Regras: só vale para o tipo produto (o action ignora o campo em página normal). Ligado,
+"Posição do conteúdo" e "Mostrar cabeçalho e rodapé" ficam visíveis, cinza, com o motivo —
+não somem. Desligar de novo recompõe a partir do `product.json` do tema (a cópia leve não tem
+seção do tema para preservar). Exportar/importar e duplicar levam a configuração junto.
+Migração `20260922100000_pagina_leve` (verificada em Postgres 16 de verdade e em SQLite).
+
 Ainda na fila para o tipo produto: blocos que leem o produto do contexto (título, preço,
 comprar — a seção é Liquid, então `{{ product.title }}` está ao alcance), "todos os produtos"
 (sobrescrever o `product.json` padrão, como a referência faz), coleções (`collectionUpdate`)

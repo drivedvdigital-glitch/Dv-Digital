@@ -146,7 +146,20 @@ export interface ProductTemplateInput {
    * every page, which is the trap this setting exists to avoid.
    */
   chrome?: boolean;
+  /**
+   * Bare: our section alone, on the minimal D&VFly layout — no theme product
+   * sections, none of the theme's CSS or JS. Measured on the first live
+   * landing page (21/09): the theme layout brought 9 requests and ~21 KB gz
+   * (global.js, base.css, animations, search, modal…) plus ~10 KB of inline
+   * CSS from `theme.liquid`, for a page that used none of it. Shopify's own
+   * head (`content_for_header`) and app embeds such as the COD form stay:
+   * the layout keeps that tag.
+   */
+  bare?: boolean;
 }
+
+/** The minimal layout's name as a template refers to it (`layout/theme.dvfly.liquid`). */
+export const SOLO_LAYOUT = 'theme.dvfly';
 
 /** The layout a chrome-less product page binds to (`layout/theme.dvfly-product.liquid`). */
 export const PRODUCT_LAYOUT = 'theme.dvfly-product';
@@ -234,6 +247,20 @@ export function composeProductTemplate(
   input: ProductTemplateInput,
   existingJson?: string | null,
 ): string {
+  // Bare: nothing of the theme's template survives — not its sections, not
+  // its layout. Turning bare off later starts again from the theme's own
+  // product.json, because a bare template has no theme sections to keep.
+  if (input.bare) {
+    return JSON.stringify(
+      {
+        layout: SOLO_LAYOUT,
+        sections: { [OUR_SECTION]: { type: productSectionType(input.pageId), settings: {} } },
+        order: [OUR_SECTION],
+      },
+      null,
+      2,
+    );
+  }
   let base: TemplateJson | null = null;
   let fromExisting = false;
   if (existingJson) {
@@ -304,7 +331,10 @@ export async function ensureProductTemplate(
   // in FIRST, on its own: Shopify validates a template's `layout` against
   // the files the theme already has, so a layout arriving in the same batch
   // as the template that names it is not there yet.
-  if (input.chrome === false) {
+  if (input.bare) {
+    // The minimal layout, same file regular chrome-less pages use.
+    await upsertThemeFiles(client, themeId, [{ filename: LAYOUT_FILE, body: { type: 'TEXT', value: LAYOUT } }]);
+  } else if (input.chrome === false) {
     await upsertThemeFiles(client, themeId, [
       { filename: PRODUCT_LAYOUT_FILE, body: { type: 'TEXT', value: chromelessLayout(themeLayout) } },
     ]);

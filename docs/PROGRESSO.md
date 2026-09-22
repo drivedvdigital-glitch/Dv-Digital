@@ -2216,6 +2216,43 @@ que o visitante vê), com teste.
 vai (TTFB / atraso de carregamento / carregamento / atraso de renderização). O relatório do
 PageSpeed mostra isso em "Largest Contentful Paint element". Pedido ao Miguel.
 
+### Modo leve: a LP sozinha, sem o layout do tema (22/09)
+
+O Miguel cortou a discussão certa: "o problema não é o HTML da LP, é a configuração aonde leva
+a LP — o sistema nosso". Tinha razão no que dá para medir daqui: a página de produto "sem
+cabeçalho e rodapé" continua no layout do tema (`theme.dvfly-product` = o `theme.liquid` da
+loja menos header/footer), e esse layout carrega em toda página **9 pedidos e ~21 KB gzip** de
+CSS/JS do tema (global.js, base.css, animations, search-form, details-*, pubsub, cart-items)
+mais ~10 KB de CSS inline — para uma LP que não usa nada disso. Isso era escolha nossa, não
+do tema: as seções de produto do tema precisam desse layout, mas a LP não tem seção do tema.
+
+**Feito**: `Page.bareLayout` ("Modo leve — só a página, sem o tema", Configurações da página,
+só no tipo produto). Publicar grava o template como `{ layout: "theme.dvfly", sections:
+{ dvfly }, order: ["dvfly"] }` e garante o `layout/theme.dvfly.liquid` mínimo no tema (o
+mesmo das páginas normais sem cabeçalho). O `content_for_header` fica, então pixels e apps
+embutidos (o formulário COD) continuam. Detalhe em `docs/MODELOS_DE_TEMA.md`.
+
+- Ligado, "Posição do conteúdo" e "Mostrar cabeçalho e rodapé" ficam cinza com o motivo
+  escrito (não somem); o canvas tira os espaços do tema porque nada do tema vai ser
+  publicado. Desligar recompõe do `product.json` do tema.
+- Exportar/importar e duplicar levam a configuração. Migração
+  `20260922100000_pagina_leve`, aplicada num Postgres 16 real (4/4 migrações num banco novo)
+  e no SQLite.
+- Verificado dirigindo o editor (Playwright, 15/15): liga → controles desabilitados com
+  motivo → pedido de preview sem chrome nem seções → canvas sem `[data-dvf-chrome]` → salva →
+  recarrega e continua ligado → exportação com `bareLayout: true` → cópia leve → desliga e
+  os controles e o canvas voltam. Testes: compilador 74, Shopify 46 (+1: compose leve),
+  app 38. Typecheck e build limpos.
+
+**O que não está provado**: a publicação numa loja real com o modo ligado (não há loja
+alcançável do sandbox). A composição do template é testada; o `themeFilesUpsert` do layout
+mínimo é o mesmo caminho que as páginas normais sem cabeçalho já usam em produção. O próximo
+PageSpeed na Mini Plancha com o modo leve ligado é a medida que decide.
+
+**Limite honesto**: o `<head>` da Shopify continua (é dela, não nosso), e o EasySell entra por
+app embed — os 53 KB de script inline que não são nossos continuam vindo por ali. O que sai é
+tudo o que o tema carregava.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

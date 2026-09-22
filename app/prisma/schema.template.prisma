@@ -75,6 +75,10 @@ model Page {
   /// Product pages only: place the D&VFly content above the theme's own
   /// product sections (price, variants, buy) instead of below them.
   productContentAbove Boolean @default(false)
+  /// Product pages only: our section alone on the minimal D&VFly layout —
+  /// no theme product sections, none of the theme's CSS or JS. For a landing
+  /// page that brings its own everything. Shopify's head and app embeds stay.
+  bareLayout Boolean @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   versions  Version[]
