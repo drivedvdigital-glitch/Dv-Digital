@@ -2626,6 +2626,27 @@ se sustenta.** As provas:
 Ressalvas: n = 4 por versão; medição da nossa seção sob a nossa simulação, não a nota do
 PSI (cota esgotada hoje). Arquivos em `scratchpad/psi/analise/` (não versionados).
 
+**Publicado e conferido no ar (22/09, ~18h UTC)**: o preload do herói está no `<head>` da
+página (byte 320, antes do `content_for_header`), o layout próprio está em uso. Medido três
+vezes na simulação determinística: FCP 660–708 ms, LCP 876–932 ms (era 1366). O PageSpeed
+do Miguel continuou em 68 — o que confirma que a nota é dos terceiros e do laboratório, não
+da nossa seção, que já está no melhor ponto medido.
+
+**Early Hints da Shopify, achado no caminho**: a resposta 103 da URL da LP mandava o navegador
+pré-carregar `base.css` (10,7 KB na rede, 67 KB abertos) e o logo do cabeçalho (27,8 KB) — o
+layout do tema, que a página leve não usa — e NÃO mandava o nosso herói. Era um cache por URL
+da época em que a página usava o layout do tema; uma URL nova (`?x=2`) recebia só o
+`portable-wallets`, e uns minutos depois a URL principal também. A Shopify não converte o
+nosso `<link rel="preload" as="image">` em Early Hint (testado em 3 pedidos seguidos); o
+preload no HTML, que o scanner lê no primeiro trecho, é o que temos. Nada a fazer do nosso
+lado; fica registrado para quando a página trocar de layout de novo (o cache velho custa
+~38 KB de prioridade alta por alguns minutos).
+
+O que ainda é legítimo e mexe na nota, e é escolha do dono: trocar as duas fontes do Google
+(Playfair Display + DM Sans, 75 KB + 1 CSS + 2 conexões) por fonte do sistema — com
+`display=optional` a fonte quase nunca chega a renderizar no laboratório lento, mas o
+download acontece do mesmo jeito.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
