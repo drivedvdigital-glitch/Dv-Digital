@@ -67,6 +67,18 @@ checkout desta página e fica; o CSS "não usado" de 14 KB e o `COUNTRIES-CO.js`
 
 ## 4. Como medir (e como não se enganar)
 
+- **`node scripts/medir-ao-vivo.mjs <url>`** mede uma página no ar daqui mesmo: Chromium com
+  celular emulado (412×915, CPU 4× mais lenta, 4G lento simulado), cada pedido respondido
+  pelo `curl` (o Chromium do sandbox não abre HTTPS externo; na sua máquina não há essa
+  diferença). Imprime FCP, LCP e o elemento, CLS e quem pulou, tarefas longas, tempo de
+  script / layout / pintura por arquivo, **reflow forçado com a linha do script que o
+  causou**, `preconnect` presentes e bytes por origem; grava o trace para abrir no DevTools
+  (Performance → carregar). Precisa do Playwright (`npm i -g playwright && npx playwright
+  install chromium`). Os números são comparáveis entre versões da página, não com o
+  PageSpeed (a rede é simulada numa fila única; o aparelho de referência é outro). O
+  primeiro passo é sempre uma corrida "quente" (a segunda), porque a primeira paga a
+  latência do proxy.
+
 - **PageSpeed Insights no celular** é a medida que vale; o de PC quase sempre passa.
 - Um 96 com `LCP: NO_LCP` não é 96: é "não consegui medir". Foi o caso em 21/09 (herói com
   `opacity:0`).
