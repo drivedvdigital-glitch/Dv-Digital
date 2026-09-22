@@ -2401,6 +2401,51 @@ momento; a regra passa a ser rodar 3 vezes e olhar a mediana, e o dado de campo 
 quando houver. O CLS 0,135 apareceu com `display=optional` no ar, então não é a fonte:
 precisa do item "Causas da troca de layout" aberto para dizer qual elemento.
 
+### "Mais agentes em cada coisinha" — o relatório de 88 lido por dentro (22/09, tarde)
+
+PageSpeed celular: 88 · FCP 2,4 s · LCP 3,2 s · TBT 150 ms · CLS 0. Campo (28 dias, inclui
+as versões velhas): LCP 3,2 s, INP 305 ms, CLS 0, TTFB 1,3 s. Três agentes, cada um com uma
+pergunta fechada:
+
+**1. O "reflow forçado" de 238 ms na linha 1047, coluna 33.** É `window.scrollY` na primeira
+chamada de `onScroll()` do script da LP, logo depois de `root.className += ' js'` e das
+escritas de preço: a leitura obriga o navegador a calcular estilo e layout dos 445 elementos
+da seção dentro do script. Conserto na LP (`c6993a2`): a barra fixa lê o scroll dois quadros
+depois (`requestAnimationFrame` duplo) e os `.reveal` confiam na primeira chamada do
+IntersectionObserver, que entrega a visibilidade inicial sem leitura nenhuma. Provado com
+trace CDP no Chromium: **zero eventos de Layout dentro de script no carregamento**, reveals
+e barra fixa funcionando. Regra entrou no prompt do gerador (item 9) e em `DESEMPENHO.md`.
+
+**2. `GTM-000000` = pixel de exemplo nas configurações do EasySell** (linha 127 do HTML,
+`"pixels":[{"label":"GTM","type":"gtag","value":"GTM-000000"}]`; o `easysell.js` monta
+`googletagmanager.com/gtag/js?id=GTM-000000` a partir daí). São 88 KB comprimidos de JS do
+Google carregados para um contêiner que não existe — os "86 KB, 54 não usados" do relatório.
+Não é pixel da Shopify (o `webPixelsConfigList` está vazio) nem do tema (não há tema nesta
+página). Conserto é do lojista: Apps → EasySell → Configurações → Pixels → apagar a entrada
+"GTM" ou pôr o id real. Os ~20 pedaços ESM da árvore de dependência são a sincronização de
+carrinho do canal Shop (Canais de vendas → Shop). Lista completa em `DESEMPENHO.md` §3.
+
+**3. Animações da LP**: as quatro (`mpp-scroll`, `mpp-pulse`, `mpp-in`, `mpp-fade`) animam
+só `transform`/`opacity` — compositor, fora da thread principal; `prefers-reduced-motion`
+desliga tudo. Os 594 ms de "Style & Layout" não vêm delas: 238 são o reflow acima, o resto
+é `easysell.css` (628 regras chegando depois e reestilizando o documento) e o EasySell
+montando o formulário. **O compilador ganhou a checagem** (`html/animation-repaints`,
+`html/expensive-effects`): keyframes tocado por alguma regra que anime propriedade de layout
+ou pintura (width, box-shadow, background…) é aviso com o conserto, pior se `infinite` sem
+`prefers-reduced-motion`; transição em propriedade de layout ou `all`, `backdrop-filter`,
+desfoque grande e `will-change` espalhado são informação. Nunca reescreve. Na Mini Plancha
+apontou duas transições (`.time-bar-fill` em `width`, que nunca rodava, e `.look-tab` em
+`all`) — trocadas. Achado no caminho: `scopeCss` deixava passar **sem escopo** a regra que
+vinha depois de um `@import …;` na mesma folha; corrigido com teste.
+
+**Nossa fatia da página**: 67 KB dos 132 KB (51%); 54 KB de JS inline no `<head>` antes do
+nosso conteúdo (EasySell 23 KB, Shopify 18 KB) — é isso que segura o FCP. Dos 5
+`preconnect` que o relatório conta (3 no HTML + 2 no cabeçalho HTTP da Shopify), os 2 das
+fontes do Google são nossos: hospedar as duas fontes como arquivos da loja tira os dois e o
+CSS de terceiro.
+
+Testes: compilador 84, Shopify 47, app 38; typecheck limpo.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
