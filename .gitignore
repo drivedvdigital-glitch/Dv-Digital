@@ -10,3 +10,6 @@ app/prisma/schema.prisma
 # Criado pelo preset da Vercel durante o build local
 app/.vercel/
 .vercel/
+
+# medir-ao-vivo: traces e resultados de páginas no ar
+saida-ao-vivo/

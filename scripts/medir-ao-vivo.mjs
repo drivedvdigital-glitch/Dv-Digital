@@ -23,6 +23,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
@@ -43,8 +44,10 @@ const argv = process.argv.slice(2);
 const url = argv.find((a) => !a.startsWith('--'));
 if (!url) { console.error('uso: node medir-ao-vivo.mjs <url> [--sem-cache] [--saida <dir>]'); process.exit(2); }
 const useCache = !argv.includes('--sem-cache');
-const outDir = argv.includes('--saida') ? argv[argv.indexOf('--saida') + 1] : path.join(HERE, 'saida-ao-vivo');
-const cacheDir = path.join(HERE, 'cache-ao-vivo');
+const outDir = argv.includes('--saida') ? argv[argv.indexOf('--saida') + 1] : path.join(process.cwd(), 'saida-ao-vivo');
+// Cached bodies live outside the repository: they are megabytes of other
+// people's pages and must never be committed.
+const cacheDir = path.join(os.tmpdir(), 'dvfly-medir-ao-vivo');
 fs.mkdirSync(outDir, { recursive: true }); fs.mkdirSync(cacheDir, { recursive: true });
 
 // ---------- transport: curl through the proxy, cached on disk by hash(method + url) ----------
