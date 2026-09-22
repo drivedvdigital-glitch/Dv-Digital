@@ -79,7 +79,14 @@ Terceiro jeito de publicar uma página de produto, feito para landing page que t
 precisa (imagens, preço, botão de compra dentro do HTML): `Page.bareLayout`. O template vira
 `{ layout: "theme.dvfly", sections: { dvfly }, order: ["dvfly"] }` — **só a nossa seção**, no
 mesmo layout mínimo que as páginas normais sem cabeçalho já usam (`layout/theme.dvfly.liquid`:
-`content_for_header` + `content_for_layout`, nada mais). Nada do `product.json` do tema
+`content_for_header` + `content_for_layout`, nada mais). Desde 22/09 à noite, uma página leve
+**com herói** ganha um layout próprio, `layout/theme.dvfly-<id da página>.liquid`: o mesmo
+layout mínimo com o `<link rel="preload">` do herói **antes** do `content_for_header` (a
+Shopify transmite a resposta em duas partes cortadas nessa tag e transforma os preloads da
+primeira em cabeçalhos `Link`/103 Early Hints — o herói começa a baixar antes do HTML chegar).
+O layout é gravado antes do template que o nomeia (a Shopify valida o `layout` contra os
+arquivos que o tema já tem) e sai junto com o template e a seção quando a página é
+excluída. Nada do `product.json` do tema
 sobrevive: nem as seções, nem o layout do tema, nem o CSS/JS que o `theme.liquid` carrega em
 toda página. O que continua: o `<head>` da Shopify (pixels, apps embutidos como o formulário
 COD, que entram pelo `content_for_header`).

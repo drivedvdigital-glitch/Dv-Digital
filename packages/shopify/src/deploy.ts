@@ -126,6 +126,8 @@ export interface ProductDeployInput {
   chrome?: boolean;
   /** Our section alone on the minimal layout: no theme sections, CSS or JS. */
   bare?: boolean;
+  /** Bare only: what the compiler wants in the head before Shopify's (the hero preload). */
+  headHints?: string;
   /** Product ids to point at the template, keyed by store domain. */
   productsByDomain: Record<string, string[] | undefined>;
 }
@@ -159,6 +161,7 @@ export async function deployProductPage(
       contentAbove: input.contentAbove,
       chrome: input.chrome,
       bare: input.bare,
+      headHints: input.headHints,
     });
     const products = input.productsByDomain[store.domain] ?? [];
     const failedProducts: Array<{ id: string; error: string }> = [];

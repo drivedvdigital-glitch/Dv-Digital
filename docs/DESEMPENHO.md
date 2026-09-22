@@ -90,13 +90,24 @@ checkout desta página e fica; o CSS "não usado" de 14 KB e o `COUNTRIES-CO.js`
 - Medir o que está no ar, não o que está no repositório: em 22/09 a página no ar tinha a
   LP com `display=swap` e o `<link>` bloqueante — a versão corrigida estava só no repo.
 - **Comparar com outra loja só depois de ler o tema dela.** A mesma LP no PageFly
-  (ofertascolombianas.shop) dava 95 fixo enquanto a nossa (snevy.co) oscilava 68–95. Lido o
-  HTML dela: o tema tem no `<head>` um `<div id="fv-loading-icon">` com um glifo de 190vw e
-  `opacity:0.0001` — para o Lighthouse ele É o LCP, pintado junto com o FCP — e scripts
-  empacotados que reconhecem o user-agent do Lighthouse e se desligam no laboratório. Sem o
-  chamariz, a página dela mede FCP 1,8 s / LCP 3,2 s, pior que a nossa. Não é referência
-  de desempenho; é referência do que não fazer (um LCP que o visitante não vê é 96 com
-  `NO_LCP` de outro jeito).
-- A oscilação da nossa nota entre corridas com o MESMO HTML é do laboratório (simulação
-  Lantern + os scripts que a Shopify injeta por loja: wpm, trekkie, perf-kit, apps). Mediana
-  de 3 corridas, nunca uma.
+  (ofertascolombianas.shop) dava 95 fixo enquanto a nossa (snevy.co) oscilava 68–95. Perícia
+  dos dois HTMLs (22/09, `docs/PROGRESSO.md`): a loja dela tem os MESMOS terceiros que a
+  nossa (EasySell com o `GTM-000000`, Shop cart sync, wpm, trekkie, perf-kit) e mais
+  (Firebase síncrono, 329 KB de CSS bloqueante, 527 KB de JS inline). O 95 vem do **tema**
+  dela: (1) um script empacotado que, quando `navigator.platform == "Linux x86_64"` (o robô
+  do PageSpeed), põe um `MutationObserver` que tira o `src` e troca o `type` de **todo**
+  `<script>` seguinte — no laboratório nenhum JS roda, nem o da Shopify, nem o do EasySell;
+  (2) um `<div id="fv-loading-icon">` no `<head>` com um glifo de 190vw e `opacity:0.0001`
+  que vira o LCP no primeiro paint (LCP 0,77 s com ele, 3,2 s sem). Efeito colateral real:
+  visitante de Linux desktop recebe a página morta. Não é referência de desempenho; é o que
+  não fazer.
+- A oscilação da nossa nota entre corridas com o MESMO HTML é do laboratório: relato na
+  comunidade Shopify (09/2026) e issue aberta no Lighthouse (#17230) mostram o PSI segurando
+  o primeiro frame 1,1–2,2 s em ⅓ a ½ das corridas em qualquer vitrine com
+  `content_for_header` — "91 a 95 nas normais, 63 a 68 nas seguradas". Mediana de 5
+  corridas, nunca uma; o CrUX (campo) é o que o Google usa.
+- **O que a Shopify faz com o `<head>` antes do `content_for_header`**: a resposta é
+  transmitida em duas partes, cortada nessa tag, e os `<link rel="preload">` da primeira
+  parte viram cabeçalhos `Link` e 103 Early Hints. Por isso o herói de uma página no modo
+  leve tem o preload no layout (`layout/theme.dvfly-<página>.liquid`), antes da tag — não só
+  no corpo, onde uma seção consegue escrever.

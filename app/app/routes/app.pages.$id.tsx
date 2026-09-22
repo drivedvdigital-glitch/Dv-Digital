@@ -378,7 +378,7 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
       : '';
 
   if (pageType === 'product') {
-    return publishProductPage({ pageId, title, fragment, bytes: fragmentBytes, rows, versionId: version.id, productContentAbove, showChrome, bareLayout, allowProduction, retiredNote });
+    return publishProductPage({ pageId, title, fragment, headHints: compiled.headHints, bytes: fragmentBytes, rows, versionId: version.id, productContentAbove, showChrome, bareLayout, allowProduction, retiredNote });
   }
 
   // Each store's page from the last publish, so a renamed handle updates the
@@ -459,6 +459,8 @@ async function publishProductPage(input: {
   pageId: string;
   title: string;
   fragment: string;
+  /** The hero preload, for the head of the page's own bare layout. */
+  headHints: string;
   bytes: number;
   rows: Awaited<ReturnType<typeof db.store.findMany>>;
   versionId: string;
@@ -482,6 +484,7 @@ async function publishProductPage(input: {
         contentAbove: input.productContentAbove,
         chrome: input.showChrome,
         bare: input.bareLayout,
+        headHints: input.headHints,
         productsByDomain,
       },
       { allowProduction: input.allowProduction, clientFor: clientForStore },

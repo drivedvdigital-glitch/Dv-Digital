@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { ShopifyError } from '../src/client.ts';
+import { ShopifyError, type ShopifyClient } from '../src/client.ts';
 import {
   chromelessLayout,
   composeProductTemplate,
+  ensureProductTemplate,
+  pageBareLayout,
+  pageBareLayoutLiquid,
   productSectionLiquid,
   productSectionType,
   productSuffix,
@@ -181,6 +184,62 @@ describe('chromelessLayout', () => {
     assert.ok(preconnect > 0, layout);
     assert.ok(preconnect < layout.indexOf('{{ content_for_header }}'));
     assert.ok(!/preconnect[^>]*crossorigin/.test(layout), 'images are fetched without CORS');
+  });
+});
+
+describe('page bare layout (head hints)', () => {
+  const hints = '<link rel="preload" as="image" href="https://cdn.shopify.com/s/files/1/x.webp?width=1080" fetchpriority="high">';
+  const input = { pageId: 'cmAbC123', title: 'Oferta', fragment: '<p>x</p>', bare: true, headHints: hints };
+
+  it('a bare page with a hero binds its own layout; without one, the shared minimal layout', () => {
+    assert.equal(JSON.parse(composeProductTemplate(null, input)).layout, 'theme.dvfly-cmabc123');
+    assert.equal(pageBareLayout('cmAbC123'), 'theme.dvfly-cmabc123');
+    assert.equal(JSON.parse(composeProductTemplate(null, { ...input, headHints: '' })).layout, 'theme.dvfly');
+    assert.equal(JSON.parse(composeProductTemplate(null, { ...input, headHints: undefined })).layout, 'theme.dvfly');
+  });
+
+  it('puts the hints BEFORE content_for_header, raw, with the tag left plain', () => {
+    const liquid = pageBareLayoutLiquid(input);
+    const at = liquid.indexOf(hints);
+    const header = liquid.indexOf('{{ content_for_header }}');
+    assert.ok(at > 0 && header > at, liquid);
+    assert.ok(at > liquid.indexOf('<head>'), 'inside the head');
+    // Raw: a `{{` in an author URL must not reach Liquid.
+    assert.match(liquid, /\{% raw %\}<link[^\n]*\{% endraw %\}/);
+    // The streaming rule: the tag is a plain output tag, once, in the head.
+    assert.equal(liquid.match(/content_for_header/g)!.length, 1);
+    assert.ok(liquid.includes('{{ content_for_layout }}'));
+  });
+
+  it('refuses hints that would close the raw block', () => {
+    assert.throws(() => pageBareLayoutLiquid({ ...input, headHints: '{% endraw %}<script>' }), ShopifyError);
+  });
+
+  it('publishing writes the page layout first, on its own, then the section and the template that names it', async () => {
+    const writes: string[][] = [];
+    const client = {
+      domain: 'x.myshopify.com',
+      async graphql(query: string, variables: Record<string, unknown> = {}) {
+        if (/themes\(first: 1, roles: \[MAIN\]\)/.test(query)) return { themes: { nodes: [{ id: 'gid://shopify/OnlineStoreTheme/1' }] } };
+        if (/DvflyThemeFiles\(/.test(query) && /query/.test(query)) return { theme: { files: { nodes: [] } } };
+        if (/themeFilesUpsert/.test(query)) {
+          const files = variables.files as Array<{ filename: string }>;
+          writes.push(files.map((f) => f.filename));
+          return { themeFilesUpsert: { upsertedThemeFiles: files.map((f) => ({ filename: f.filename })), userErrors: [] } };
+        }
+        throw new Error(`unexpected query: ${query.slice(0, 60)}`);
+      },
+    } as unknown as ShopifyClient;
+    const { suffix } = await ensureProductTemplate(client, input);
+    assert.equal(suffix, 'dvfly-cmabc123');
+    assert.deepEqual(writes, [
+      ['layout/theme.dvfly-cmabc123.liquid'],
+      ['sections/dvfly-p-cmabc123.liquid', 'templates/product.dvfly-cmabc123.json'],
+    ]);
+    // Without a hero the shared minimal layout is what gets written.
+    writes.length = 0;
+    await ensureProductTemplate(client, { ...input, headHints: '' });
+    assert.deepEqual(writes[0], ['layout/theme.dvfly.liquid']);
   });
 });
 

@@ -34,6 +34,17 @@ export interface CompileResult {
   html: string;
   css: string;
   js: string;
+  /**
+   * What the page's `<head>` should say before Shopify's own head, for a
+   * layout that can reach it: today the hero image's preload. Shopify streams
+   * a storefront response in two parts, splitting at `content_for_header`,
+   * and turns the preloads it finds in the first part into `Link` headers
+   * and 103 Early Hints — so the hero starts downloading before the HTML
+   * has even arrived, instead of after the whole head has been parsed. The
+   * same tag also stays in the fragment, for layouts we do not own. Empty
+   * when the page has no hero.
+   */
+  headHints: string;
   stats: {
     nodes: number;
     /** Distinct CSS rules emitted. */
@@ -303,6 +314,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     html,
     css,
     js,
+    headHints: preload,
     stats: {
       nodes,
       cssRules: sheetStats.rules,

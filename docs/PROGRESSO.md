@@ -2521,6 +2521,66 @@ Sobre a nota com o visual de 16 px: a LP inteira acima da dobra é a mesma (tít
 preço abaixo); o que muda entre 68 e 95 continua sendo o laboratório e os scripts da loja,
 não o tamanho da fonte. Vale a regra: mediana de 3 corridas.
 
+### "Não tem lógica, mesmo código" — a perícia da loja do PageFly (22/09, noite)
+
+Depois do 68 com o visual de 16 px, o Miguel recusou tirar o `GTM-000000` e a sincronização
+do Shop ("sem chance") e pediu pesquisa: docs do PageFly, o que for. Dois agentes, um lendo
+documentação (PageFly, Shopify, Lighthouse, GemPages, Replo, Shogun) e um fazendo perícia dos
+dois HTMLs ao vivo (`b-ofertascolombianas.shop.html` × `live-68.html`), com cada script
+externo baixado e os empacotados desempacotados.
+
+**A loja do PageFly não tem menos terceiros — tem mais.** Mesmo EasySell (mesmo build), mesmo
+`"pixels":[{"type":"gtag","value":"GTM-000000"}]`, mesmo Shop cart sync, wpm, trekkie,
+perf-kit, `preloads.js`. E ainda: Firebase síncrono ×2 (checagem de licença do tema), 329 KB
+de `base.css` bloqueante + 89 KB de line-awesome, 527 KB de JS inline no `<head>` (379 KB só
+de ofertas de quantidade do EasySell), 141 KB de `main.js`, tracker de afiliado injetado por
+um worker, 9 helpers do PageFly. HTML de 646 KB (98 KB gzip) contra 134 KB (35 KB gzip) nosso;
+DOM 733 × 529; 3 CSS bloqueantes + 2 scripts síncronos × 1 CSS bloqueante e 0 scripts.
+
+**O 95 estável é o tema dela trapaceando o teste**, não o PageFly (o PageFly tem até uma chave
+`forceByPassGoogleLightHouse`, desligada nessa página):
+
+1. Script empacotado (`eval(function(p,a,c,k,e,r)…)`) no `<head>` do tema: se
+   `navigator.platform == "Linux x86_64"` e o UA não tem `CrOS` — que é o robô do PageSpeed,
+   porque o Lighthouse troca o user-agent mas não o `platform` (confirmado no Chromium daqui
+   com emulação de celular) — instala um `MutationObserver` no `documentElement` que, para
+   **cada `<script>`** que o parser insere, tira o `src` e põe `type="text/lazyload"`. No
+   laboratório, depois do byte ~9 KB **nenhum JavaScript roda**: nem Shopify, nem EasySell, nem
+   gtag, nem tema. Variável chamada `__isPSA`. TBT 0, 44 pedidos contra 194 da nossa, variância
+   zero. Testei o mecanismo: três scripts de prova não executaram. Efeito colateral: visitante
+   de Linux desktop recebe a página morta (sem formulário de pedido). Um segundo empacotado faz
+   o mesmo para o GTmetrix (`X11` + `GTmetrix`, strings ofuscadas).
+2. `<div id="fv-loading-icon">` no `<head>`, glifo «Γ» de 190vw, 99vw×99vh, `opacity:0.0001`
+   (0 o Chrome exclui; 0,0001 passa): abre o body antes do CSS e vira o LCP no primeiro
+   paint. Medido: LCP 768 ms com ele; 3.180 ms sem ele, na imagem — que lá é pior que a nossa
+   (sem `srcset`, sem preload, 256 KB do original 2027×2027; a nossa baixa 67 KB).
+
+Nada disso é replicável honestamente, e eu não vou replicar: é conteúdo invisível para a
+métrica e detecção do robô — o Lighthouse tem issue aberta por um arquiteto da própria
+Shopify sobre exatamente isso (#15829), o Google ranqueia pelo CrUX (campo), e a página fica
+quebrada para gente de verdade.
+
+**A oscilação nossa também tem nome.** Relato na comunidade Shopify (09/2026) com teste de
+duas páginas idênticas, uma sem `content_for_header`: com a tag, o PSI segura o primeiro
+frame 1,1–2,2 s em ⅓ a ½ das corridas — "91 a 95 nas normais, 63 a 68 nas seguradas". Issue
+#17230 no Lighthouse, sem resposta. Os números são os nossos. Não reproduz no Lighthouse
+local, e não há parâmetro de página que elimine.
+
+**O que era legítimo e faltava, feito**: a Shopify transmite a resposta em duas partes
+cortadas no `content_for_header` e converte os `<link rel="preload">` da primeira em
+cabeçalhos `Link` e 103 Early Hints (doc de desempenho de plataforma). O nosso preload do
+herói estava no corpo (uma seção não alcança o `<head>`), depois de 60 KB de head da Shopify.
+Agora `compile()` devolve `headHints` (o mesmo preload) e a página leve com herói ganha
+`layout/theme.dvfly-<página>.liquid`: o layout mínimo com o preload antes da tag, em
+`{% raw %}`, gravado antes do template e apagado com ele. Testes: compilador 90, Shopify 50,
+app 38. O que a doc diz mais e fica anotado: hospedar as fontes no CDN da Shopify em vez do
+Google Fonts (tira 2 origens), e nada mais do nosso lado move a nota — o resto é (b) da
+loja ou (c) trapaça.
+
+Não consegui rodar o PSI hoje (cota diária). A prova de que o preload chega como Early Hint
+é a próxima publicação: `curl -sI https://snevy.co/products/mini-plancha | grep -i '^link'`
+tem que listar o `.webp` do herói.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

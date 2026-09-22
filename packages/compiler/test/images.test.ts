@@ -202,6 +202,14 @@ test('the LCP image is preloaded at the top of the fragment, with the same candi
   assert.ok(result.html.indexOf('<link') < result.html.indexOf('<img'), 'before the tag, or it is pointless');
   // Void element: no closing tag leaks into the page.
   assert.doesNotMatch(result.html, /<\/link>/);
+  // The same tag is handed to a layout that can put it in the head, before
+  // Shopify's own head — where Shopify turns it into an Early Hint.
+  assert.equal(result.headHints, link);
+});
+
+test('a page with no hero hands the layout nothing for the head', () => {
+  const result = compile({ version: 1, root: [{ id: 't', type: 'text', props: { text: 'x' } }] });
+  assert.equal(result.headHints, '');
 });
 
 test('a page with no image preloads nothing and says so', () => {
