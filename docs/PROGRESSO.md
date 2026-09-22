@@ -2647,6 +2647,45 @@ O que ainda é legítimo e mexe na nota, e é escolha do dono: trocar as duas fo
 `display=optional` a fonte quase nunca chega a renderizar no laboratório lento, mas o
 download acontece do mesmo jeito.
 
+### "Prepara a página para o celular ser mais rápido" — duas mudanças medidas, uma adotada (22/09, noite)
+
+Foco declarado: Android comum. Três candidatas, cada uma medida antes de entrar no repositório
+(mesma cabeça da Shopify, fila simulada 1,6 Mbps + 150 ms, CPU 4×, 4 rodadas por versão,
+medianas):
+
+| Versão | FCP | LCP | Long tasks (total) |
+|---|---|---|---|
+| como estava (Google Fonts) | 796 ms | 850 ms | 1507 ms |
+| fonte do sistema | 764 ms | 844 ms | 1254 ms |
+| `content-visibility:auto` nas seções abaixo da dobra | **700 ms** | 808 ms | **1284 ms** |
+| script da LP adiado para depois da primeira pintura | 748 ms | 830 ms | 1539 ms |
+| cv + script adiado | 692 ms | 814 ms | 1244 ms (1 rodada com LCP 1328) |
+
+- **Adotado: `content-visibility:auto; contain-intrinsic-size:auto 600px`** em `.sec` e
+  `.marquee-band` da LP (herói e barra fixa de fora). Aplicado nos dois arquivos de LP.
+  A regra do compilador (`BELOW_FOLD_CSS`) não alcançava essas seções porque a LP inteira
+  é UM bloco HTML — por isso vai na LP e virou a regra 18 do `PROMPT_GERADOR_LP.md`.
+- **Rejeitado: adiar o script.** FCP dentro do ruído, long tasks iguais. Nada a ganhar.
+- **Fonte do sistema: empate em FCP/LCP**, ~250 ms a menos de long tasks e 75 KB a menos.
+  Como muda o visual (Noto Serif/Roboto no lugar de Playfair/DM Sans — as duas capturas de
+  tela foram mostradas ao Miguel), fica como opção pronta em
+  `docs/lps/mini-plancha-lp-fonte-sistema.html`; o arquivo principal segue com Playfair.
+- **Defeito que a mudança causou, pego pela prova e corrigido antes de commitar**: o botão
+  "ir para a oferta" rola suavemente por 6.000 px de seções ainda não calculadas; elas crescem
+  no meio do caminho (altura reservada 600 px → real) e a rolagem parava 1.067 px antes da
+  oferta. Salto instantâneo e `href="#mpp-offer"` puro acertavam; só a rolagem suave errava.
+  Conserto na LP: o clique adiciona a classe `all-laid` ao contêiner (todas as seções voltam
+  a `content-visibility:visible`), mede e só então rola — custo único, no clique, não no
+  carregamento.
+- Prova funcional (Playwright, 412 px, sem rede): 9/9 nos dois arquivos — reveals só na
+  tela, barra fixa, seções com `auto` e herói sem, botão da oferta chega e os reveals dela
+  entram, abas, FAQ, todos os reveals no fim, **zero layout forçado dentro de script no
+  carregamento** (a medição de trace termina antes das interações, que forçam layout de
+  propósito).
+- Não mudou: nada foi publicado na loja por aqui. A LP nova vai ao ar quando o Miguel
+  republicar a partir do link raw; os placeholders do rodapé (`{{ nome_loja }}` etc.)
+  continuam no ar até serem preenchidos.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

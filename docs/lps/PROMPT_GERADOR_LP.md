@@ -88,17 +88,26 @@ LAYOUT E MOVIMENTO
     cada rem para px a 16 px por padrão — a página publicada fica igual ao arquivo aberto
     sozinho no navegador. Se usar rem mesmo assim, declare no seu <style> a raiz em que
     desenhou (html{font-size:62.5%} para 1rem = 10 px), e a conversão segue esse valor.
-18. Sticky bar (barra fixa de compra), se houver, no fim do trecho, position:fixed,
+18. Toda seção abaixo da dobra (tudo menos o herói e a barra fixa) leva
+    content-visibility: auto; contain-intrinsic-size: auto 600px — o navegador calcula e
+    pinta cada uma só quando o visitante chega perto; num celular lento o primeiro quadro
+    custa o layout do herói, não da página inteira. Cuidado com o único efeito colateral:
+    uma rolagem SUAVE (scroll-behavior: smooth ou scrollTo({behavior:'smooth'})) que
+    atravessa seções ainda não calculadas erra o alvo, porque elas crescem no meio do
+    caminho. Antes de rolar por script até uma âncora distante, adicione uma classe ao
+    contêiner que troca content-visibility para visible em todas as seções, e só então
+    meça e role. O href="#ancora" puro e o salto instantâneo acertam sem isso.
+19. Sticky bar (barra fixa de compra), se houver, no fim do trecho, position:fixed,
     aparecendo por classe adicionada no scroll — não por setInterval.
 
 PREÇO E TEXTOS EDITÁVEIS
-19. Preço, preço antigo, desconto, nota e quantidade de avaliações vêm de um objeto de
+20. Preço, preço antigo, desconto, nota e quantidade de avaliações vêm de um objeto de
     configuração no topo do <script> (LP_CONFIG), aplicado a elementos com classes
     js-price-now, js-price-was, js-off, js-save, js-rating, js-rating-count. Os mesmos
     valores também escritos no HTML, para a página fazer sentido sem JavaScript.
 
 ENTREGA
-20. Entregue o trecho completo num único bloco de código, sem explicações no meio. No fim,
+21. Entregue o trecho completo num único bloco de código, sem explicações no meio. No fim,
     liste em 5 linhas: quantas imagens, qual é a primeira (o herói), quais fontes, tamanho
     aproximado do CSS e do JS, e o que ficou como placeholder.
 ```
