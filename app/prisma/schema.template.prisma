@@ -82,6 +82,11 @@ model Page {
   /// page that brings its own everything. Shopify's head and app embeds stay.
   /// On by default (same reason as `showChrome`); the setting turns it off.
   bareLayout Boolean @default(true)
+  /// What a `rem` in pasted HTML is worth. Off (default): the browser's 16px,
+  /// the size the page shows in any standalone preview — the look approved on
+  /// 22/09. On: the store theme's root (10px on Shopify's themes), for a page
+  /// designed inside the theme. Preview and publish read the same flag (I1).
+  remFromTheme Boolean @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   versions  Version[]

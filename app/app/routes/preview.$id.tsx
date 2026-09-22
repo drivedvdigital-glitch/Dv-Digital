@@ -22,8 +22,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   const store = await storeForThemeStyle(new URL(request.url).searchParams.get('shop'));
   const theme = await readThemeStyle(store?.domain);
-  // Same rem base as the canvas and the publish (I1): the theme's.
-  const compiled = compile(JSON.parse(page.doc) as Doc, { rootPx: theme.rootPx });
+  // Same rem base as the canvas and the publish (I1): the page's setting.
+  const compiled = compile(JSON.parse(page.doc) as Doc, { rootPx: page.remFromTheme ? theme.rootPx : undefined });
   const html = `<!doctype html>
 <html lang="pt-BR">
 <head>

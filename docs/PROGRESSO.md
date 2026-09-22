@@ -2497,6 +2497,30 @@ O que continua na mão do lojista para a nota subir de verdade: apagar o pixel `
 no EasySell, colar a LP mais nova, trocar os 7 placeholders por foto real, publicar e medir
 3× no celular.
 
+### O visual de antes era o certo — a base do `rem` vira escolha da página (22/09, noite)
+
+Publicada com a base do tema, a LP deu **92** no celular (FCP 2,4 s · LCP 2,9 s · TBT 10 ms ·
+CLS 0), e o Miguel disse o que eu tinha invertido: "o jeito da LP que estava antes estava
+melhor". Eu tinha decidido pelo compilador que o tamanho "certo" era o do tema; o dono da
+página achava o de 16 px mais bonito, e a nota não é argumento para tirar isso dele.
+
+- `Page.remFromTheme` (migration `20260922160000_rem_do_tema`), **desligado por padrão**:
+  cada `rem` do HTML colado vale 16 px, e a página publicada fica igual ao arquivo aberto
+  sozinho no navegador. Ligado ("Configurações da página → Tamanho do texto no HTML colado →
+  Seguir o tamanho de texto do tema"), a raiz do tema (10 px) manda, com o valor lido na
+  nota. Editor, `/preview/:id`, publicação, exportação, duplicação e importação carregam a
+  opção; arquivo antigo nasce desligado. O status "1 rem = 10 px, como no tema da loja" só
+  aparece com a opção ligada.
+- Dirigido (`drive-rem.mjs`, loja de verdade): padrão a 60,8 px em SSR, canvas com o tema,
+  `/preview/:id` e pedido de preview sem `rootPx`; ligando a caixa, tudo passa a 38 px, salva,
+  recarrega, exporta `remFromTheme: true`; cópia segue, importação antiga não. 19/19. Modo leve
+  20/20. A sequência do ATUALIZAR da VM (install, build, migrate, servidor em produção com
+  Postgres) repetida aqui: `/healthz` ok, `remFromTheme` com default `false` no banco.
+
+Sobre a nota com o visual de 16 px: a LP inteira acima da dobra é a mesma (título, foto,
+preço abaixo); o que muda entre 68 e 95 continua sendo o laboratório e os scripts da loja,
+não o tamanho da fonte. Vale a regra: mediana de 3 corridas.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

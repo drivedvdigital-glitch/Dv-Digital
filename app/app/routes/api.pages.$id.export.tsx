@@ -26,6 +26,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     showChrome: page.showChrome,
     productContentAbove: page.productContentAbove,
     bareLayout: page.bareLayout,
+    remFromTheme: page.remFromTheme,
     doc: JSON.parse(page.doc),
   };
 

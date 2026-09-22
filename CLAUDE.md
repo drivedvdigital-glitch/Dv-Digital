@@ -77,9 +77,10 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   para o CSS do próprio autor e para o tema) nem deixar nosso reset alcançar o que está
   dentro de `[data-dvf-raw]`. Medir com o render comparado, não no olho.
 - **Medir sempre COM o tema da loja por cima.** Documento nu mente: o tema tem
-  `html{font-size:62.5%}` (1rem = 10px, e é ESSA a base do `rem` do HTML colado — o
-  compilador lê a raiz do tema (`themeRootPx`) e converte; a base 16 do navegador deixou a
-  LP 1,6× maior que o aprovado, com preço e botão fora da primeira tela), `body{letter-spacing;line-height}`
+  `html{font-size:62.5%}` (1rem = 10px: o `rem` do HTML colado é convertido para px pelo
+  compilador — a 16px por padrão, o visual que o Miguel aprovou, ou à raiz do tema
+  (`themeRootPx`) quando a página liga "Seguir o tamanho de texto do tema"; a escolha é do
+  dono da página, não do compilador), `body{letter-spacing;line-height}`
   que desce para tudo, e classes (`.price`) que colidem com as do autor. Isolar com
   especificidade de **uma classe** — ganha do tema, perde do autor. `all:revert` apaga
   também atributo de apresentação (`<img width>`, `<svg viewBox>`): esses elementos ficam de

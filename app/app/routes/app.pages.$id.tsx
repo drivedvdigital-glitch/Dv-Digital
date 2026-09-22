@@ -91,8 +91,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   ]);
   const doc = JSON.parse(page.doc) as Doc;
   // The numbers the status bar opens with, built the way the canvas builds:
-  // pasted HTML rebased on the theme's rem, not the browser's.
-  const compiled = compile(doc, { rootPx: theme.rootPx });
+  // pasted HTML rebased on the rem the page's setting asks for.
+  const compiled = compile(doc, { rootPx: page.remFromTheme ? theme.rootPx : undefined });
 
   // A product page has no URL of its own: it is seen at the URL of every
   // product that adopted it. "Ver no ar" opens the first linked product of
@@ -122,6 +122,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       showChrome: page.showChrome,
       productContentAbove: page.productContentAbove,
       bareLayout: page.bareLayout,
+      remFromTheme: page.remFromTheme,
     },
     doc: doc as unknown as DocTree,
     // Only what the screen needs — never a store's token or credentials.
@@ -244,6 +245,8 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   // product page must still be light by default. Publishing applies it to
   // product pages only (a regular page has no theme sections to leave out).
   const bareLayout = form.get('bareLayout') !== 'off';
+  // Off unless asked: the browser's 16px is the look that was approved.
+  const remFromTheme = form.get('remFromTheme') === 'on';
 
   let doc: Doc;
   try {
@@ -271,7 +274,7 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   // later compiler change cannot rewrite what was already published (I2).
   await db.page.update({
     where: { id: pageId },
-    data: { title, handle, doc: JSON.stringify(doc), pageType, showChrome, productContentAbove, bareLayout },
+    data: { title, handle, doc: JSON.stringify(doc), pageType, showChrome, productContentAbove, bareLayout, remFromTheme },
   });
   const version = await db.version.create({
     data: { pageId, doc: JSON.stringify(doc), compilerVersion: COMPILER_VERSION },
@@ -301,13 +304,15 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   if (unreachable.length > 0) {
     return { ok: false, message: `Sem acesso a ${unreachable.map(([l, why]) => `${l} (${why})`).join('; ')}.`, saved: true };
   }
-  // The `rem` base of pasted HTML is the theme's root font-size, read from
-  // the store this editor was opened in — the same store whose theme the
-  // canvas rendered against, so what was approved there is what ships (I1).
-  // (Every store the page goes to gets the same bytes; a page is designed
-  // once, not once per store.)
-  const theme = await readThemeStyle((await storeForThemeStyle(currentShop))?.domain);
-  const compiled = compile(doc, { rootPx: theme.rootPx });
+  // The `rem` base of pasted HTML: the browser's 16px unless the page asks
+  // for the theme's root, read from the store this editor was opened in —
+  // the same store whose theme the canvas rendered against, so what was
+  // approved there is what ships (I1). (Every store the page goes to gets
+  // the same bytes; a page is designed once, not once per store.)
+  const rootPx = remFromTheme
+    ? (await readThemeStyle((await storeForThemeStyle(currentShop))?.domain)).rootPx
+    : undefined;
+  const compiled = compile(doc, { rootPx });
   const fragment = toFragment(compiled);
   const confirmouOutras = form.get('allowProduction') === 'on';
 
@@ -786,6 +791,7 @@ export default function PageEditor() {
   const [showChrome, setShowChrome] = useState(data.page.showChrome);
   const [productContentAbove, setProductContentAbove] = useState(data.page.productContentAbove);
   const [bareLayout, setBareLayout] = useState(data.page.bareLayout);
+  const [remFromTheme, setRemFromTheme] = useState(data.page.remFromTheme);
   // Bare mode is a product-page thing: it only counts while the page is one.
   const bare = pageType === 'product' && bareLayout;
 
@@ -1035,10 +1041,10 @@ export default function PageEditor() {
       chrome: showChrome && !bare,
       // Where the theme's own product sections sit relative to our content.
       productSections: pageType === 'product' && !bare ? (productContentAbove ? 'below' : 'above') : null,
-      // What the theme makes a `rem` worth: pasted HTML is rebased on it here
-      // and at publish time alike. Absent until the theme arrives (then
-      // `themeTick` rebuilds the canvas with it).
-      rootPx: themeStyleRef.current?.rootPx,
+      // What a `rem` in pasted HTML is worth: the browser's 16px, or, when the
+      // page asks for it, the theme's root — here and at publish time alike.
+      // Absent until the theme arrives (then `themeTick` rebuilds the canvas).
+      rootPx: remFromTheme ? themeStyleRef.current?.rootPx : undefined,
     });
     // A big document (a pasted landing page) is where people type fastest
     // and where each rebuild of the canvas costs most; it waits a bit longer
@@ -1096,7 +1102,7 @@ export default function PageEditor() {
       clearTimeout(timer);
     };
     // `themeTick` re-renders the canvas once the theme's styling arrives.
-  }, [doc, data.page.id, showChrome, pageType, productContentAbove, bare, themeTick, themeReady]);
+  }, [doc, data.page.id, showChrome, pageType, productContentAbove, bare, remFromTheme, themeTick, themeReady]);
 
   // Canvas → editor: clicks, drops and toolbar actions arrive as messages.
   useEffect(() => {
@@ -1250,6 +1256,7 @@ export default function PageEditor() {
       <input type="hidden" name="showChrome" value={showChrome ? 'on' : 'off'} />
       <input type="hidden" name="productContentAbove" value={productContentAbove ? 'on' : 'off'} />
       <input type="hidden" name="bareLayout" value={bareLayout ? 'on' : 'off'} />
+      <input type="hidden" name="remFromTheme" value={remFromTheme ? 'on' : 'off'} />
 
       {/* ---- top bar ------------------------------------------------------ */}
       <header style={topBar}>
@@ -2193,6 +2200,28 @@ export default function PageEditor() {
                     : pageType === 'product'
                     ? 'Desligado (padrão), só ESTA página de produto fica sem o cabeçalho e o rodapé — a loja continua com eles. (Escondê-los no editor de temas tiraria da loja inteira.) As seções de produto do tema continuam iguais. Vale a partir da próxima publicação.'
                     : 'Desligado (padrão), a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e o rodapé da loja e sem o CSS e o JS que o layout do tema carrega — a página mais leve. Ligue só se a página precisa da navegação da loja. A mudança vale a partir da próxima publicação.'}
+                </span>
+              </span>
+            </label>
+
+            {/* The rem base of pasted HTML. Off is the look the page has in any
+                standalone preview (and the one approved on 22/09); on follows
+                the theme, for a page designed inside it. */}
+            <div style={{ ...groupLabel, marginTop: 14 }}>Tamanho do texto no HTML colado</div>
+            <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <input
+                type="checkbox"
+                data-settings="remFromTheme"
+                checked={remFromTheme}
+                onChange={(e) => setRemFromTheme(e.target.checked)}
+                style={{ marginTop: 2 }}
+              />
+              <span>
+                Seguir o tamanho de texto do tema da loja
+                <span style={{ ...metaLine, display: 'block' }} data-rem-note>
+                  {remFromTheme
+                    ? `Cada rem do HTML colado vale o que vale no tema da loja${themeStyle ? ` (${themeStyle.rootPx} px)` : ''} — para página desenhada dentro do tema. O texto fica ${themeStyle && themeStyle.rootPx < 16 ? 'menor' : 'do tamanho'} que numa pré-visualização avulsa.`
+                    : 'Desligado (padrão), cada rem do HTML colado vale 16 px: a página fica exatamente como aparece ao abrir o arquivo sozinho no navegador. Ligue só se a página foi desenhada dentro do tema da loja e ficou grande demais aqui.'}
                 </span>
               </span>
             </label>
