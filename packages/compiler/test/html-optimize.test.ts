@@ -183,6 +183,11 @@ test('scripts are counted and reported but published as written', () => {
   assert.match(result.html, /console\.log\(1\)/);
 });
 
+test('a blockless at-rule before a rule does not smuggle that rule out of the scope', () => {
+  const result = run(`<style>@import url("https://x.test/a.css");.a{color:red}</style><p class="a">x</p>`);
+  assert.match(result.html, /@import url\("https:\/\/x\.test\/a\.css"\);\.dvf-page \.a\{color:red\}/, result.html);
+});
+
 test('render-blocking stylesheets and scripts are flagged with the fix, never rewritten', () => {
   const blocking = run(
     `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=X">` +

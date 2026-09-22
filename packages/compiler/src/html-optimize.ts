@@ -273,7 +273,13 @@ export function scopeCss(rawCss: string, scope: string): string {
       break;
     }
 
-    const prelude = css.slice(i, braceAt).trim();
+    // A blockless at-rule before this block (`@import url(x);.a{…}`) is
+    // not part of the prelude: left in, the prelude started with `@` and
+    // the rule after it went out unscoped.
+    const raw = css.slice(i, braceAt);
+    const lead = raw.slice(0, raw.lastIndexOf(';') + 1).trim();
+    if (lead) out.push(lead);
+    const prelude = raw.slice(raw.lastIndexOf(';') + 1).trim();
     const { body, end } = readBlock(braceAt);
 
     if (prelude.startsWith('@')) {
@@ -307,6 +313,175 @@ export function scopeCss(rawCss: string, scope: string): string {
   }
 
   return out.join('');
+}
+
+// --- Motion cost: CSS that keeps a phone's main thread busy ---------------
+
+/** Properties whose animation makes the browser lay the page out again. */
+const LAYOUT_PROP =
+  /^(?:width|height|(?:min|max)-(?:width|height)|top|right|bottom|left|inset(?:-[a-z-]+)?|margin(?:-[a-z]+)?|padding(?:-[a-z]+)?|border(?:-[a-z]+)?-width|gap|row-gap|column-gap|font-size|font-weight|line-height|letter-spacing|flex(?:-[a-z]+)?|grid-[a-z-]+)$/;
+/** Properties whose animation repaints the element (and its neighbours) every frame. */
+const PAINT_PROP =
+  /^(?:background(?:-[a-z]+)?|border(?:-[a-z-]+)?|outline(?:-[a-z]+)?|box-shadow|text-shadow|color|clip-path|fill|stroke(?:-[a-z]+)?|mask(?:-[a-z]+)?)$/;
+/** Words of an `animation` / `transition` shorthand that are never a name. */
+const MOTION_KEYWORDS = new Set([
+  'none', 'all', 'infinite', 'linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out', 'step-start', 'step-end',
+  'normal', 'reverse', 'alternate', 'alternate-reverse', 'forwards', 'backwards', 'both', 'running', 'paused',
+  'initial', 'inherit', 'unset', 'revert',
+]);
+const IDENT = /^-?[a-z_][\w-]*$/i;
+
+/** The `prelude{body}` blocks of a sheet, in order; blockless at-rules (`@import …;`) are skipped. */
+function* cssBlocks(css: string): Generator<{ prelude: string; body: string }> {
+  for (let i = 0; i < css.length; ) {
+    const open = css.indexOf('{', i);
+    if (open === -1) return;
+    let depth = 0;
+    let close = css.length;
+    for (let j = open; j < css.length; j++) {
+      if (css[j] === '{') depth++;
+      else if (css[j] === '}' && --depth === 0) { close = j; break; }
+    }
+    const prelude = css.slice(i, open).trim();
+    yield { prelude: prelude.slice(prelude.lastIndexOf(';') + 1).trim(), body: css.slice(open + 1, close) };
+    i = close + 1;
+  }
+}
+
+/**
+ * Comma split that skips commas inside parentheses: `a 1s cubic-bezier(.2,1,.3,1), b 2s`
+ * is two parts. (`f(a, g(b))` splits wrong, and its fragments fail `IDENT`: no finding.)
+ */
+const splitTop = (value: string): string[] =>
+  value.split(/,(?![^(]*\))/).map((p) => p.trim()).filter(Boolean);
+
+/** `[prop, value]` pairs of a rule body. Custom properties stay out; `!important` is dropped. */
+function declarations(body: string): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  for (const part of body.split(';')) {
+    const at = part.indexOf(':');
+    const prop = part.slice(0, at).trim().toLowerCase();
+    if (at === -1 || !/^-?[a-z][a-z-]*$/.test(prop)) continue;
+    out.push([prop, part.slice(at + 1).replace(/!important/i, '').trim().toLowerCase()]);
+  }
+  return out;
+}
+
+/**
+ * Reports CSS that keeps the phone's main thread busy: keyframes and
+ * transitions on properties that force layout or paint on every frame, blur
+ * and backdrop filters, and `will-change` sprayed over the sheet. Shopify's
+ * theme performance guide and web.dev say the same thing — animate
+ * `transform` and `opacity`, which the compositor runs off the main thread.
+ * Reported, never rewritten: a `width` animation turned into `scaleX` does
+ * not look the same, and that call is the author's.
+ */
+export function auditMotion(rawCss: string): Finding[] {
+  // Analysis only, so the sheet can be simplified: comments go, string
+  // contents are emptied, and a `;` or `{` inside `content:"…"` or
+  // `url("…")` can no longer split a declaration or a block.
+  const css = rawCss.replace(/\/\*[\s\S]*?\*\//g, '').replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+  const frames = new Map<string, Set<string>>(); // keyframes name → every property its frames touch
+  const uses = new Map<string, { infinite: boolean; where: string }>(); // keyframes name → the rule that plays it
+  const transitions: string[] = [];
+  const effects: string[] = [];
+  let willChange = 0;
+  let reducedMotion = false;
+
+  const rule = (selector: string, body: string): void => {
+    const where = splitTop(selector)[0]?.split(/\s+/).pop() ?? selector;
+    const names: string[] = [];
+    let infinite = false;
+    for (const [prop, value] of declarations(body)) {
+      if (prop === 'animation' || prop === 'animation-name') {
+        for (const part of splitTop(value)) {
+          const tokens = part.split(/\s+/);
+          const name = tokens.find((t) => IDENT.test(t) && !MOTION_KEYWORDS.has(t));
+          if (name) names.push(name);
+          if (tokens.includes('infinite')) infinite = true;
+        }
+      } else if (prop === 'animation-iteration-count') {
+        if (/\binfinite\b/.test(value)) infinite = true;
+      } else if (prop === 'transition' || prop === 'transition-property') {
+        const slow = splitTop(value)
+          .map((part) => part.split(/\s+/).find((t) => t === 'all' || (IDENT.test(t) && !MOTION_KEYWORDS.has(t))) ?? '')
+          // Layout only: a 200ms `color` hover is a normal idiom, and paint
+          // that stops when the finger lifts is not worth a line of noise.
+          .filter((p) => p === 'all' || LAYOUT_PROP.test(p));
+        if (slow.length) transitions.push(`${where} (${slow.join(', ')})`);
+      } else if (prop.endsWith('backdrop-filter')) {
+        if (value !== 'none') effects.push(`${where}: backdrop-filter`);
+      } else if (prop.endsWith('filter')) {
+        const blur = /blur\(\s*([\d.]+)px\s*\)/.exec(value);
+        if (blur && Number(blur[1]) > 10) effects.push(`${where}: filter blur(${blur[1]}px)`);
+      } else if (prop === 'will-change' && value !== 'auto') {
+        willChange++;
+      }
+    }
+    for (const name of names) {
+      const seen = uses.get(name);
+      uses.set(name, { infinite: infinite || Boolean(seen?.infinite), where: seen?.where ?? where });
+    }
+  };
+  const scan = (sheet: string): void => {
+    for (const { prelude, body } of cssBlocks(sheet)) {
+      if (!prelude.startsWith('@')) { rule(prelude, body); continue; }
+      const kind = prelude.slice(1).split(/[\s(]/)[0].toLowerCase();
+      if (/^(?:-\w+-)?keyframes$/.test(kind)) {
+        const name = prelude.split(/\s+/)[1] ?? '';
+        const props = frames.get(name) ?? new Set<string>();
+        for (const frame of cssBlocks(body)) for (const [prop] of declarations(frame.body)) props.add(prop);
+        frames.set(name, props);
+      } else if (kind === 'media' || kind === 'supports' || kind === 'container' || kind === 'layer') {
+        // Either form counts: `no-preference` around the animation and
+        // `reduce` switching it off both mean the author thought of it.
+        if (/prefers-reduced-motion/i.test(prelude)) reducedMotion = true;
+        scan(body);
+      }
+    }
+  };
+  scan(css);
+
+  const findings: Finding[] = [];
+  for (const [name, use] of uses) {
+    const props = [...(frames.get(name) ?? [])];
+    const layout = props.filter((p) => LAYOUT_PROP.test(p));
+    const paint = props.filter((p) => PAINT_PROP.test(p));
+    if (layout.length + paint.length === 0) continue; // transform/opacity only: the compositor's job
+    findings.push({
+      severity: 'warning',
+      code: 'html/animation-repaints',
+      message:
+        `A animação «${name}» (em ${use.where}) anima ${[...layout, ...paint].join(', ')}: ` +
+        `${layout.length ? 'recalcula o layout' : 'repinta a área'} a cada quadro, na thread principal do celular` +
+        (use.infinite ? ', durante a visita inteira (infinite)' : '') +
+        '. Anime só transform e opacity; para um brilho pulsante, anime a opacidade de uma camada com a sombra já pintada.' +
+        (use.infinite && !reducedMotion
+          ? ' Não há @media (prefers-reduced-motion: reduce) desligando a animação para quem pediu menos movimento no aparelho.'
+          : ''),
+    });
+  }
+  if (transitions.length > 0) {
+    findings.push({
+      severity: 'info',
+      code: 'html/animation-repaints',
+      message:
+        `Transição em propriedade que recalcula o layout: ${transitions.join('; ')}. ` +
+        'Enquanto ela corre, cada quadro passa pela thread principal — prefira transform e opacity ' +
+        '(largura → transform: scaleX; "all" → só as propriedades que mudam).',
+    });
+  }
+  if (willChange > 5) effects.push(`will-change em ${willChange} regras`);
+  if (effects.length > 0) {
+    findings.push({
+      severity: 'info',
+      code: 'html/expensive-effects',
+      message:
+        `Efeito caro para o celular: ${effects.join('; ')}. Desfoque e backdrop-filter repintam a área inteira a cada rolagem; ` +
+        'will-change em muitos elementos reserva memória de GPU que o celular não tem.',
+    });
+  }
+  return findings;
 }
 
 export function optimizeHtml(source: string, options: OptimizeOptions): OptimizeResult {
@@ -362,9 +537,11 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
   }
 
   // --- 2. Scope <style> blocks so neither side can reach the other ----------
+  const authorCss: string[] = [];
   for (const style of styleBlocks) {
     const rebased = rebaseRem(style.innerHTML, rootPx);
     stats.remRebased += rebased.count;
+    authorCss.push(rebased.css);
     style.set_content(scopeCss(rebased.css, scope));
     stats.styleBlocksScoped++;
   }
@@ -509,6 +686,10 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
         `Troque por <link rel="stylesheet" media="print" onload="this.media='all'"> com uma cópia em <noscript>.`,
     });
   }
+  // Motion that costs the phone its main thread: see `auditMotion`. All the
+  // blocks at once, because a keyframes in one is played by a rule in another.
+  findings.push(...auditMotion(authorCss.join('\n')));
+
   for (const script of scripts) {
     if (!script.getAttribute('src')) continue;
     if (script.hasAttribute('async') || script.hasAttribute('defer')) continue;
