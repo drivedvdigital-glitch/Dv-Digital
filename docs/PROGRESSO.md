@@ -2312,6 +2312,33 @@ blocos.
    caiu de 10,5 s para 3,6 s. Os outros 8 placeholders continuam.
 4. TBT 420 ms: JS de terceiros (tema + EasySell) — o tema sai com o modo leve; o EasySell não.
 
+### 95 no celular (22/09 09:28 BRT) — e o que sobrou do FCP
+
+Modo leve publicado e LP corrigida colada: **95** · FCP 2,3 s · LCP 2,4 s · TBT 10 ms · CLS 0.
+Acessibilidade 95, boas práticas 96, SEO 92. Ontem à noite era 57 com LCP 10,5 s.
+
+O HTML no ar, medido por `curl`: 32 KB na rede (125 KB abertos). Nada do tema (`base.css`,
+`global.js`: 0). O que vem ANTES do nosso conteúdo, e por isso segura o FCP:
+
+| Trecho | Tamanho | De quem |
+|---|---|---|
+| `<head>` da Shopify (`content_for_header`) | 15,7 KB | Shopify |
+| JS inline no `<head>` que roda antes de tudo (EasySell + Shopify) | 51,9 KB | EasySell (19,5 KB só do bloco dele) + Shopify |
+| `accelerated-checkout-backwards-compat.css`, a única folha que bloqueia a renderização | 1,5 KB, 1 pedido | Shopify (injeta em todo modelo de produto) |
+| Nossa seção (LP inteira, CSS incluído) | 26,8 KB | nós |
+
+O FCP de 2,3 s em 4G lento com CPU 4× mais lenta é: TTFB emulado (~0,6 s) + baixar 32 KB +
+executar 52 KB de JS inline antes de chegar no nosso conteúdo + um pedido bloqueante da
+Shopify. A nossa parte já é a mínima possível para uma seção de tema. O que ainda move o FCP
+está nas mãos de quem controla os apps embutidos.
+
+**Insight "Reflow forçado" do PageSpeed**: era do script da LP — o laço dos `.reveal` lia
+`getBoundingClientRect` e escrevia classe no mesmo elemento, alternado; e a pintura do popup
+do EasySell lia `getComputedStyle` de um botão depois de pintar o anterior. Consertado nas
+duas: ler tudo, depois escrever tudo (`docs/lps/mini-plancha-lp.html`). Precisa colar de novo.
+**"Mais de quatro preconnect"**: no HTML há 3 (o nosso ao CDN e os 2 das fontes da LP) + 1
+`dns-prefetch` da Shopify; os demais são inseridos por script de terceiros.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

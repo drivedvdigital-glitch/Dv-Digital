@@ -871,9 +871,13 @@ button.es-accept-offer,
         if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
       });
     },{threshold:.08});
-    els.forEach(function(el){
-      var r = el.getBoundingClientRect();
-      if(r.top < (window.innerHeight||0)) el.classList.add('in');
+    /* Lê a posição de TODOS antes de escrever em qualquer um: ler depois de
+       escrever obriga o navegador a recalcular o layout a cada volta
+       ("reflow forçado" no PageSpeed). */
+    var alturaJanela = window.innerHeight || 0;
+    var naTela = [].map.call(els, function(el){ return el.getBoundingClientRect().top < alturaJanela; });
+    els.forEach(function(el, i){
+      if(naTela[i]) el.classList.add('in');
       else io.observe(el);
     });
     setTimeout(function(){ els.forEach(function(el){ el.classList.add('in'); }); }, 900);
@@ -915,34 +919,40 @@ button.es-accept-offer,
     var escopo = document.getElementById('es-popup-container') || document.querySelector('.es-popup-wrapper');
     if(!escopo) return;
     var c = corPrincipal();
+    /* Duas passadas: primeiro só LÊ (texto e cor calculada de cada botão),
+       depois só ESCREVE. Ler a cor de um botão depois de pintar o anterior
+       força um recálculo de estilo por botão. */
+    var acoes = [];
     escopo.querySelectorAll('button, input[type="submit"]').forEach(function(el){
       if(el.getAttribute('data-mpp-pintado')) return;
       var txt = el.textContent ? el.textContent.toUpperCase() : '';
       if(txt.indexOf('CONFIRMA TU COMPRA') !== -1 || txt.indexOf('CONFIRMAR COMPRA') !== -1 || txt.indexOf('COMPLETAR PEDIDO') !== -1 || el.classList.contains('es-submit-form-button')){
-        pintar(el, c);
-        el.setAttribute('data-mpp-pintado', '1');
+        acoes.push([el, 'principal']);
         return;
       }
       if(txt.indexOf('NO QUIERO') !== -1){
-        el.style.setProperty('background-color', '#f1f3f5', 'important');
-        el.style.setProperty('border', '1px solid #ced4da', 'important');
-        el.style.setProperty('color', '#6c757d', 'important');
-        el.setAttribute('data-mpp-pintado', '1');
+        acoes.push([el, 'secundario']);
         return;
       }
       var s = window.getComputedStyle(el).backgroundColor;
       if(s.indexOf('234, 88') !== -1 || s.indexOf('249, 115') !== -1 || s.indexOf('234, 87') !== -1){
-        pintar(el, c);
-        el.setAttribute('data-mpp-pintado', '1');
+        acoes.push([el, 'principal']);
       }
     });
     escopo.querySelectorAll('svg path').forEach(function(p){
       if(p.getAttribute('data-mpp-pintado')) return;
       var f = window.getComputedStyle(p).fill;
-      if(f.indexOf('234, 88') !== -1 || f.indexOf('249, 115') !== -1){
-        p.style.setProperty('fill', c, 'important');
-        p.setAttribute('data-mpp-pintado', '1');
-      }
+      if(f.indexOf('234, 88') !== -1 || f.indexOf('249, 115') !== -1) acoes.push([p, 'fill']);
+    });
+    acoes.forEach(function(a){
+      var el = a[0];
+      if(a[1] === 'principal') pintar(el, c);
+      else if(a[1] === 'secundario'){
+        el.style.setProperty('background-color', '#f1f3f5', 'important');
+        el.style.setProperty('border', '1px solid #ced4da', 'important');
+        el.style.setProperty('color', '#6c757d', 'important');
+      } else el.style.setProperty('fill', c, 'important');
+      el.setAttribute('data-mpp-pintado', '1');
     });
   }
   var agendado = false;
