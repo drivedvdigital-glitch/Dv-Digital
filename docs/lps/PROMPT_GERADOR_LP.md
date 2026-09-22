@@ -35,9 +35,14 @@ PESO (orçamento: o trecho inteiro abaixo de 80 KB, CSS abaixo de 25 KB, JS abai
 8. Sem <link rel="stylesheet"> para arquivo externo e sem @import. A única exceção são as
    fontes (regra 13).
 9. Sem <script src="..."> externo. Se precisar de JavaScript, um único <script> inline no
-   FIM do trecho, sem setInterval, sem MutationObserver em "attributes", sem laços que leem
-   layout (getBoundingClientRect, offsetHeight, getComputedStyle) alternando com escritas:
-   leia tudo primeiro, escreva tudo depois. Listeners de scroll com {passive:true}.
+   FIM do trecho, sem setInterval, sem MutationObserver em "attributes". NENHUMA leitura de
+   layout no carregamento (getBoundingClientRect, offsetHeight, scrollY, innerHeight,
+   getComputedStyle): logo depois de escrever no DOM, uma leitura dessas obriga o navegador
+   a calcular a página inteira dentro do script. Visibilidade inicial vem do
+   IntersectionObserver (ele entrega sozinho quem já está na tela); estado da barra fixa
+   vem do evento de scroll, não de uma leitura na hora. Quando uma leitura for inevitável
+   (clique do usuário), leia tudo primeiro, escreva tudo depois. Listeners de scroll com
+   {passive:true}.
 10. Sem iframe, vídeo com autoplay ou mapa acima da dobra. Vídeo, quando houver, só com
     poster (imagem) e preload="none".
 

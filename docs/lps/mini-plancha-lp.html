@@ -849,7 +849,11 @@ button.es-accept-offer,
   var sticky = document.getElementById('mpp-sticky');
   function onScroll(){ if(window.scrollY > 520) sticky.classList.add('show'); else sticky.classList.remove('show'); }
   window.addEventListener('scroll', onScroll, {passive:true});
-  onScroll();
+  /* Não ler scrollY agora: logo depois das escritas acima, qualquer leitura
+     de layout obriga o navegador a calcular a página inteira dentro do script
+     (238 ms de "reflow forçado" no PageSpeed, apontados exatamente nesta
+     linha). Dois quadros depois o layout já foi feito e a leitura é grátis. */
+  requestAnimationFrame(function(){ requestAnimationFrame(onScroll); });
 
   /* SCROLL-TO-OFFER (o href="#mpp-offer" já leva lá sem script; isto só suaviza) */
   root.querySelectorAll('.mpp-goto').forEach(function(btn){
@@ -871,15 +875,11 @@ button.es-accept-offer,
         if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
       });
     },{threshold:.08});
-    /* Lê a posição de TODOS antes de escrever em qualquer um: ler depois de
-       escrever obriga o navegador a recalcular o layout a cada volta
-       ("reflow forçado" no PageSpeed). */
-    var alturaJanela = window.innerHeight || 0;
-    var naTela = [].map.call(els, function(el){ return el.getBoundingClientRect().top < alturaJanela; });
-    els.forEach(function(el, i){
-      if(naTela[i]) el.classList.add('in');
-      else io.observe(el);
-    });
+    /* Nenhuma leitura de posição aqui: o IntersectionObserver entrega a
+       visibilidade inicial de cada elemento sozinho, de forma assíncrona,
+       sem obrigar o navegador a calcular o layout dentro do script. O que já
+       está na tela recebe "in" na primeira chamada; o resto, ao rolar. */
+    els.forEach(function(el){ io.observe(el); });
     setTimeout(function(){ els.forEach(function(el){ el.classList.add('in'); }); }, 900);
   } else {
     els.forEach(function(el){ el.classList.add('in'); });
