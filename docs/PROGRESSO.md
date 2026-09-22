@@ -2581,6 +2581,51 @@ Não consegui rodar o PSI hoje (cota diária). A prova de que o preload chega co
 é a próxima publicação: `curl -sI https://snevy.co/products/mini-plancha | grep -i '^link'`
 tem que listar o `.webp` do herói.
 
+### "Na hora do 95 você fez algo que deu certo e depois tirou" — julgado com provas (22/09, noite)
+
+Hipótese do Miguel, levada a sério: workflow com quatro peças de prova em paralelo (medição
+sequencial das cinco versões da nossa seção no mesmo teste; diff forense das seções das
+quatro fotos do dia; fragmento publicável recompilado em cada um dos 11 commits, um worktree
+por commit; linha do tempo lida dos prints do PageSpeed + diff do documento inteiro) e dois
+juízes independentes, um advogado da hipótese e um cético. **Os dois concluíram que ela não
+se sustenta.** As provas:
+
+- **A seção do 95 (09:28) e a do 64 (09:50) são byte-idênticas** (md5 `f8ef5e36…`, 67.748
+  bytes, mesmo id de template), o `<body>` inteiro é idêntico e o `themeCityHash` é o mesmo:
+  31 pontos de queda com zero bytes nossos mudados. A única diferença estava no `<head>`: um
+  `shopify.event_observer.bootstrap` que a Shopify injeta por amostragem de pedido.
+- De 95 → 88 → 68 → agora, a nossa seção só **ganhou** coisas: leitura de layout em lote
+  (8c80785), sem leitura no load + `.reveal` só pelo IntersectionObserver (c6993a2), duas
+  `transition` estreitadas (5a6611f). Preload, `fetchpriority`, `lazy`, fontes, CSS e
+  tamanhos de texto: idênticos nas quatro fotos e nos 11 fragmentos recompilados. O herói
+  nunca teve `.reveal` (o primeiro está na 2ª seção), então nada da primeira tela passou a
+  depender de JS.
+- A **única** coisa que existiu numa nota 90+ e foi tirada é a base `rem` = 10 px do 92 das
+  11:13 (46 regras de `font-size`, nada mais), revertida a pedido dele ("o jeito de antes
+  estava melhor").
+- Medição controlada (mesma cabeça da Shopify, fila simulada, CPU 4×, 4 rodadas por versão):
+  LCP das versões 95/88/68/agora = 1366/1372/1368/1366 ms (Δ 6 ms, ruído 8–20); FCP Δ 118 ms
+  entre versões, menor que o ruído dentro de cada uma; long tasks ~200 ms **menores** nas
+  versões novas (o reflow forçado saiu). Os long tasks grandes são iguais em todas: wpm
+  234–327 ms, perf-kit 131–182, gtag `GTM-000000` 88–142, trekkie 77–154.
+- O que o 95 teve "a mais" foi sorte de corrida, visível nos prints: no 95 e no 88 o título
+  está na **fonte de reserva** (5 linhas, preço fora da tela) — o run foi rápido, a Playfair
+  não chegou a tempo do `display=optional` e o LCP foi o texto do primeiro quadro (FCP = LCP
+  = 2,4 s). Nos 68 a Playfair renderizou (3 linhas), o título ficou menor que a foto, e o LCP
+  passou a ser a **imagem**, que na simulação chega atrás dos ~12 scripts de terceiros na
+  fila (5,7 s). Mesmo CSS, dois LCPs diferentes.
+- **A variante `head-early`** (o preload do herói no `<head>`, cd541ad, ainda não publicada)
+  foi a única que moveu o ponteiro: LCP 892–904 ms em 3 rodadas de 4 contra 1360–1380 das
+  outras (−34 %). Ataca exatamente o caso lento. Na 4ª rodada a imagem caiu atrás dos
+  scripts na fila FIFO simulada — o Early Hint de verdade (que a simulação não faz) é para
+  isso.
+- Achado colateral: o segundo bloco HTML da página (rodapé) está no ar com placeholders
+  literais — `{{ nome_loja }}`, `{{ email_suporte }}`, `{{ endereco_fisico }}` — nas quatro
+  fotos. Não é nota; é texto errado para o visitante.
+
+Ressalvas: n = 4 por versão; medição da nossa seção sob a nossa simulação, não a nota do
+PSI (cota esgotada hoje). Arquivos em `scratchpad/psi/analise/` (não versionados).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
