@@ -37,6 +37,7 @@ sobre LCP, INP e `content-visibility`.
 | Imagem sem `alt` | `html/image-missing-alt` (erro) | `alt=""` se decorativa |
 | `onclick` navegando | `html/click-handler-instead-of-link` | `<a href>` |
 | Fonte do Google Fonts | (dentro do aviso da folha) | `display=optional`: se a fonte não chega em ~100 ms, a visita usa a reserva e a próxima usa a fonte — nunca a troca tardia que re-renderiza o título (CLS) |
+| Leitura de layout no carregamento (`scrollY`, `getBoundingClientRect`, `offsetHeight`) logo depois de escrever no DOM | — | Foi 238 ms de "reflow forçado" na Mini Plancha (`window.scrollY` na primeira chamada de `onScroll()`): a leitura obriga a calcular a página inteira dentro do script. Visibilidade inicial pelo IntersectionObserver; leituras inevitáveis dois quadros depois (`requestAnimationFrame` duplo) |
 
 Regras de fonte que o autor decide (Shopify, "CSS & Fonts"): fonte do sistema é a mais rápida;
 fonte própria hospedada no CDN da Shopify é a segunda; Google Fonts é a mais lenta (duas
@@ -52,6 +53,17 @@ conexões novas). `size-adjust` na `@font-face` reduz o pulo da troca.
   esses apps é deles.
 - TTFB: servidor da Shopify + CDN. A nossa parte é o HTML ser pequeno (o compilado da Mini
   Plancha: 63 KB dos 139 KB do documento; o resto é tema + Shopify + apps).
+
+### O que o lojista desliga no admin (achado na Mini Plancha, 22/09)
+
+| O quê | Custo medido | Onde desligar |
+|---|---|---|
+| **Pixel "GTM" com id de exemplo `GTM-000000`** nas configurações do EasySell: o app carrega `gtag/js` do Google (88 KB comprimidos) para um contêiner que não existe | 88 KB de JS + uma origem a mais, "54 KB não usados" no PageSpeed | Apps → EasySell COD Form → Configurações → Pixels/Rastreamento → apagar a entrada "GTM" ou pôr o id real |
+| **Sincronização de carrinho do canal Shop** (`loader.init-shop-cart-sync` + ~20 pedaços ESM) | ~20 pedidos pequenos na árvore de dependência | Canais de vendas → Shop → Configurações → "Sign in with Shop" / sincronização de carrinho |
+| Fontes do Google na LP (2 `preconnect` + 1 CSS de terceiro) | as duas entradas que passam do limite de 4 `preconnect` do relatório | Hospedar as duas fontes como arquivos da loja e declarar `@font-face` no CSS da LP, ou usar fonte do sistema |
+
+O EasySell em si (≈116 KB comprimidos de JS+CSS e 23 KB de script inline no `<head>`) é o
+checkout desta página e fica; o CSS "não usado" de 14 KB e o `COUNTRIES-CO.js` são dele.
 
 ## 4. Como medir (e como não se enganar)
 
