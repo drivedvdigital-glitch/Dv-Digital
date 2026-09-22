@@ -219,8 +219,10 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
   const pageType = form.get('pageType') === 'product' ? 'product' : 'regular';
   const showChrome = form.get('showChrome') !== 'off';
   const productContentAbove = form.get('productContentAbove') === 'on';
-  // Product pages only: a regular page has no theme sections to leave out.
-  const bareLayout = pageType === 'product' && form.get('bareLayout') === 'on';
+  // Stored as ticked, whatever the page type: a page that later becomes a
+  // product page must still be light by default. Publishing applies it to
+  // product pages only (a regular page has no theme sections to leave out).
+  const bareLayout = form.get('bareLayout') !== 'off';
 
   let doc: Doc;
   try {
@@ -2052,13 +2054,14 @@ export default function PageEditor() {
                     style={{ marginTop: 2 }}
                   />
                   <span>
-                    Só a página, sem o tema
+                    Só a página, sem o tema (padrão)
                     <span style={{ ...metaLine, display: 'block' }}>
                       Publica num modelo mínimo do D&VFly: sem as seções de produto do tema, sem
                       cabeçalho e rodapé, e sem o CSS e o JS que o tema carrega em toda página. Para
                       landing page que traz tudo o que precisa (imagens, preço, botão de compra). Os
-                      apps embutidos da loja (formulário de pedido, pixels) continuam. Vale a partir
-                      da próxima publicação.
+                      apps embutidos da loja (formulário de pedido, pixels) continuam. Desligue só se
+                      a página precisa das seções de produto do tema. Vale a partir da próxima
+                      publicação.
                     </span>
                   </span>
                 </label>
@@ -2118,8 +2121,8 @@ export default function PageEditor() {
                   {bare
                     ? 'No modo leve o modelo não tem cabeçalho nem rodapé — desligue o modo leve para escolher.'
                     : pageType === 'product'
-                    ? 'Desligado, só ESTA página de produto perde o cabeçalho e o rodapé — a loja continua com eles. (Escondê-los no editor de temas tiraria da loja inteira.) As seções de produto do tema continuam iguais. Vale a partir da próxima publicação.'
-                    : 'Desligado, a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e o rodapé da loja — bom para landing pages. A mudança vale a partir da próxima publicação.'}
+                    ? 'Desligado (padrão), só ESTA página de produto fica sem o cabeçalho e o rodapé — a loja continua com eles. (Escondê-los no editor de temas tiraria da loja inteira.) As seções de produto do tema continuam iguais. Vale a partir da próxima publicação.'
+                    : 'Desligado (padrão), a página é publicada num modelo próprio do D&VFly, sem o cabeçalho e o rodapé da loja e sem o CSS e o JS que o layout do tema carrega — a página mais leve. Ligue só se a página precisa da navegação da loja. A mudança vale a partir da próxima publicação.'}
                 </span>
               </span>
             </label>

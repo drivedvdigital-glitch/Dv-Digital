@@ -30,7 +30,12 @@ export interface RenderContext {
    * hook the canvas uses to map a click back to a node. Published output never
    * carries it (I3: minimal footprint).
    */
-  baseAttrs: (node: Node) => Record<string, string | undefined>;
+  baseAttrs: (node: Node, extraClass?: string) => Record<string, string | undefined>;
+  /**
+   * True for a top-level section that is not the first thing on the page —
+   * the ones whose rendering can wait until they are scrolled to.
+   */
+  belowFold: (node: Node) => boolean;
   /** Declares that this block needs a runtime module. */
   requireRuntime: (name: RuntimeModule) => void;
   /**
@@ -78,10 +83,27 @@ export const TABS_CSS = `.dvf-tabs-list{display:flex;gap:6px;flex-wrap:wrap;marg
 .dvf-tab-btn[aria-selected="true"]{background:#17201c;color:#fff;border-color:#17201c}
 .dvf-tab-panel[hidden]{display:none}`;
 
-export const ANIMATION_CSS = `.dvf-anim{opacity:0;transition:opacity .6s ease,transform .6s ease}
+/**
+ * Sections below the first one skip layout and paint until they are about to
+ * scroll into view (`content-visibility: auto`). On a long page that is where
+ * most of the rendering cost sits, and none of it is needed for the first
+ * paint or the first tap. The placeholder height keeps the scrollbar sane
+ * before a section is rendered; `auto` remembers the real size after it is.
+ * Emitted only when a page has such a section. (web.dev, "content-visibility".)
+ */
+export const BELOW_FOLD_CLASS = 'dvf-below';
+export const BELOW_FOLD_CSS = `.${BELOW_FOLD_CLASS}{content-visibility:auto;contain-intrinsic-size:auto 600px}`;
+
+// The pre-state is applied WITHOUT a transition and the entrance WITH one:
+// the pre-state lands by script on content that is off screen (often inside
+// a section the browser has not rendered yet, see BELOW_FOLD_CSS), and a
+// transition pending there would resume the moment the section renders —
+// a visible dip to transparent right as it scrolls in. Jumping to the
+// pre-state instantly has no witness; only the entrance is seen.
+export const ANIMATION_CSS = `.dvf-anim{opacity:0}
 .dvf-anim[data-dvf-anim="rise"]{transform:translateY(24px)}
 .dvf-anim[data-dvf-anim="zoom"]{transform:scale(.94)}
-.dvf-anim.dvf-in{opacity:1;transform:none}
+.dvf-anim.dvf-in{opacity:1;transform:none;transition:opacity .6s ease,transform .6s ease}
 @media (prefers-reduced-motion:reduce){.dvf-anim{opacity:1;transform:none;transition:none}}`;
 
 type Renderer = (node: Node, ctx: RenderContext) => string;
@@ -91,7 +113,11 @@ const prop = <T>(node: Node, name: string, fallback: T): T =>
 
 /** `section` is the outermost structural block: a full-width band. */
 const section: Renderer = (node, ctx) =>
-  tag('section', ctx.baseAttrs(node), ctx.renderChildren(node.children));
+  tag(
+    'section',
+    ctx.baseAttrs(node, ctx.belowFold(node) ? BELOW_FOLD_CLASS : undefined),
+    ctx.renderChildren(node.children),
+  );
 
 /** `stack` is the only layout primitive. Flex, both directions, nothing else. */
 const stack: Renderer = (node, ctx) =>
@@ -457,11 +483,17 @@ el.textContent=y+"d "+(h%24)+"h "+(m%60)+"m "+(s%60)+"s";
 if(d>0)setTimeout(t,1e3);}
 t();});`,
   // Applies the animation pre-state only once JS is known to run, then reveals
-  // each element the first time it enters the viewport.
-  reveal: `(function(){var els=document.querySelectorAll("[data-dvf-anim]");
+  // each element the first time it enters the viewport. What is ALREADY on
+  // screen when the script runs is left alone: hiding it (opacity 0) and
+  // fading it in would delay the first paint of the hero — and the browser
+  // does not count an invisible element as the LCP, so the metric moves to
+  // whatever paints later. Animating what the visitor is already looking at
+  // buys nothing; the animation is for what scrolls into view.
+  reveal: `(function(){var els=document.querySelectorAll("[data-dvf-anim]"),h=innerHeight,io;
+els=[].filter.call(els,function(el){var r=el.getBoundingClientRect();return r.bottom<=0||r.top>=h});
+if(!("IntersectionObserver" in window))return;
 els.forEach(function(el){el.classList.add("dvf-anim")});
-if(!("IntersectionObserver" in window)){els.forEach(function(el){el.classList.add("dvf-in")});return;}
-var io=new IntersectionObserver(function(es){es.forEach(function(e){
+io=new IntersectionObserver(function(es){es.forEach(function(e){
 if(e.isIntersecting){e.target.classList.add("dvf-in");io.unobserve(e.target);}})},{threshold:.15});
 els.forEach(function(el){io.observe(el)});})();`,
   // Tab switching + anchor deep-link: #<anchor> in the URL opens that tab.

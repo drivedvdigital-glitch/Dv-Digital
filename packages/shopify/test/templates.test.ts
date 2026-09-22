@@ -174,6 +174,14 @@ describe('chromelessLayout', () => {
     assert.ok(chromelessLayout('<html>{{ content_for_layout }}</html>').includes('<body style="margin:0">'));
     assert.ok(chromelessLayout(null).includes('{{ content_for_header }}'));
   });
+
+  it('the minimal layout warms the CDN connection before Shopify head, without CORS', () => {
+    const layout = chromelessLayout(null);
+    const preconnect = layout.indexOf('<link rel="preconnect" href="https://cdn.shopify.com">');
+    assert.ok(preconnect > 0, layout);
+    assert.ok(preconnect < layout.indexOf('{{ content_for_header }}'));
+    assert.ok(!/preconnect[^>]*crossorigin/.test(layout), 'images are fetched without CORS');
+  });
 });
 
 describe('productSectionLiquid', () => {

@@ -50,6 +50,7 @@ estado em vez de deixar você descobrir pelo erro.
 - [`docs/INSTALACAO.md`](docs/INSTALACAO.md) — instalar o app numa loja (Dev Dashboard, `shopify.app.toml`, hospedagem)
 - [`docs/CONFIGURACAO_E_MECANISMOS.md`](docs/CONFIGURACAO_E_MECANISMOS.md) — auditoria código × plataforma × concorrente, plano P0/P1/P2, variáveis de ambiente
 - [`docs/MODELOS_DE_TEMA.md`](docs/MODELOS_DE_TEMA.md) — páginas de produto como templates do tema
+- [`docs/DESEMPENHO.md`](docs/DESEMPENHO.md) — o que toda página faz por padrão para ser leve, o que o editor avisa, o que é da Shopify
 - [`docs/videos/`](docs/videos/) — o que cada gravação da referência ensinou
 - [`docs/PROGRESSO.md`](docs/PROGRESSO.md) — o que já está feito, incluindo o que falhou
 

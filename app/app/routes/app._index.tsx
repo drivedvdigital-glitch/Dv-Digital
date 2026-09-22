@@ -220,9 +220,11 @@ export async function action({ request }: ActionFunctionArgs) {
         doc: JSON.stringify(payload.doc),
         // Settings from a newer export; an older file simply has none.
         pageType: payload.pageType === 'product' ? 'product' : 'regular',
-        showChrome: payload.showChrome !== false,
+        // Light unless the file says otherwise — the same default a new page
+        // gets. An older export that never had these fields lands light too.
+        showChrome: payload.showChrome === true,
         productContentAbove: payload.productContentAbove === true,
-        bareLayout: payload.bareLayout === true,
+        bareLayout: payload.bareLayout !== false,
       },
     });
     return { ok: true, message: `"${page.title}" importada.` };

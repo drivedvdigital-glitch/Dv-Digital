@@ -449,6 +449,52 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     });
   }
 
+  // Render-blocking resources. A stylesheet `<link>` in the page body holds
+  // the paint of everything after it until the file arrives; on 4G that is
+  // seconds of blank screen below the point where it sits. Same for a
+  // synchronous external script, which also halts the parser. Both have a
+  // one-line fix the author owns, so this is a warning with the fix in it —
+  // never a rewrite, since the order scripts run in is the author's contract.
+  // (web.dev "optimize LCP": element render delay; Shopify's performance
+  // guide: render-blocking scripts, async CSS pattern.)
+  for (const link of root.querySelectorAll('link[rel~="stylesheet"]')) {
+    // The `<noscript>` copy of the pattern only exists for visitors without
+    // JS; with JS it is inert and blocks nothing.
+    if (link.closest('noscript')) continue;
+    const media = (link.getAttribute('media') ?? '').trim().toLowerCase();
+    const deferred = media !== '' && media !== 'all' && media !== 'screen';
+    if (deferred) continue;
+    findings.push({
+      severity: 'warning',
+      code: 'html/blocking-stylesheet',
+      message:
+        `Folha de estilo que trava a pintura da página (${describe(link)}). ` +
+        `Carregue sem travar: media="print" onload="this.media='all'" na tag, e uma cópia dentro de <noscript>.`,
+    });
+  }
+  for (const style of styleBlocks) {
+    if (!/@import\b/.test(style.innerHTML)) continue;
+    findings.push({
+      severity: 'warning',
+      code: 'html/blocking-stylesheet',
+      message:
+        'Um @import dentro de <style> trava a pintura até o arquivo importado chegar. ' +
+        `Troque por <link rel="stylesheet" media="print" onload="this.media='all'"> com uma cópia em <noscript>.`,
+    });
+  }
+  for (const script of scripts) {
+    if (!script.getAttribute('src')) continue;
+    if (script.hasAttribute('async') || script.hasAttribute('defer')) continue;
+    if ((script.getAttribute('type') ?? '').trim().toLowerCase() === 'module') continue;
+    findings.push({
+      severity: 'warning',
+      code: 'html/blocking-script',
+      message:
+        `Script externo que segura a leitura da página (${describe(script)}). ` +
+        'Acrescente defer (ou async, se ele não depende de nada) para ele carregar sem travar o resto.',
+    });
+  }
+
   for (const node of root.querySelectorAll('[onclick]')) {
     findings.push({
       severity: 'warning',

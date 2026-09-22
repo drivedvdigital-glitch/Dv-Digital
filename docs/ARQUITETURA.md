@@ -427,6 +427,13 @@ Os três primeiros já rodam no spike. O quarto entra quando houver página publ
 Regras de emissão que sustentam o CLS: toda imagem sai com `width`, `height`, `loading="lazy"` e
 `decoding="async"`, salvo quando marcada como `eager` (a imagem do hero). Travado por teste.
 
+Desde 22/09 o padrão de TODA página é o mais leve: layout mínimo (sem cabeçalho/rodapé; página
+de produto só com a nossa seção), `preconnect` ao CDN, primeira imagem com `fetchpriority` e
+`preload`, animação que nunca esconde o que já está na tela, `content-visibility:auto` nas
+seções abaixo da dobra, e aviso no editor para folha de estilo ou script bloqueante no HTML
+colado. A lista completa, com a fonte de cada regra (guia da Shopify, web.dev), está em
+`docs/DESEMPENHO.md`.
+
 ---
 
 ## 9. Segurança

@@ -90,11 +90,19 @@ animations, search, modal…) mais ~10 KB de CSS inline, para uma página que n�
 disso. O modo "sem cabeçalho e rodapé" mantém esse custo de propósito (as seções de produto do
 tema precisam dele); o modo leve não tem seções do tema, então não tem por que pagar.
 
-Regras: só vale para o tipo produto (o action ignora o campo em página normal). Ligado,
-"Posição do conteúdo" e "Mostrar cabeçalho e rodapé" ficam visíveis, cinza, com o motivo —
-não somem. Desligar de novo recompõe a partir do `product.json` do tema (a cópia leve não tem
-seção do tema para preservar). Exportar/importar e duplicar levam a configuração junto.
-Migração `20260922100000_pagina_leve` (verificada em Postgres 16 de verdade e em SQLite).
+Regras: só vale para o tipo produto (a publicação ignora o campo em página normal; o valor
+fica gravado para a página que virar produto depois). Ligado, "Posição do conteúdo" e
+"Mostrar cabeçalho e rodapé" ficam visíveis, cinza, com o motivo — não somem. Desligar de novo
+recompõe a partir do `product.json` do tema (a cópia leve não tem seção do tema para
+preservar). Exportar/importar e duplicar levam a configuração junto. Migração
+`20260922100000_pagina_leve` (verificada em Postgres 16 de verdade e em SQLite).
+
+**É o padrão desde 22/09** (`20260922130000_leve_por_padrao`): página de produto nasce leve e
+página normal nasce sem cabeçalho/rodapé — e as que já existiam foram viradas também, a
+pedido ("todas as páginas o mais leves possível"). Vale na próxima publicação de cada uma; o
+editor mostra o estado, e cada página pode religar o tema na sua configuração. Importar um
+arquivo antigo (sem os campos) nasce leve; um arquivo que diz `showChrome: true` ou
+`bareLayout: false` é respeitado. Regras de desempenho de toda página: `docs/DESEMPENHO.md`.
 
 Ainda na fila para o tipo produto: blocos que leem o produto do contexto (título, preço,
 comprar — a seção é Liquid, então `{{ product.title }}` está ao alcance), "todos os produtos"

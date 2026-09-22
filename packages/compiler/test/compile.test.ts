@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 import { audit, score } from '../src/audit.ts';
 import { compile } from '../src/compile.ts';
-import type { Doc } from '../src/schema.ts';
+import type { Doc, Node } from '../src/schema.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const landing = () =>
@@ -243,6 +243,44 @@ test('nodeIds stamps every block for the editor and never leaks into published o
   }
 });
 
+test('top-level sections after the first block render lazily; the first one and nested ones never', () => {
+  const section = (id: string, text: string): Node => ({
+    id,
+    type: 'section',
+    children: [{ id: `${id}-p`, type: 'text', props: { text } }],
+  });
+  const out = compile({
+    version: 1,
+    root: [
+      section('s1', 'dobra'),
+      section('s2', 'abaixo'),
+      { id: 'h', type: 'heading', props: { level: 1, text: 'Solto' } },
+      { ...section('s3', 'abaixo'), children: [section('s3-inner', 'aninhada')] },
+      { ...section('s4', 'escondida'), hidden: true },
+    ],
+  });
+  const sections = out.html.match(/<section[^>]*>/g) ?? [];
+  assert.deepEqual(sections, [
+    '<section>',
+    '<section class="dvf-below">',
+    '<section class="dvf-below">',
+    '<section>',
+  ]);
+  assert.ok(out.css.includes('.dvf-below{content-visibility:auto;contain-intrinsic-size:auto 600px}'));
+
+  // The first VISIBLE block is the fold, so a hidden one does not count.
+  const hiddenFirst = compile({ version: 1, root: [{ ...section('s0', 'x'), hidden: true }, section('s1', 'y')] });
+  assert.ok(!hiddenFirst.html.includes('dvf-below'));
+  assert.ok(!hiddenFirst.css.includes('dvf-below'), 'the rule ships only when a section uses it');
+
+  // An html block as the fold: the sections after it still wait.
+  const afterHtml = compile({
+    version: 1,
+    root: [{ id: 'lp', type: 'html', props: { html: '<h1>LP</h1>' } }, section('s1', 'y')],
+  });
+  assert.ok(afterHtml.html.includes('<section class="dvf-below">'));
+});
+
 test('a hidden node ships nothing — no markup, no display:none, no audit weight', () => {
   const doc: Doc = {
     version: 1,
@@ -321,6 +359,10 @@ test('entrance animations: opt-in runtime, CSS only when used, content visible w
   assert.ok(animated.js.includes('IntersectionObserver'), 'reveal runtime shipped');
   // The pre-state (opacity 0) is applied by JS, so no-JS visitors still see content.
   assert.ok(!animated.html.includes('dvf-anim '), 'markup ships without the pre-state class');
+  // What is already on screen is never hidden to be faded in: that would
+  // delay the first paint and move the LCP to whatever paints later.
+  assert.ok(animated.js.includes('getBoundingClientRect'), 'runtime skips elements already in view');
+  assert.ok(Buffer.byteLength(animated.js, 'utf8') < 512, 'the runtime module should stay tiny');
 
   const bogus = compile({
     version: 1,

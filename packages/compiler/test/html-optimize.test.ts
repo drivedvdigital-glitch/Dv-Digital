@@ -183,6 +183,34 @@ test('scripts are counted and reported but published as written', () => {
   assert.match(result.html, /console\.log\(1\)/);
 });
 
+test('render-blocking stylesheets and scripts are flagged with the fix, never rewritten', () => {
+  const blocking = run(
+    `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=X">` +
+      `<style>@import url("https://x.test/a.css");</style>` +
+      `<script src="https://x.test/a.js"></script><p>x</p>`,
+  );
+  const sheets = blocking.findings.filter((f) => f.code === 'html/blocking-stylesheet');
+  assert.equal(sheets.length, 2, JSON.stringify(blocking.findings));
+  assert.match(sheets[0].message, /media="print"/);
+  const scripts = blocking.findings.filter((f) => f.code === 'html/blocking-script');
+  assert.equal(scripts.length, 1);
+  assert.match(scripts[0].message, /defer/);
+  // Published as written: the author owns the order things load in.
+  assert.match(blocking.html, /<script src="https:\/\/x\.test\/a\.js"><\/script>/);
+  assert.match(blocking.html, /<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2\?family=X">/);
+
+  const fine = run(
+    `<link rel="stylesheet" href="https://x.test/a.css" media="print" onload="this.media='all'">` +
+      `<noscript><link rel="stylesheet" href="https://x.test/a.css"></noscript>` +
+      `<script src="https://x.test/a.js" defer></script><script async src="https://x.test/b.js"></script>` +
+      `<script type="module" src="https://x.test/c.js"></script><script>inline()</script><p>x</p>`,
+  );
+  assert.deepEqual(
+    fine.findings.filter((f) => f.code === 'html/blocking-stylesheet' || f.code === 'html/blocking-script'),
+    [],
+  );
+});
+
 test('the H1 check is page-level, so one block is not scolded for the page', () => {
   // Two HTML blocks, one H1 between them: correct, and must not warn twice.
   const doc: Doc = {

@@ -15,6 +15,8 @@ import type { Finding } from './audit.ts';
 import {
   ANIMATION_CSS,
   ANIMATIONS,
+  BELOW_FOLD_CLASS,
+  BELOW_FOLD_CSS,
   BLOCKS,
   FORM_CSS,
   RUNTIME,
@@ -116,14 +118,15 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       if (extra) names.push(extra);
       return names.length > 0 ? names.join(' ') : undefined;
     },
-    baseAttrs: (node) => {
+    baseAttrs: (node, extraClass) => {
       // Entrance animation is available to every block, so it lives here
       // rather than in each renderer. Unknown names compile to nothing.
       const animation = String(node.props?.animation ?? '');
       const animated = (ANIMATIONS as readonly string[]).includes(animation);
       if (animated) runtimes.add('reveal');
+      if (extraClass === BELOW_FOLD_CLASS) belowFoldUsed = true;
       return {
-        class: ctx.classAttr(node),
+        class: ctx.classAttr(node, extraClass),
         ...(animated ? { 'data-dvf-anim': animation } : {}),
         ...(options.nodeIds ? { 'data-dvf-id': node.id } : {}),
       };
@@ -171,7 +174,15 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       if (first) lcp.image = image;
       return { first };
     },
+    belowFold: (node) => belowFold.has(node),
   };
+
+  // Top-level sections after the first visible block: their layout and paint
+  // wait until the visitor scrolls near them. The first block is the fold,
+  // whatever it is — an `html` block holding a whole landing page included.
+  const visibleRoot = doc.root.filter((node) => !node.hidden);
+  const belowFold = new Set<Node>(visibleRoot.slice(1).filter((node) => node.type === 'section'));
+  let belowFoldUsed = false;
 
   function render(node: Node): string {
     // The eye toggle: a hidden node (and its whole subtree) simply does not
@@ -259,6 +270,7 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   // Feature CSS ships only when the matching blocks exist on the page.
   const css =
     sheet.toCss(doc.tokens, body.includes(`data-${CLASS_PREFIX}-raw`)) +
+    (belowFoldUsed ? '\n' + BELOW_FOLD_CSS : '') +
     (runtimes.has('reveal') ? '\n' + ANIMATION_CSS : '') +
     (runtimes.has('tabs') ? '\n' + TABS_CSS : '') +
     (runtimes.has('contact') ? '\n' + FORM_CSS : '');

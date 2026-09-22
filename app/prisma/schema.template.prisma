@@ -71,14 +71,17 @@ model Page {
   pageType  String    @default("regular")
   /// Show the theme's header and footer. When false, publishing binds the
   /// page to the D&VFly minimal layout (templates written into the theme).
-  showChrome Boolean  @default(true)
+  /// Off by default since 22/09: the lightest page is the default page, and
+  /// the theme's chrome (with the CSS and JS its layout drags in) is opt-in.
+  showChrome Boolean  @default(false)
   /// Product pages only: place the D&VFly content above the theme's own
   /// product sections (price, variants, buy) instead of below them.
   productContentAbove Boolean @default(false)
   /// Product pages only: our section alone on the minimal D&VFly layout —
   /// no theme product sections, none of the theme's CSS or JS. For a landing
   /// page that brings its own everything. Shopify's head and app embeds stay.
-  bareLayout Boolean @default(false)
+  /// On by default (same reason as `showChrome`); the setting turns it off.
+  bareLayout Boolean @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   versions  Version[]

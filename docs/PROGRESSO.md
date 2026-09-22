@@ -2253,6 +2253,65 @@ PageSpeed na Mini Plancha com o modo leve ligado é a medida que decide.
 app embed — os 53 KB de script inline que não são nossos continuam vindo por ali. O que sai é
 tudo o que o tema carregava.
 
+### Leve por padrão, em toda página — e o que mais o guia da Shopify e o web.dev mandam (22/09)
+
+Pedido: "modo leve em todas as páginas já embutido; TODAS as páginas o mais leves possível, em
+todo celular/aparelho/internet; leia documentos que ajudem". Lidos: o guia de desempenho de
+temas da Shopify e os artigos do web.dev sobre LCP, INP e `content-visibility`. O que cada um
+manda, o que já fazíamos e o que passou a ser feito está em `docs/DESEMPENHO.md` (novo).
+
+**Feito** (`packages/compiler`, `packages/shopify`, `app`):
+
+- **Padrão invertido**: `showChrome=false` e `bareLayout=true` no schema; migração
+  `20260922130000_leve_por_padrao` muda os defaults e **vira as páginas existentes** (produto →
+  leve; todas → sem cabeçalho/rodapé), como pedido. Criar, duplicar e importar seguem o
+  padrão; um arquivo exportado que pede o tema é respeitado. O texto de cada opção diz
+  "(padrão)" e quando ligar o contrário. Verificado em Postgres 16 real com linhas pré-existentes
+  (`p1 regular true/false → false/false`, `p2 product true/false → false/true`).
+- **`preconnect` ao `cdn.shopify.com`** no layout mínimo, antes do `content_for_header`, sem
+  `crossorigin` (imagem não é CORS — um preconnect CORS abriria uma conexão que a imagem não usa).
+- **Animação nunca esconde o que já está na tela**: o runtime `reveal` só põe o pré-estado em
+  elemento fora da janela. Regra literal da Shopify ("don't hide the LCP image behind
+  animations") — e a causa do `NO_LCP` de 21/09, agora impossível em página feita de blocos.
+  Achado no caminho: o pré-estado tinha transição, e dentro de uma seção ainda não renderizada a
+  transição ficava pendente — voltaria a rodar (um mergulho para transparente) bem na hora em
+  que a seção entra na tela. Pré-estado sem transição; só a entrada anima. Medido quadro a
+  quadro no Chromium: `0 0 0.01 0.03 … 0.99 1` (fade de verdade, sem mergulho).
+- **`content-visibility:auto`** (`.dvf-below`) nas seções de topo depois do primeiro bloco,
+  com `contain-intrinsic-size:auto 600px`. Bancada: relayout completo de 120 seções num
+  viewport de celular, **115 ms → 2,6 ms**. O primeiro bloco nunca recebe (é a dobra, seja o
+  que for — um bloco de HTML com uma LP inteira incluído).
+- **Avisos novos no editor**, com o conserto dentro: `html/blocking-stylesheet` (`<link>` de
+  folha sem `media` de adiamento, ou `@import` num `<style>`) e `html/blocking-script`
+  (`<script src>` sem `defer`/`async`/`module`). O `<noscript>` do padrão não é acusado.
+  Nunca reescreve: a ordem em que os scripts do autor rodam é contrato dele.
+
+**Verificado**: compilador 76, Shopify 47, app 38; typecheck e build limpos; editor dirigido
+(20/20: liga/desliga, salva, recarrega, exporta, duplica, página nova nasce leve, virar
+produto nasce leve, importação antiga nasce leve e arquivo com tema é respeitado); runtime
+no Chromium (7/7).
+
+**O que não consegui provar**: que o Chrome de fato PULA a renderização das seções marcadas
+(ele as renderiza de forma proativa quando fica ocioso — `checkVisibility` dizia "renderizada"
+50 ms depois do load). A bancada mede o que importa (o custo do relayout) e o padrão é o
+recomendado pelo web.dev; a prova final é o TBT/INP no PageSpeed de uma página longa de
+blocos.
+
+**A medição que chegou no meio (PageSpeed celular, 22/09 09:13 BRT)**: 68 · FCP 3,2 s · LCP
+3,6 s · TBT 420 ms · CLS 0,135 · SI 3,2 s. Lido contra o HTML no ar (`curl`):
+
+1. **A página no ar ainda está no layout do tema** (`base.css`, `global.js`, `animations.js`…
+   presentes). O modo leve não foi publicado ainda — a versão nova do app precisa subir
+   (`PUBLICAR-DVFLY`) e a página ser republicada.
+2. **A LP no ar é a versão ANTERIOR ao conserto das fontes**: `display=swap`, `<link>` de
+   folha sem `media="print"`, sem `<noscript>`. O repositório tem a corrigida (`47d172b`), mas
+   ela não foi colada. Consequências que batem com os números: o `<link>` bloqueante é o FCP
+   de 3,2 s; o `swap` é o **CLS 0,135 que não existia** (o título troca de fonte e reflui).
+   O aviso novo `html/blocking-stylesheet` acusaria isto no editor.
+3. O herói agora é uma foto real (webp do CDN, `srcset`, `preload`, `fetchpriority`) — a LCP
+   caiu de 10,5 s para 3,6 s. Os outros 8 placeholders continuam.
+4. TBT 420 ms: JS de terceiros (tema + EasySell) — o tema sai com o modo leve; o EasySell não.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

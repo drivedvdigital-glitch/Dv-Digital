@@ -13,6 +13,13 @@
  * layout keeps `content_for_header` — Shopify's own scripts (analytics,
  * consent, payments) must survive losing the theme chrome.
  *
+ * The one resource hint in it warms the connection to Shopify's CDN before
+ * `content_for_header` is parsed: every image on the page comes from there,
+ * the first one is the LCP, and its `<link rel="preload">` sits in the body
+ * (a section cannot reach the head). Without `crossorigin` on purpose —
+ * images are fetched without CORS, and a CORS preconnect would open a
+ * connection they cannot use (Shopify's performance guide, "preconnect").
+ *
  * Proven live on 15/09/2026: a page bound to `page.dvfly-solo` renders on the
  * storefront with no theme header/footer and with Shopify's head intact.
  */
@@ -33,6 +40,7 @@ const LAYOUT = `<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="canonical" href="{{ canonical_url }}">
   <title>{{ page_title }}</title>
+  <link rel="preconnect" href="https://cdn.shopify.com">
   {{ content_for_header }}
 </head>
 <body style="margin:0">
