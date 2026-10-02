@@ -2822,6 +2822,103 @@ de verdade em outros modelos.
 - Fica de fora: `prisma format --check` já acusava o template antes (alinhamento de colunas
   em vários modelos), e continua acusando o mesmo; nada vem da linha nova.
 
+### Teste A | B: A sem redirecionamento, canonical, situação na loja, "quanto falta" (02/10)
+
+Pedido do Miguel depois da conversa sobre Google, tráfego alto e melhorias: canonical nas
+versões, A sem redirecionamento, alertas de teste quebrado, "faltam ~N cliques", lembrete de
+teste longo e contagem em lote.
+
+- **A sem redirecionamento.** A entrada renderiza uma cópia do modelo da A ligada a uma cópia
+  do layout dela com o script no `<head>` (logo depois do `<meta charset>`, antes do
+  `content_for_header`). Quem sorteia a A não carrega uma segunda página; quem sorteia outra
+  versão sai com a página escondida (a A não pisca), e ela reaparece se a próxima não chegar em
+  3 s. O tema nunca é editado. Modelo `.liquid`, sem layout ou layout sem `content_for_header`
+  → volta ao `?view=`, com o motivo na mensagem. As cópias são refeitas a cada gravação e a
+  cada publicação de página no produto de entrada (antes, republicar a mesma página não
+  regravava nada; agora regrava, porque a cópia ficaria velha).
+- **Canonical.** Metafield `dvfly.ab_entry` nas versões + layouts do D&VFly com canonical
+  condicional (`canonicalAware`); layouts antigos corrigidos no lugar ao entrar no ar. Sai ao
+  pausar, encerrar, excluir ou tirar a versão. Versão no layout do tema fica com o canonical
+  dela, e a tela diz o caminho ("Só a página, sem o tema"). O Liquid foi renderizado com um
+  motor de verdade (liquidjs) no teste dirigido: a vitrine falsa agora monta modelo + seções +
+  layout como a Shopify, em vez de trocar texto.
+- **Situação na loja** (topo da tela, teste no ar): página que não abriria, endereço renomeado
+  no admin, último clique, contagem indo para outro endereço do app (túnel velho), modo da A,
+  canonical por versão, 30 dias no ar (também na lista). **Regravar na loja** conserta o que é
+  da gravação. Colocar no ar / Aplicar mudanças **recusa antes de salvar** se uma versão que
+  recebe gente não abriria (antes, qualquer erro do `goLive` deixava o banco com porcentagens
+  que a loja não rodava).
+- **Erro que a pesquisa pegou antes de ir para a loja:** eu ia travar o teste quando a Shopify
+  não desse o `onlineStoreUrl` do produto ("não publicado na Loja virtual"). A equipe da
+  Shopify diz (community.shopify.dev, 32775) que esse campo vem vazio para TODO produto em loja
+  com senha, e loja de desenvolvimento sempre tem senha. Virou aviso com as duas causas, nunca
+  trava.
+- **Quanto falta.** `estimate()`: duas proporções, 95% de confiança e 80% de poder, divisão
+  real do tráfego, o mesmo mínimo de pedidos do veredito; conta o teste inteiro e o ritmo dos
+  últimos 7 dias. Primeira versão da tela dizia "diferença pequena demais" para C 44% × D 0%
+  com pouco tráfego — errado: separei "pequena demais" (diferença < 20% da líder) de "o que
+  falta é tráfego". O veredito dizia "Versão 1/2" enquanto a tela usa letras: agora "A versão C".
+- **Contagem em lote**: memória + gravação a cada 2 s (uma escrita por versão e hora), status
+  do teste em cache por 15 s (esquecido na hora em toda mudança de status), pendente gravado
+  antes de ler e ao desligar; na Vercel, gravação na hora. Carga no sandbox (Postgres, 4 CPUs):
+  20 simultâneos 790 → 1.363 cliques/s; 100 → 1.832; 300 → 1.803; 1.000 simultâneos 1.286/s;
+  0 falhas e 24.300 de 24.300 gravados, inclusive os que estavam na memória no SIGTERM.
+- **Revisão adversarial depois da primeira versão: 31 defeitos confirmados, 1 refutado.**
+  Todos corrigidos; os que mudam o que o Miguel vê ou o número que ele lê:
+  - **Laço de recarga**: A com o modelo apagado do tema → `?view=` de um modelo que não existe →
+    a Shopify mostrava a entrada → o script sorteava a A de novo → recarga sem fim. Agora a cópia
+    cai no modelo padrão (como a Shopify faz) e o script nunca redireciona a A para ela mesma.
+  - **Viés contra a A**: recarregar contava clique de novo, e a A é a página onde se recarrega
+    (quem foi para a B recarrega a B, que não conta). A parecia converter menos. Agora só conta
+    chegada de fora (recarga, voltar e navegação interna ficam fora).
+  - **Pedidos durante pausa contavam**: com o teste pausado a entrada mostra só a página dela,
+    e o pedido caía na A. Agora há `AbTest.liveSpans` (períodos no ar) e o pedido só conta
+    dentro deles; o lembrete dos 30 dias e o ritmo da estimativa também não contam pausa.
+  - **Um produto em dois testes no ar**: a entrada de um podia ser versão de outro, e encerrar,
+    pausar ou excluir um mexia no outro (modelo, canonical, troca de handles). Agora: um teste
+    no ar por produto, checado antes de gravar; o canonical só sai dos produtos deste teste;
+    a troca de handles recusa produto de outro teste.
+  - **Canonical esquecido**: excluir engolia a falha ao tirar o metafield (versão ficava
+    apontando para um teste que não existe) → a exclusão não acontece e a tela pede outro
+    clique. Versão tirada do teste ficava com o canonical → sai antes de salvar. Versão
+    apagada em 0% derrubava o `metafieldsSet` de todas → só produtos que existem.
+  - **Estimativa**: versão em 0% ganhava "faltam N cliques" (ela não recebe mais nenhum) →
+    "não vai alcançar"; mais pedidos que cliques dava conta sem sentido → diz por quê; sem
+    cliques dizia "falta pedido" → diz que falta clique; "encerre com qualquer uma" quando só
+    duas empatavam → nomeia as duas. A caixa conta o teste inteiro e o veredito o período: os
+    dois se contradiziam sem aviso → a caixa diz "Desde o início do teste (data)".
+  - **Contagem em lote**: no Docker o `sh` ficava na frente do `node` e o SIGTERM não chegava
+    (o pendente sumia em toda atualização) → `exec`. Cache do status com contador de geração
+    (uma leitura lenta não ressuscita status velho). Tela lia a saúde antes de gravar o
+    pendente → grava primeiro. Migration preenche o "último clique" dos testes que já existiam.
+  - **Gravação**: status "no ar" agora é gravado antes do passo do canonical (cliques nesse
+    meio-tempo eram recusados); endereços renomeados só vão ao banco depois de chegarem à loja;
+    falha ao aplicar fica gravada e aparece na Situação na loja; Regravar com edição não
+    aplicada fica cinza com o motivo; layout que escolhe pelo nome do modelo
+    (`template.suffix`) volta ao `?view=`; a cópia avisa quando o original mudou no tema.
+  - Refutado: "clique contado duas vezes quando o banco já tinha gravado" — não acontece; mesmo
+    assim a segunda tentativa ficou só para o erro de chave duplicada.
+- **O que falhou no caminho**: o teste dirigido falhou duas vezes num passo que funcionava,
+  sem mudança no app — o script e o servidor falso liam e regravavam o mesmo arquivo de
+  estado, e um apagava a mudança do outro (sumia a "falha simulada"). Trava de arquivo entre
+  os dois; defeito do teste, não do app. E a nota "pedidos com o teste pausado não contam"
+  só aparecia com pausa de mais de 1 minuto: pedido numa pausa curta ficava fora sem aviso →
+  qualquer pausa.
+- Prova: compilador 90, pacote Shopify 88 (+20: A na própria página, layout embrulhado,
+  recuos, modelo apagado, `template.suffix`, ordem de gravação, cópia mudada, canonical com
+  filtro, metafields, produto alcançável), app 58 (+12 da estimativa e dos períodos no ar);
+  typecheck limpo. Dirigido (Playwright + Liquid de verdade, servidor de produção): **98/98
+  em SQLite e em Postgres**, incluindo gravação que falha, versão apagada, pausa com pedido,
+  31 dias no ar, exclusão com canonical recusado. Carga depois das correções (Postgres,
+  4 CPUs): 1.238 / 1.723 / 1.746 / 1.270 cliques/s com 20 / 100 / 300 / 1.000 simultâneos,
+  0 falhas, 24.300 de 24.300 gravados (inclusive no SIGTERM). Migration conferida contra o
+  schema num Postgres novo, já com a correção do índice acima: `migrate diff` vazio.
+- **Limite que fica**: na VM Windows o app é parado sem aviso (`Stop-ScheduledTask`), e os
+  cliques dos últimos ≤2 s antes de uma atualização se perdem. Dito em `docs/TESTE_AB.md`.
+- **Não visto ainda:** nada disso numa loja Shopify de verdade. Falta conferir na loja: a A
+  abrindo sem redirecionar no tema real, o tempo de quem vai para a B, e o canonical no
+  código-fonte da página da versão.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

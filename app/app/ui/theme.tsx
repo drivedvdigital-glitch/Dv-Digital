@@ -297,6 +297,12 @@ export const pillInfo: React.CSSProperties = {
   color: 'var(--dv-info-ink)',
 };
 
+export const pillWarn: React.CSSProperties = {
+  ...badgeBase,
+  background: 'var(--dv-warn-tint)',
+  color: 'var(--dv-warn-text)',
+};
+
 export const pillDanger: React.CSSProperties = {
   ...badgeBase,
   background: 'var(--dv-danger-bg)',

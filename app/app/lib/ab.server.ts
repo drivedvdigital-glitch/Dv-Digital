@@ -10,18 +10,43 @@ import type { AbTest, AbVariant, Store as StoreRow } from '@prisma/client';
 import { ordersUpdatedSince, shopInfo } from '../../../packages/shopify/src/orders.ts';
 import {
   productHandle,
+  productStates,
   productTemplateSuffix,
+  publicationDoubt,
   setProductTemplate,
   swapProductHandles,
+  unreachableReason,
+  type ProductState,
 } from '../../../packages/shopify/src/products.ts';
 import {
-  ensureEntryCopy,
   ensureSplitTemplate,
+  entryCopyChanged,
+  inspectVariantCanonicals,
+  pointVariantCanonicals,
+  releaseVariantCanonicals,
   removeSplitTemplate,
   splitSuffix,
+  type CanonicalState,
 } from '../../../packages/shopify/src/split.ts';
 
-import { addDays, dayStart, daysBetween, localDay, verdict } from './ab.ts';
+import {
+  addDays,
+  closeSpan,
+  currentSpanStart,
+  dayStart,
+  daysBetween,
+  estimate,
+  inSpans,
+  liveMs,
+  localDay,
+  openSpan,
+  parseSpans,
+  serializeSpans,
+  verdict,
+  type Estimate,
+  type Span,
+} from './ab.ts';
+import { config } from './config.server.ts';
 import { db } from './db.server.ts';
 import { clientFor } from './shopify.server.ts';
 
@@ -30,55 +55,224 @@ export const HIT_PATH = '/ab/hit';
 type TestWithVariants = AbTest & { variants: AbVariant[] };
 
 const ordered = (test: TestWithVariants) => [...test.variants].sort((a, b) => a.position - b.position);
+/** Variants are named by letter on screen: A, B, C… */
+const letterOf = (i: number) => String.fromCharCode(65 + i);
+const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** What a check of the pages needs: the entry and the versions, in screen order. */
+interface TestPages {
+  entryProductGid: string;
+  entryHandle: string;
+  variants: Array<{ productGid: string; handle: string; weight: number }>;
+}
 
 /**
- * Puts the test on the store (or rewrites it after an edit): theme files,
- * then the entry product pointed at them. The entry product's own template
- * is remembered the first time, so pausing can give it back.
+ * Before anyone is sent anywhere: every product a visitor can land on must
+ * open. A version with visitors whose product is a draft, archived or deleted
+ * would be a 404 for its share of the ad; the entry would be a 404 for all of
+ * it. A version at 0% may be anything — it receives nobody.
  */
-export async function goLive(test: TestWithVariants, store: StoreRow, origin: string): Promise<void> {
+function unreachable(pages: TestPages, states: Map<string, ProductState | null>): string | null {
+  const entry = unreachableReason(states.get(pages.entryProductGid) ?? null);
+  if (entry) return `A URL de entrada (/products/${pages.entryHandle}) não abriria: ${entry}. Nada mudou na loja.`;
+  for (const [i, v] of pages.variants.entries()) {
+    if (v.weight === 0 || v.productGid === pages.entryProductGid) continue;
+    const problem = unreachableReason(states.get(v.productGid) ?? null);
+    if (problem) {
+      return (
+        `Versão ${letterOf(i)} (/products/${v.handle}): ${problem}, e quem fosse mandado para ela veria uma página de erro. ` +
+        'Ative o produto na Shopify ou deixe essa versão em 0%. Nada mudou na loja.'
+      );
+    }
+  }
+  return null;
+}
+
+/**
+ * Products in use by ANOTHER live test, as its entry or a version, with that
+ * test's name. A product is in one live test at a time: two would chain their
+ * redirects (a visitor sent twice, counted twice) and fight over its
+ * canonical, each one's go-live or pause undoing the other's.
+ */
+async function claimedByOthers(storeId: string, testId: string): Promise<Map<string, string>> {
+  const tests = await db.abTest.findMany({
+    where: { storeId, status: 'live', id: { not: testId } },
+    select: { name: true, entryProductGid: true, variants: { select: { productGid: true } } },
+  });
+  const claimed = new Map<string, string>();
+  for (const t of tests) {
+    claimed.set(t.entryProductGid, t.name);
+    for (const v of t.variants) claimed.set(v.productGid, t.name);
+  }
+  return claimed;
+}
+
+/** The first of these pages another live test is using, said in the screen's words. */
+async function conflictWith(storeId: string, testId: string, pages: TestPages): Promise<string | null> {
+  const claimed = await claimedByOthers(storeId, testId);
+  const all = [{ productGid: pages.entryProductGid, handle: pages.entryHandle }, ...pages.variants];
+  const taken = all.find((p) => claimed.has(p.productGid));
+  if (!taken) return null;
+  return (
+    `/products/${taken.handle} já está no teste "${claimed.get(taken.productGid)}", que está no ar. ` +
+    'Um produto só pode estar num teste no ar por vez: pause aquele teste ou escolha outro produto. Nada mudou na loja.'
+  );
+}
+
+/**
+ * The checks a configuration must pass before it is saved for the store:
+ * every page that receives visitors opens, and none is in another live test.
+ */
+export async function pagesProblem(store: StoreRow, testId: string, pages: TestPages): Promise<string | null> {
+  const states = await productStates(clientFor(store), [pages.entryProductGid, ...pages.variants.map((v) => v.productGid)]);
+  return unreachable(pages, states) ?? (await conflictWith(store.id, testId, pages));
+}
+
+/**
+ * Takes `dvfly.ab_entry` off these products, giving them their own canonical
+ * back — except where another live test put it (its own version: not ours to
+ * remove). Products that no longer exist are skipped: Shopify would refuse
+ * the whole call for one unknown owner.
+ */
+async function releaseCanonicals(
+  client: ReturnType<typeof clientFor>,
+  storeId: string,
+  testId: string,
+  productIds: string[],
+  known?: Map<string, ProductState | null>,
+): Promise<void> {
+  if (productIds.length === 0) return;
+  const claimed = await claimedByOthers(storeId, testId);
+  const states = known ?? (await productStates(client, productIds));
+  const ids = productIds.filter((id) => states.get(id)?.abEntry && !claimed.has(id));
+  if (ids.length > 0) await releaseVariantCanonicals(client, ids);
+}
+
+const spansOf = (test: AbTest) => parseSpans(test.liveSpans, test);
+
+export interface GoLiveResult {
+  /** "stay": version A opens on the entry URL with no redirect; "view": through `?view=`. */
+  mode: 'stay' | 'view' | null;
+  /** What was observed about version A's page (why it is not on its own page, or a template that is gone). */
+  modeNote: string | null;
+  /** The canonical step failed (the test is live anyway). */
+  canonicalError: string | null;
+}
+
+/**
+ * Puts the test on the store (or rewrites it after an edit): checks that every
+ * page a visitor can land on opens and is in no other live test, writes the
+ * theme files, points the entry product at them and the variants' canonical
+ * at the entry. The entry product's own template is remembered the first
+ * time, so pausing can give it back.
+ *
+ * Handles renamed in the admin are followed — in memory first, and saved only
+ * once the store runs them, so a failed write never hides the rename.
+ */
+export async function goLive(test: TestWithVariants, store: StoreRow, origin: string): Promise<GoLiveResult> {
   const client = clientFor(store);
   const suffix = splitSuffix(test.id);
-  const current = await productTemplateSuffix(client, test.entryProductGid);
-  if (current === undefined) {
-    throw new Error(`O produto de entrada (${test.entryHandle}) não existe mais em ${store.label}.`);
-  }
+  const states = await productStates(client, [test.entryProductGid, ...test.variants.map((v) => v.productGid)]);
+  const handleNow = (gid: string, known: string) => states.get(gid)?.handle ?? known;
+  const variants = ordered(test).map((v) => ({ ...v, handle: handleNow(v.productGid, v.handle) }));
+  const entryHandle = handleNow(test.entryProductGid, test.entryHandle);
+  const pages = { entryProductGid: test.entryProductGid, entryHandle, variants };
+  const refusal = unreachable(pages, states) ?? (await conflictWith(store.id, test.id, pages));
+  if (refusal) throw new Error(refusal);
+  const others = variants.filter((v) => v.productGid !== test.entryProductGid);
+
+  const current = states.get(test.entryProductGid)!.templateSuffix;
   // Only a suffix that is not ours is worth remembering: re-applying a live
   // test must not overwrite the original with our own.
   const previousSuffix = current === suffix ? test.previousSuffix : current;
-  // Version A can be the entry URL itself: it is shown its own page through
-  // `?view=` — the template it had, or a copy of the theme's default when it
-  // had none (the default has no name to put in the URL).
-  const entryIsVariant = test.variants.some((v) => v.productGid === test.entryProductGid);
-  const entryView = entryIsVariant ? (previousSuffix ?? (await ensureEntryCopy(client, test.id))) : undefined;
-  await ensureSplitTemplate(client, {
+  const entryVariant = variants.find((v) => v.productGid === test.entryProductGid);
+  const split = await ensureSplitTemplate(client, {
     testId: test.id,
     name: test.name,
     hitUrl: new URL(HIT_PATH, origin).href,
-    variants: ordered(test).map((v) => ({
-      id: v.id,
-      handle: v.handle,
-      weight: v.weight,
-      ...(v.productGid === test.entryProductGid ? { view: entryView } : {}),
-    })),
+    variants: variants.map((v) => ({ id: v.id, handle: v.handle, weight: v.weight })),
+    ...(entryVariant ? { entry: { variantId: entryVariant.id, template: previousSuffix ?? null } } : {}),
   });
   await setProductTemplate(client, test.entryProductGid, suffix);
-  await db.abTest.update({
-    where: { id: test.id },
-    data: { status: 'live', trackerOrigin: origin, previousSuffix, startedAt: test.startedAt ?? new Date() },
-  });
+
+  // The store runs the test from here: recorded at once, so the clicks that
+  // arrive during the canonical step below are counted.
+  const liveFrom = new Date();
+  await db.$transaction([
+    db.abTest.update({
+      where: { id: test.id },
+      data: {
+        status: 'live',
+        trackerOrigin: origin,
+        previousSuffix,
+        startedAt: test.startedAt ?? liveFrom,
+        entryMode: split.mode,
+        entryModeNote: split.note,
+        entryHandle,
+        applyError: null,
+        liveSpans: serializeSpans(openSpan(spansOf(test), liveFrom)),
+      },
+    }),
+    ...variants.map((v) => db.abVariant.update({ where: { id: v.id }, data: { handle: v.handle } })),
+    ...[{ productGid: test.entryProductGid, handle: entryHandle }, ...variants].map((p) =>
+      db.productLink.updateMany({ where: { storeId: store.id, productGid: p.productGid }, data: { productHandle: p.handle } }),
+    ),
+  ]);
+  forgetTest(test.id);
+
+  let canonicalError: string | null = null;
+  try {
+    // The entry answers with its own canonical; the versions with the entry's.
+    await releaseCanonicals(client, store.id, test.id, [test.entryProductGid], states);
+    await pointVariantCanonicals(
+      client,
+      entryHandle,
+      others
+        .filter((v) => states.get(v.productGid))
+        .map((v) => ({ id: v.productGid, templateSuffix: states.get(v.productGid)!.templateSuffix })),
+    );
+  } catch (error) {
+    // Search engines are not worth failing a go-live for: the test runs, and
+    // the screen says the canonical step did not.
+    canonicalError = errorText(error);
+  }
   // From here on, orders matter: sync from the start of the test.
   if (!store.ordersSyncedTo) {
     await db.store.update({ where: { id: store.id }, data: { ordersSyncedTo: new Date(Date.now() - 24 * 3600_000) } });
   }
+  return { mode: split.mode, modeNote: split.note, canonicalError };
+}
+
+/**
+ * A configuration saved for a live test that did not reach the store: the
+ * store keeps running the previous one until it does. Remembered, so the
+ * screen says it until a write succeeds.
+ */
+export async function rememberApplyError(testId: string, error: unknown): Promise<string> {
+  const message = errorText(error);
+  await db.abTest.update({ where: { id: testId }, data: { applyError: message } });
+  return message;
+}
+
+/**
+ * Before a live edit removes versions: their canonical goes back to their own
+ * NOW, before the app forgets they were in the test — afterwards nothing
+ * would know to release them.
+ */
+export async function releaseDropped(store: StoreRow, testId: string, productIds: string[]): Promise<void> {
+  await releaseCanonicals(clientFor(store), store.id, testId, productIds);
 }
 
 /**
  * Gives the entry product back the template it had — only if it still points
- * at ours (a merchant who moved it meanwhile keeps their choice). The theme
- * files stay: resuming is one click and rewrites them anyway.
+ * at ours (a merchant who moved it meanwhile keeps their choice) — and the
+ * variants their own canonical. The theme files stay: resuming is one click
+ * and rewrites them anyway.
  */
-export async function pause(test: TestWithVariants, store: StoreRow): Promise<{ restored: boolean }> {
+export async function pause(
+  test: TestWithVariants,
+  store: StoreRow,
+): Promise<{ restored: boolean; canonicalError: string | null }> {
   const client = clientFor(store);
   const current = await productTemplateSuffix(client, test.entryProductGid);
   let restored = false;
@@ -86,20 +280,62 @@ export async function pause(test: TestWithVariants, store: StoreRow): Promise<{ 
     await setProductTemplate(client, test.entryProductGid, test.previousSuffix ?? null);
     restored = true;
   }
-  await db.abTest.update({ where: { id: test.id }, data: { status: 'paused' } });
-  return { restored };
+  await db.abTest.update({
+    where: { id: test.id },
+    data: { status: 'paused', entryMode: null, entryModeNote: null, liveSpans: serializeSpans(closeSpan(spansOf(test), new Date())) },
+  });
+  forgetTest(test.id);
+  const canonicalError = await releaseAll(test, store);
+  return { restored, canonicalError };
 }
 
-/** Pause (when live) and take the files out of the theme; the caller deletes the row. */
-export async function takeDown(test: TestWithVariants, store: StoreRow): Promise<void> {
-  if (test.status === 'live') await pause(test, store);
+/** Every version's own canonical back; the error, in words, when it failed. */
+async function releaseAll(test: TestWithVariants, store: StoreRow): Promise<string | null> {
+  try {
+    await releaseCanonicals(
+      clientFor(store),
+      store.id,
+      test.id,
+      test.variants.filter((v) => v.productGid !== test.entryProductGid).map((v) => v.productGid),
+    );
+    return null;
+  } catch (error) {
+    return errorText(error);
+  }
+}
+
+/**
+ * Pause (when live) and take the files out of the theme; the caller deletes
+ * the row — but not when the versions' canonical could not be given back
+ * (`canonicalError`): the row is the only record of which products to fix.
+ * Not live, the release is tried again (it is idempotent): a pause whose
+ * release failed gets its retry here.
+ */
+export async function takeDown(test: TestWithVariants, store: StoreRow): Promise<{ canonicalError: string | null }> {
+  let canonicalError: string | null = null;
+  if (test.status === 'live') ({ canonicalError } = await pause(test, store));
+  else if (test.status !== 'draft') canonicalError = await releaseAll(test, store);
   if (test.status !== 'draft') await removeSplitTemplate(clientFor(store), test.id);
+  forgetTest(test.id);
+  return { canonicalError };
 }
 
 /** The handles the app remembers for a product, after its URL changed on the store. */
 async function rememberHandle(storeId: string, testId: string, productGid: string, handle: string): Promise<void> {
   await db.abVariant.updateMany({ where: { testId, productGid }, data: { handle } });
   await db.productLink.updateMany({ where: { storeId, productGid }, data: { productHandle: handle } });
+}
+
+/** A swap would move a product another live test sends visitors to: refused before anything changes. */
+async function swapConflict(store: StoreRow, test: TestWithVariants, productGids: string[]): Promise<void> {
+  const claimed = await claimedByOthers(store.id, test.id);
+  const taken = productGids.find((gid) => claimed.has(gid));
+  if (taken) {
+    throw new Error(
+      `Um dos produtos da troca está no teste "${claimed.get(taken)}", que está no ar: trocar o endereço dele quebraria aquele teste. ` +
+        'Pause aquele teste primeiro. Nada foi feito.',
+    );
+  }
 }
 
 /**
@@ -111,7 +347,11 @@ async function rememberHandle(storeId: string, testId: string, productGid: strin
  * variants, reviews and orders; what changes is which product answers at
  * which address.
  */
-export async function promote(test: TestWithVariants, store: StoreRow, variantId: string): Promise<{ swapped: boolean }> {
+export async function promote(
+  test: TestWithVariants,
+  store: StoreRow,
+  variantId: string,
+): Promise<{ swapped: boolean; canonicalError: string | null }> {
   const winner = test.variants.find((v) => v.id === variantId);
   if (!winner) throw new Error('Essa versão não é deste teste.');
   if (test.status === 'ended') throw new Error('O teste já foi encerrado.');
@@ -120,6 +360,7 @@ export async function promote(test: TestWithVariants, store: StoreRow, variantId
   if (swaps) {
     // Checked BEFORE taking the test down: a product renamed in the admin
     // would only be found by the swap, after the test was already off.
+    await swapConflict(store, test, [test.entryProductGid, winner.productGid]);
     const [entryNow, winnerNow] = await Promise.all([
       productHandle(client, test.entryProductGid),
       productHandle(client, winner.productGid),
@@ -132,7 +373,7 @@ export async function promote(test: TestWithVariants, store: StoreRow, variantId
       );
     }
   }
-  await takeDown(test, store);
+  const { canonicalError } = await takeDown(test, store);
   if (swaps) {
     try {
       await swapProductHandles(
@@ -141,9 +382,7 @@ export async function promote(test: TestWithVariants, store: StoreRow, variantId
         { id: winner.productGid, handle: winner.handle },
       );
     } catch (error) {
-      throw new Error(
-        `O teste foi pausado, mas a troca de endereços não aconteceu: ${error instanceof Error ? error.message : error}`,
-      );
+      throw new Error(`O teste foi pausado, mas a troca de endereços não aconteceu: ${errorText(error)}`);
     }
     await rememberHandle(store.id, test.id, test.entryProductGid, winner.handle);
     await rememberHandle(store.id, test.id, winner.productGid, test.entryHandle);
@@ -156,7 +395,8 @@ export async function promote(test: TestWithVariants, store: StoreRow, variantId
       ...(swaps ? { entryHandle: winner.handle } : {}),
     },
   });
-  return { swapped: swaps };
+  forgetTest(test.id);
+  return { swapped: swaps, canonicalError };
 }
 
 /** Swaps the two URLs back and leaves the test paused, ready to run again. */
@@ -164,6 +404,7 @@ export async function undoPromotion(test: TestWithVariants, store: StoreRow): Pr
   if (test.status !== 'ended' || !test.promotedVariantId) throw new Error('Não há troca de endereços para desfazer.');
   const winner = test.variants.find((v) => v.id === test.promotedVariantId);
   if (!winner) throw new Error('A versão que ganhou foi removida do teste; desfaça a troca pelo admin da Shopify.');
+  await swapConflict(store, test, [test.entryProductGid, winner.productGid]);
   // Now: the entry product sits at the winner's old URL, the winner at the entry's.
   const entryUrl = winner.handle;
   const winnerUrl = test.entryHandle;
@@ -178,6 +419,7 @@ export async function undoPromotion(test: TestWithVariants, store: StoreRow): Pr
     where: { id: test.id },
     data: { status: 'paused', promotedVariantId: null, entryHandle: entryUrl },
   });
+  forgetTest(test.id);
 }
 
 /**
@@ -185,7 +427,7 @@ export async function undoPromotion(test: TestWithVariants, store: StoreRow): Pr
  * D&VFly product page must not point them at the page: that would switch
  * the test off without anyone deciding to. The page's template is still
  * written, and the test is told it is now the entry's own page (version A
- * shows it through `?view=`; pausing restores it).
+ * shows it; pausing restores it).
  */
 export async function liveEntriesAmong(links: Array<{ storeId: string; productGid: string }>) {
   if (links.length === 0) return [];
@@ -198,15 +440,26 @@ export async function liveEntriesAmong(links: Array<{ storeId: string; productGi
   });
 }
 
-/** After a page published over a live test's entry: the page is now what the entry shows as itself. */
+/**
+ * After a page published over a live test's entry: the page is now what the
+ * entry shows as itself. Rewritten even when it already was — version A
+ * shows on the entry through a COPY of its template and layout, and a
+ * republish has just changed the originals.
+ */
 export async function adoptEntryPage(
   test: TestWithVariants & { store: StoreRow },
   pageSuffix: string,
 ): Promise<void> {
-  if (test.previousSuffix === pageSuffix) return;
-  await db.abTest.update({ where: { id: test.id }, data: { previousSuffix: pageSuffix } });
+  if (test.previousSuffix !== pageSuffix) {
+    await db.abTest.update({ where: { id: test.id }, data: { previousSuffix: pageSuffix } });
+  }
   const fresh = await db.abTest.findUniqueOrThrow({ where: { id: test.id }, include: { variants: true } });
-  if (test.trackerOrigin) await goLive(fresh, test.store, test.trackerOrigin);
+  if (!test.trackerOrigin) return;
+  try {
+    await goLive(fresh, test.store, test.trackerOrigin);
+  } catch (error) {
+    throw new Error(await rememberApplyError(test.id, error));
+  }
 }
 
 // ---- arrivals ---------------------------------------------------------------
@@ -242,6 +495,151 @@ function overLimit(ip: string): boolean {
 
 export type HitOutcome = 'counted' | 'bot' | 'limited' | 'unknown' | 'not-live';
 
+/**
+ * Which test a variant belongs to and whether that test is live, remembered
+ * for a few seconds: an ad that takes off sends thousands of arrivals a
+ * minute for the same handful of variants, and none of them needs its own
+ * database read. A status change in this process forgets the test at once
+ * (`forgetTest`); the TTL bounds anything else.
+ */
+const VARIANT_TTL_MS = 15_000;
+const variantCache = new Map<string, { testId: string; live: boolean; until: number }>();
+/**
+ * Bumped by every status change: a read that started before the change must
+ * not be remembered after it (it would hold the old status for 15 s).
+ */
+let statusGeneration = 0;
+
+async function variantInfo(variantId: string): Promise<{ testId: string; live: boolean } | null> {
+  const now = Date.now();
+  const known = variantCache.get(variantId);
+  if (known && known.until > now) return known;
+  const generation = statusGeneration;
+  const row = await db.abVariant.findUnique({
+    where: { id: variantId },
+    select: { testId: true, test: { select: { status: true } } },
+  });
+  if (!row) return null;
+  const info = { testId: row.testId, live: row.test.status === 'live', until: now + VARIANT_TTL_MS };
+  if (generation === statusGeneration) {
+    if (variantCache.size > 5_000) variantCache.clear();
+    variantCache.set(variantId, info);
+  }
+  return info;
+}
+
+/** Called on every status change of a test, so arrivals see it at once. */
+function forgetTest(testId: string): void {
+  statusGeneration++;
+  for (const [variantId, info] of variantCache) if (info.testId === testId) variantCache.delete(variantId);
+}
+
+/**
+ * Arrivals are added up in memory and written every FLUSH_MS, one upsert per
+ * variant and hour — the database sees a handful of writes every couple of
+ * seconds however many visitors arrive. The visitor never waits for any of it
+ * (the beacon is fire-and-forget), so this is only about how much traffic the
+ * counter itself takes before it starts dropping counts.
+ *
+ * On a serverless host the instance may be frozen right after answering, with
+ * a timer pending forever: there every arrival is written before the answer.
+ */
+const FLUSH_MS = 2_000;
+const WRITE_THROUGH = config.abWriteThrough;
+const pendingHits = new Map<string, { testId: string; variantId: string; hour: Date; clicks: number; visitors: number }>();
+const pendingLast = new Map<string, Date>();
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+let flushChain: Promise<void> = Promise.resolve();
+
+function addPending(testId: string, variantId: string, hour: Date, clicks: number, visitors: number): void {
+  const key = `${variantId}|${hour.getTime()}`;
+  const entry = pendingHits.get(key);
+  if (entry) {
+    entry.clicks += clicks;
+    entry.visitors += visitors;
+  } else {
+    pendingHits.set(key, { testId, variantId, hour, clicks, visitors });
+  }
+}
+
+async function writePending(): Promise<void> {
+  if (pendingHits.size === 0 && pendingLast.size === 0) return;
+  const batch = [...pendingHits.values()];
+  const last = [...pendingLast];
+  pendingHits.clear();
+  pendingLast.clear();
+  for (const p of batch) {
+    const where = { variantId_hour: { variantId: p.variantId, hour: p.hour } };
+    const increment = { clicks: { increment: p.clicks }, visitors: { increment: p.visitors } };
+    try {
+      try {
+        await db.abStat.upsert({
+          where,
+          create: { variantId: p.variantId, testId: p.testId, hour: p.hour, clicks: p.clicks, visitors: p.visitors },
+          update: increment,
+        });
+      } catch (error) {
+        // A variant removed from its test meanwhile: its counts go with it.
+        if (!(await db.abVariant.findUnique({ where: { id: p.variantId }, select: { id: true } }))) continue;
+        // Only a lost race on creating the hour's row is retried as an
+        // update. Any other error may have come AFTER the write committed
+        // (a connection dropped on the reply); adding again would count a
+        // whole batch twice.
+        if ((error as { code?: string }).code !== 'P2002') throw error;
+        await db.abStat.update({ where, data: increment });
+      }
+    } catch (error) {
+      // The database is out of reach: the counts wait for the next flush
+      // instead of being lost. Bounded — keys are variant × hour.
+      if (pendingHits.size < 10_000) addPending(p.testId, p.variantId, p.hour, p.clicks, p.visitors);
+      console.error('[dvfly] contagem do teste A|B adiada:', error instanceof Error ? error.message : error);
+    }
+  }
+  for (const [testId, at] of last) {
+    try {
+      await db.abTest.updateMany({ where: { id: testId, OR: [{ lastHitAt: null }, { lastHitAt: { lt: at } }] }, data: { lastHitAt: at } });
+    } catch {
+      if (!pendingLast.has(testId)) pendingLast.set(testId, at);
+    }
+  }
+  if (pendingHits.size > 0 || pendingLast.size > 0) scheduleFlush();
+}
+
+function scheduleFlush(): void {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    void flushHits();
+  }, FLUSH_MS);
+  flushTimer.unref?.();
+}
+
+/**
+ * Writes the counts still in memory. The report calls it before reading, so
+ * the screen always shows every arrival so far; flushes never overlap.
+ */
+export function flushHits(): Promise<void> {
+  flushChain = flushChain.then(writePending, writePending);
+  return flushChain;
+}
+
+// A restart (a new version going up) writes what is still in memory first.
+// Whoever else listens (server.mjs closes the HTTP server) decides when the
+// process ends; alone, this listener would swallow the signal, so it exits
+// itself once the counts are written.
+const hooked = globalThis as { __dvflyAbFlushHook?: boolean };
+if (!hooked.__dvflyAbFlushHook) {
+  hooked.__dvflyAbFlushHook = true;
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+    process.once(signal, () => {
+      const others = process.listenerCount(signal);
+      void flushHits().finally(() => {
+        if (others === 0) process.exit(0);
+      });
+    });
+  }
+}
+
 /** One arrival through a test URL. Unknown or stopped tests are ignored, quietly. */
 export async function recordHit(input: {
   testId: string;
@@ -252,25 +650,14 @@ export async function recordHit(input: {
 }): Promise<HitOutcome> {
   if (BOT.test(input.userAgent)) return 'bot';
   if (overLimit(input.ip)) return 'limited';
-  const variant = await db.abVariant.findUnique({
-    where: { id: input.variantId },
-    select: { testId: true, test: { select: { status: true } } },
-  });
+  const variant = await variantInfo(input.variantId);
   if (!variant || variant.testId !== input.testId) return 'unknown';
-  if (variant.test.status !== 'live') return 'not-live';
-  const hour = new Date(Math.floor(Date.now() / 3600_000) * 3600_000);
-  const where = { variantId_hour: { variantId: input.variantId, hour } };
-  const increment = { clicks: { increment: 1 }, visitors: { increment: input.first ? 1 : 0 } };
-  try {
-    await db.abStat.upsert({
-      where,
-      create: { variantId: input.variantId, testId: input.testId, hour, clicks: 1, visitors: input.first ? 1 : 0 },
-      update: increment,
-    });
-  } catch {
-    // Two arrivals creating the same hour at once: the loser updates.
-    await db.abStat.update({ where, data: increment });
-  }
+  if (!variant.live) return 'not-live';
+  const now = new Date();
+  addPending(input.testId, input.variantId, new Date(Math.floor(now.getTime() / 3600_000) * 3600_000), 1, input.first ? 1 : 0);
+  pendingLast.set(input.testId, now);
+  if (WRITE_THROUGH) await flushHits();
+  else scheduleFlush();
   return 'counted';
 }
 
@@ -332,6 +719,8 @@ export interface Report {
   to: string;
   /** Orders count from here: the later of the period's start and the test's. */
   countFrom: string;
+  /** The test was paused at some point inside the period: orders then do not count. */
+  pausedInside: boolean;
   rows: VariantRow[];
   days: Array<{ day: string; byVariant: Record<string, { clicks: number; orders: number }> }>;
   currency: string | null;
@@ -339,6 +728,12 @@ export interface Report {
   /** Why orders are missing or partial, in the screen's words; null when complete. */
   ordersNote: string | null;
   ordersOk: boolean;
+  /**
+   * How many more clicks until the test can tell — on the WHOLE test, not
+   * the period — with the pace it is measured against (null when not live)
+   * and, when the whole test is already decided, what it decided.
+   */
+  estimate: (Estimate & { clicksPerDay: number | null; since: string; wholeNote: string }) | null;
 }
 
 /**
@@ -359,13 +754,74 @@ export async function storeInfo(store: StoreRow): Promise<{ timezone: string; ur
   }
 }
 
+/** Orders of the test's products, created in [from, to) while the test was live; test orders left out. */
+async function testOrders(storeId: string, from: Date, to: Date, spans: Span[]) {
+  const orders = await db.abOrder.findMany({
+    where: { storeId, test: false, createdAt: { gte: from, lt: to } },
+    select: { createdAt: true, cancelled: true, total: true, currency: true, productIds: true },
+  });
+  return orders.filter((o) => inSpans(spans, o.createdAt));
+}
+
+const hourOf = (d: Date) => new Date(Math.floor(d.getTime() / 3600_000) * 3600_000);
+/** Below this much live time, a pace is a guess: no days are estimated from it. */
+const MIN_PACE_MS = 10 * 60_000;
+
+/**
+ * The whole test's clicks and orders per variant (the estimate's input — a
+ * period chosen on screen is not the test), with each one's current weight,
+ * and the pace of clicks over the last 7 days of LIVE time (paused days are
+ * not slow days). No pace while the test is not live.
+ */
+async function wholeTest(test: TestWithVariants, store: StoreRow, spans: Span[]) {
+  const now = new Date();
+  const first = spans[0]?.[0] ?? test.startedAt ?? now;
+  const byProduct = new Map(test.variants.map((v) => [v.productGid, v.id]));
+  const clicks = new Map(test.variants.map((v) => [v.id, 0]));
+  const orders = new Map(test.variants.map((v) => [v.id, 0]));
+  const sums = await db.abStat.groupBy({
+    by: ['variantId'],
+    where: { testId: test.id, hour: { gte: hourOf(first) } },
+    _sum: { clicks: true },
+  });
+  for (const row of sums) if (clicks.has(row.variantId)) clicks.set(row.variantId, row._sum.clicks ?? 0);
+  for (const order of await testOrders(store.id, first, now, spans)) {
+    if (order.cancelled) continue;
+    for (const productId of order.productIds.split(' ')) {
+      const variantId = byProduct.get(productId);
+      if (variantId) orders.set(variantId, (orders.get(variantId) ?? 0) + 1);
+    }
+  }
+  let clicksPerDay: number | null = null;
+  if (test.status === 'live') {
+    const windowStart = hourOf(new Date(now.getTime() - 7 * 86400_000));
+    const live = liveMs(spans, windowStart, now);
+    if (live >= MIN_PACE_MS) {
+      const recent = await db.abStat.aggregate({ where: { testId: test.id, hour: { gte: windowStart } }, _sum: { clicks: true } });
+      clicksPerDay = ((recent._sum.clicks ?? 0) * 86400_000) / live;
+    }
+  }
+  return {
+    first,
+    rows: ordered(test).map((v) => ({ id: v.id, clicks: clicks.get(v.id) ?? 0, orders: orders.get(v.id) ?? 0, weight: v.weight })),
+    clicksPerDay,
+  };
+}
+
 export async function buildReport(test: TestWithVariants, store: StoreRow, from: string, to: string): Promise<Report> {
+  // Arrivals still in memory belong on the screen too.
+  await flushHits();
   const { timezone } = await storeInfo(store);
   const start = dayStart(from, timezone);
   const end = dayStart(addDays(to, 1), timezone);
+  const spans = spansOf(test);
   // An order placed before the test existed is not an order of the test,
   // even when the period on screen reaches further back.
   const countFrom = test.startedAt && test.startedAt > start ? test.startedAt : start;
+  const until = end.getTime() < Date.now() ? end : new Date();
+  // Any pause counts, however short: an order placed in it was left out.
+  // (The second only absorbs clock rounding between old rows' fields.)
+  const pausedInside = until > countFrom && liveMs(spans, countFrom, until) < until.getTime() - countFrom.getTime() - 1000;
   const variants = ordered(test);
   const days = daysBetween(from, to);
   const blank = () => Object.fromEntries(variants.map((v) => [v.id, { clicks: 0, orders: 0 }]));
@@ -394,16 +850,12 @@ export async function buildReport(test: TestWithVariants, store: StoreRow, from:
     if (!sync.complete) ordersNote = 'Ainda copiando os pedidos da loja: os números de pedidos podem subir ao recarregar.';
   } catch (error) {
     ordersOk = false;
-    ordersNote = error instanceof Error ? error.message : String(error);
+    ordersNote = errorText(error);
   }
 
   const byProduct = new Map(variants.map((v) => [v.productGid, v.id]));
-  const orders = await db.abOrder.findMany({
-    where: { storeId: store.id, test: false, createdAt: { gte: countFrom, lt: end } },
-    select: { createdAt: true, cancelled: true, total: true, currency: true, productIds: true },
-  });
   let currency: string | null = null;
-  for (const order of orders) {
+  for (const order of await testOrders(store.id, countFrom, end, spans)) {
     for (const productId of order.productIds.split(' ')) {
       const variantId = byProduct.get(productId);
       if (!variantId) continue;
@@ -421,16 +873,146 @@ export async function buildReport(test: TestWithVariants, store: StoreRow, from:
   }
 
   const list = variants.map((v) => rows.get(v.id)!);
+  const labels = Object.fromEntries(list.map((r, i) => [r.id, `A versão ${letterOf(i)}`]));
+  let estimated: Report['estimate'] = null;
+  if (spans.length > 0 && ordersOk) {
+    const whole = await wholeTest(test, store, spans);
+    estimated = {
+      ...estimate(whole.rows, whole.clicksPerDay),
+      clicksPerDay: whole.clicksPerDay,
+      since: whole.first.toISOString(),
+      wholeNote: verdict(whole.rows, labels).note,
+    };
+  }
   return {
     timezone,
     from,
     to,
     countFrom: countFrom.toISOString(),
+    pausedInside,
     rows: list,
     days: days.map((day) => ({ day, byVariant: byDay.get(day)! })),
     currency,
-    verdict: verdict(list, Object.fromEntries(list.map((r, i) => [r.id, `Versão ${i + 1}`]))),
+    verdict: verdict(list, labels),
     ordersNote,
     ordersOk,
+    estimate: estimated,
   };
+}
+
+// ---- health -----------------------------------------------------------------
+
+export interface Health {
+  /** Pages a visitor can be sent to that would not open, said per page. */
+  problems: Array<{ label: string; handle: string; problem: string; receives: boolean }>;
+  /** Pages Shopify gave no storefront URL for: unpublished, or a store with a password. */
+  doubts: Array<{ label: string; handle: string; doubt: string }>;
+  /** Products whose URL changed in the admin since the test was applied. */
+  renamed: Array<{ label: string; was: string; now: string }>;
+  /** Where each other version's canonical points (the entry has its own). */
+  canonical: Array<{ label: string; handle: string; state: CanonicalState }>;
+  /** The products could not be read from the store. */
+  productsError: string | null;
+  /** The canonical check could not be done (the product check may have worked). */
+  canonicalError: string | null;
+  /** The test reports clicks to another address than this app's. */
+  trackerMismatch: { recorded: string; current: string } | null;
+  /** Minutes since the last click, null when none ever; approximate when only the hour is known. */
+  lastHitMinutes: number | null;
+  lastHitApprox: boolean;
+  /** Settings saved that the store is not running yet (the last write failed). */
+  applyError: string | null;
+  /** What was observed about version A's page at the last write. */
+  modeNote: string | null;
+  /** Version A on its own page, and its original template or layout changed since the copy. */
+  copyChanged: boolean | null;
+  /** Minutes since the current live stretch began; days live in all, pauses left out. */
+  liveSinceMinutes: number | null;
+  liveDays: number;
+}
+
+/** Days a test has been live in all, its pauses left out (the list and the reminder use it). */
+export function liveDaysOf(test: AbTest, now = new Date()): number {
+  return Math.floor(liveMs(spansOf(test), new Date(0), now) / 86400_000);
+}
+
+/**
+ * What could be silently wrong with a live test, read from the store each
+ * time the screen opens: a page that would not open, a URL renamed in the
+ * admin, a canonical that is not pointing at the entry, clicks reported to
+ * an address that is not this app, version A's copy behind its original,
+ * settings that did not reach the store.
+ */
+export async function testHealth(test: TestWithVariants, store: StoreRow, origin: string): Promise<Health> {
+  const now = new Date();
+  const spans = spansOf(test);
+  const sinceStretch = currentSpanStart(spans);
+  let lastHit = test.lastHitAt;
+  let lastHitApprox = false;
+  if (!lastHit) {
+    // Tests from before the last-click time existed: the latest hour with a click.
+    const row = await db.abStat.findFirst({ where: { testId: test.id, clicks: { gt: 0 } }, orderBy: { hour: 'desc' }, select: { hour: true } });
+    if (row) [lastHit, lastHitApprox] = [row.hour, true];
+  }
+  const health: Health = {
+    problems: [],
+    doubts: [],
+    renamed: [],
+    canonical: [],
+    productsError: null,
+    canonicalError: null,
+    trackerMismatch: test.trackerOrigin && test.trackerOrigin !== origin ? { recorded: test.trackerOrigin, current: origin } : null,
+    lastHitMinutes: lastHit ? Math.max(0, Math.floor((now.getTime() - lastHit.getTime()) / 60_000)) : null,
+    lastHitApprox,
+    applyError: test.applyError,
+    modeNote: test.entryModeNote,
+    copyChanged: null,
+    liveSinceMinutes: sinceStretch ? Math.floor((now.getTime() - sinceStretch.getTime()) / 60_000) : null,
+    liveDays: liveDaysOf(test, now),
+  };
+  const variants = ordered(test);
+  const pages = [
+    { label: 'URL de entrada', productGid: test.entryProductGid, handle: test.entryHandle, receives: true },
+    ...variants
+      .map((v, i) => ({ label: `Versão ${letterOf(i)}`, productGid: v.productGid, handle: v.handle, receives: v.weight > 0 }))
+      .filter((p) => p.productGid !== test.entryProductGid),
+  ];
+  const client = clientFor(store);
+  let states: Map<string, ProductState | null>;
+  try {
+    states = await productStates(client, pages.map((p) => p.productGid));
+  } catch (error) {
+    health.productsError = errorText(error);
+    return health;
+  }
+  for (const page of pages) {
+    const state = states.get(page.productGid) ?? null;
+    const problem = unreachableReason(state);
+    const doubt = publicationDoubt(state);
+    if (problem) health.problems.push({ label: page.label, handle: page.handle, problem, receives: page.receives });
+    else if (doubt) health.doubts.push({ label: page.label, handle: page.handle, doubt });
+    if (!problem && state && state.handle !== page.handle) health.renamed.push({ label: page.label, was: page.handle, now: state.handle });
+  }
+  const others = pages.slice(1).filter((p) => states.get(p.productGid));
+  try {
+    const canonical = await inspectVariantCanonicals(
+      client,
+      test.entryHandle,
+      others.map((p) => {
+        const state = states.get(p.productGid)!;
+        return { id: p.productGid, templateSuffix: state.templateSuffix, abEntry: state.abEntry };
+      }),
+    );
+    health.canonical = others.map((p) => ({ label: p.label, handle: p.handle, state: canonical.get(p.productGid) ?? 'unset' }));
+  } catch (error) {
+    health.canonicalError = errorText(error);
+  }
+  if (test.entryMode === 'stay') {
+    try {
+      health.copyChanged = await entryCopyChanged(client, test.id, test.previousSuffix);
+    } catch {
+      health.copyChanged = null;
+    }
+  }
+  return health;
 }

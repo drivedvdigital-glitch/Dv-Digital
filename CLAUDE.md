@@ -68,9 +68,18 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   para um layout nosso cujo `<head>` sorteia a versão por peso ANTES do `content_for_header`
   (`packages/shopify/src/split.ts`) e troca a URL mantendo a query (utm, fbclid). Sorteio só
   por porcentagem — nunca por user agent, IP ou plataforma (isso seria cloaking); robô é
-  redirecionado igual e só fica fora da CONTA. A versão A pode ser a própria URL de entrada:
-  ela é mostrada pelo `?view=<modelo que tinha>` (cópia do modelo padrão quando não tinha);
-  publicar página no produto de entrada com teste no ar NÃO o tira do teste. Pedidos por produto da versão, de uma cópia
+  redirecionado igual e só fica fora da CONTA. A versão A pode ser a própria URL de entrada,
+  **sem redirecionamento**: a entrada renderiza uma CÓPIA do modelo da A ligada a uma CÓPIA do
+  layout dela com o script no `<head>` (o tema nunca é editado); sem layout onde o script caiba,
+  volta ao `?view=<modelo que tinha>`. Cópias refeitas a cada gravação do teste e a cada
+  publicação de página no produto de entrada (que NÃO o tira do teste). Canonical das versões
+  → entrada pelo metafield `dvfly.ab_entry`, lido só pelos layouts do D&VFly
+  (`canonicalAware`); sai ao pausar/encerrar/excluir, e só dos produtos DESTE teste — **um
+  teste no ar por produto** (`claimedByOthers`), checado antes de gravar qualquer coisa.
+  Cliques: só chegada de fora (recarregar/voltar/navegação interna não contam — senão a A,
+  onde se recarrega, perde conversão), somados na memória e gravados a cada 2 s (`flushHits`
+  antes de ler; na Vercel, na hora). Pedidos por produto da versão, só dentro dos períodos no
+  ar (`AbTest.liveSpans`; pausa não conta), de uma cópia
   leve dos pedidos (sem dado de cliente; a busca da Shopify não filtra por produto), escopo
   `read_orders`. Vencedor só com amostra mínima (~5 pedidos esperados por versão) e 95%.
   **Encerrar com a vencedora** troca os handles dos dois produtos (`swapProductHandles`: handle

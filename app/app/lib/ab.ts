@@ -10,6 +10,12 @@
 
 export const AB_MIN_VARIANTS = 2;
 export const AB_MAX_VARIANTS = 6;
+/**
+ * A test live for this long gets a reminder to decide: Google asks that a
+ * test not run indefinitely (a variant left up for good starts to look like
+ * an attempt to show search one thing and people another).
+ */
+export const AB_LONG_TEST_DAYS = 30;
 
 /** Statuses as stored, and how the screen says them. */
 export const AB_STATUS_LABEL: Record<string, string> = {
@@ -155,6 +161,227 @@ export function verdict(rows: VariantResult[], labels: Record<string, string> = 
       `${name} está na frente, mas a diferença ainda cabe no acaso ` +
       `(confiança de ${Math.max(0, Math.round((1 - worst) * 100))}% contra a segunda; o mínimo é 95%). Deixe rodar mais.`,
   };
+}
+
+/** z for 95% confidence, two-sided — the bar `verdict` uses. */
+const Z_CONFIDENCE = 1.959964;
+/** z for 80% power: the chance of seeing a difference that is really there. */
+const Z_POWER = 0.841621;
+/** Beyond this many days at the current pace, waiting is not a plan. */
+export const ESTIMATE_MAX_DAYS = 60;
+/** Below this many orders in the whole test, an estimate would be a guess. */
+export const ESTIMATE_MIN_ORDERS = 3;
+/**
+ * A gap under this fraction of the leader's rate is "the versions sell about
+ * the same" (2,0% against 2,1% is 5%); above it, a long wait means too little
+ * traffic, not too little difference.
+ */
+export const SMALL_DIFFERENCE = 0.2;
+
+export interface Estimate {
+  /**
+   * "remaining": N more clicks would settle it; "too-slow": they would take
+   * more than ESTIMATE_MAX_DAYS at the current pace; "never": no number of
+   * clicks settles it, because the closest rival gets no more visitors (0%);
+   * "near": the clicks should already be enough at the rates seen; "equal":
+   * no difference to measure; "no-data": too few orders; "no-clicks": fewer
+   * than two versions with clicks; "mismatch": a version has more orders than
+   * clicks (orders from outside the test, or a count that stopped), so the
+   * rates mean nothing; "done": the whole test is already confident.
+   */
+  kind: 'remaining' | 'too-slow' | 'never' | 'near' | 'equal' | 'no-data' | 'no-clicks' | 'mismatch' | 'done';
+  /** More clicks needed, all versions together (remaining / too-slow / near). */
+  clicks: number | null;
+  /** At the current pace; null when there is no pace to go by (paused, no clicks). */
+  days: number | null;
+  /** The two versions the estimate is about (leader, deciding rival); for "mismatch", rivalId is the odd version. */
+  leaderId: string | null;
+  rivalId: string | null;
+  /** Their conversion rates so far (0–1). */
+  leaderRate: number | null;
+  rivalRate: number | null;
+  /** Leader and rival differ by less than SMALL_DIFFERENCE of the leader's rate. */
+  small: boolean;
+  /** EVERY version with clicks is that close to the leader: any of them would do. */
+  allClose: boolean;
+}
+
+/** A version's numbers so far, and — when known — its share of the visitors from now on. */
+export interface EstimateRow extends VariantResult {
+  weight?: number;
+}
+
+/** Ceiling for the extra clicks searched: beyond this, "never". */
+const CLICKS_CAP = 1e10;
+
+/**
+ * Extra clicks (all versions together) until a test of `leader` against
+ * `rival` reaches 95% confidence with 80% power, if their conversion rates are
+ * what they look like now and each version gets `share` of the clicks from
+ * here on. Two proportions, normal approximation — the model of `pValue` —
+ * plus the floor `verdict` needs before it trusts that model (about 5
+ * expected orders on each side). Searched, not solved: a version at 0% keeps
+ * its numbers frozen, and then the answer can be "never" (Infinity).
+ */
+function extraClicks(leader: VariantResult, rival: VariantResult, shareL: number, shareR: number): number {
+  const pL = leader.orders / leader.clicks;
+  const pR = rival.orders / rival.clicks;
+  const gap = pL - pR;
+  const pooled = (leader.orders + rival.orders) / (leader.clicks + rival.clicks);
+  const enough = (more: number) => {
+    const nL = leader.clicks + shareL * more;
+    const nR = rival.clicks + shareR * more;
+    const a = Math.sqrt(pooled * (1 - pooled) * (1 / nL + 1 / nR));
+    const b = Math.sqrt((pL * (1 - pL)) / nL + (pR * (1 - pR)) / nR);
+    return Z_CONFIDENCE * a + Z_POWER * b <= gap && pooled * nL >= 5 && pooled * nR >= 5;
+  };
+  if (enough(0)) return 0;
+  if (!enough(CLICKS_CAP)) return Infinity;
+  let lo = 0;
+  let hi = CLICKS_CAP;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) / 2;
+    if (enough(mid)) hi = mid;
+    else lo = mid;
+  }
+  return Math.ceil(hi);
+}
+
+/**
+ * How many more clicks until the test can say whether the leader really is
+ * better — or that it never will, at a reasonable pace, because the versions
+ * convert almost alike or the traffic is thin. `rows` are the whole test's
+ * numbers (not one period's), with each version's current weight when known
+ * (a version at 0% gets nobody from now on); `clicksPerDay` is the recent
+ * pace while live (null when there is none, e.g. paused).
+ *
+ * An ESTIMATE from the rates seen so far, which move as orders come in: the
+ * screen says so, and rounds what it shows.
+ */
+export function estimate(rows: EstimateRow[], clicksPerDay: number | null): Estimate {
+  const blank = {
+    clicks: null,
+    days: null,
+    leaderId: null,
+    rivalId: null,
+    leaderRate: null,
+    rivalRate: null,
+    small: false,
+    allClose: false,
+  };
+  // An order counts by product, a click only through the test URL: more
+  // orders than clicks means the rates are not rates.
+  const odd = rows.find((r) => r.orders > r.clicks);
+  if (odd) return { kind: 'mismatch', ...blank, rivalId: odd.id };
+  if (verdict(rows).confident) return { kind: 'done', ...blank };
+  const live = rows.filter((r) => r.clicks > 0);
+  if (live.length < 2) return { kind: 'no-clicks', ...blank };
+  if (live.reduce((s, r) => s + r.orders, 0) < ESTIMATE_MIN_ORDERS) return { kind: 'no-data', ...blank };
+  const total = live.reduce((s, r) => s + r.clicks, 0);
+  const weighted = rows.every((r) => typeof r.weight === 'number') && rows.some((r) => (r.weight ?? 0) > 0);
+  const weightSum = rows.reduce((s, r) => s + (r.weight ?? 0), 0);
+  const share = (r: EstimateRow) => (weighted ? (r.weight ?? 0) / weightSum : r.clicks / total);
+  const rate = (r: VariantResult) => r.orders / r.clicks;
+  const [leader, ...rest] = [...live].sort((a, b) => rate(b) - rate(a) || b.orders - a.orders);
+  const close = (r: VariantResult) => rate(leader) === 0 || (rate(leader) - rate(r)) / rate(leader) < SMALL_DIFFERENCE;
+  const allClose = rest.every(close);
+  const tie = rest.find((r) => rate(r) === rate(leader));
+  if (tie) {
+    return { kind: 'equal', ...blank, leaderId: leader.id, rivalId: tie.id, leaderRate: rate(leader), rivalRate: rate(tie), small: true, allClose };
+  }
+  // The leader has to beat EVERY other version, so the one that needs the
+  // most clicks is the one that decides.
+  let rival = rest[0];
+  let more = -1;
+  for (const r of rest) {
+    const n = extraClicks(leader, r, share(leader), share(r));
+    if (n > more) [more, rival] = [n, r];
+  }
+  const pair = {
+    leaderId: leader.id,
+    rivalId: rival.id,
+    leaderRate: rate(leader),
+    rivalRate: rate(rival),
+    small: close(rival),
+    allClose,
+  };
+  if (more === Infinity) return { kind: 'never', ...blank, ...pair };
+  if (more <= 0) return { kind: 'near', ...blank, ...pair, clicks: 0 };
+  const days = clicksPerDay && clicksPerDay > 0 ? more / clicksPerDay : null;
+  return { kind: days !== null && days > ESTIMATE_MAX_DAYS ? 'too-slow' : 'remaining', clicks: more, days, ...pair };
+}
+
+// ---- live periods -------------------------------------------------------------
+
+/**
+ * A stretch of time the test was live: [start, end), end null while it still
+ * is. Clicks only accrue while live, so orders count only inside these too —
+ * while paused the entry shows its own page to all the traffic, and its sales
+ * are not the test's.
+ */
+export type Span = [Date, Date | null];
+
+export function parseSpans(
+  raw: string | null,
+  fallback: { startedAt: Date | null; status: string; updatedAt: Date },
+): Span[] {
+  if (raw) {
+    try {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) {
+        return list
+          .filter((x): x is [string, string | null] => Array.isArray(x) && typeof x[0] === 'string')
+          .map(([start, end]) => [new Date(start), end ? new Date(end) : null]);
+      }
+    } catch {
+      // Unreadable: rebuilt from the start date below.
+    }
+  }
+  if (!fallback.startedAt) return [];
+  // Tests that went live before the periods were kept: one stretch from the
+  // start, open while live, closed at the last change otherwise.
+  return [[fallback.startedAt, fallback.status === 'live' ? null : fallback.updatedAt]];
+}
+
+export const serializeSpans = (spans: Span[]) =>
+  JSON.stringify(spans.map(([start, end]) => [start.toISOString(), end ? end.toISOString() : null]));
+
+/** A new stretch starts now, unless one is already open. */
+export function openSpan(spans: Span[], now: Date): Span[] {
+  const last = spans[spans.length - 1];
+  return last && last[1] === null ? spans : [...spans, [now, null]];
+}
+
+/** The open stretch ends now. */
+export function closeSpan(spans: Span[], now: Date): Span[] {
+  const last = spans[spans.length - 1];
+  return last && last[1] === null ? [...spans.slice(0, -1), [last[0], now]] : spans;
+}
+
+export const inSpans = (spans: Span[], at: Date) => spans.some(([start, end]) => start <= at && (end === null || at < end));
+
+/** Live milliseconds inside [from, to). */
+export function liveMs(spans: Span[], from: Date, to: Date): number {
+  let total = 0;
+  for (const [start, end] of spans) {
+    const a = Math.max(start.getTime(), from.getTime());
+    const b = Math.min((end ?? to).getTime(), to.getTime());
+    if (b > a) total += b - a;
+  }
+  return total;
+}
+
+/** When the current stretch began (null when not live). */
+export function currentSpanStart(spans: Span[]): Date | null {
+  const last = spans[spans.length - 1];
+  return last && last[1] === null ? last[0] : null;
+}
+
+/** A count as an estimate reads: two significant digits ("~3.400", "~250.000"). */
+export function roughly(n: number): string {
+  if (n < 100) return Math.ceil(n).toLocaleString('pt-BR');
+  const step = 10 ** (Math.floor(Math.log10(n)) - 1);
+  return (Math.ceil(n / step) * step).toLocaleString('pt-BR');
 }
 
 /** Conversion as the screen shows it: "2,4%" (or "—" with no clicks). */

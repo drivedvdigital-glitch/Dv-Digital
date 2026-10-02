@@ -177,6 +177,25 @@ model AbTest {
   /// recorded when the test goes live.
   trackerOrigin   String?
   startedAt       DateTime?
+  /// The latest arrival counted (written with the batched counts, at most
+  /// every few seconds): the screen says how long ago, so a count that
+  /// stopped shows at a glance.
+  lastHitAt       DateTime?
+  /// How version A is shown when it is the entry URL itself: "stay" (the
+  /// entry renders A's page with the split in its head — no redirect for A)
+  /// or "view" (A is reached through a redirect to `?view=`, when A's
+  /// template has no layout to carry the split). Null while not live.
+  entryMode       String?
+  /// What was observed about version A's page at the last write: why it is
+  /// not on its own page, or that its template is gone. Null when nothing.
+  entryModeNote   String?
+  /// The stretches the test was live, as JSON `[[start, end|null], …]`.
+  /// Clicks only accrue while live, so orders only count inside them: while
+  /// paused the entry shows its own page to all the traffic.
+  liveSpans       String?
+  /// The last write to the store failed after the settings were saved: the
+  /// store still runs the previous ones. Cleared by the next write that works.
+  applyError      String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   variants        AbVariant[]

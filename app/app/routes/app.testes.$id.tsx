@@ -4,17 +4,36 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 
 import {
+  AB_LONG_TEST_DAYS,
   AB_MAX_VARIANTS,
   AB_MIN_VARIANTS,
   AB_STATUS_LABEL,
   addDays,
   DAY_SHAPE,
+  ESTIMATE_MIN_ORDERS,
   evenWeights,
   localDay,
   percent,
+  roughly,
 } from '../lib/ab.ts';
 import { entryCopySuffix } from '../../../packages/shopify/src/split.ts';
-import { buildReport, goLive, pause, promote, storeInfo, takeDown, undoPromotion, type Report } from '../lib/ab.server.ts';
+import {
+  buildReport,
+  flushHits,
+  goLive,
+  pagesProblem,
+  releaseDropped,
+  rememberApplyError,
+  pause,
+  promote,
+  storeInfo,
+  takeDown,
+  testHealth,
+  undoPromotion,
+  type GoLiveResult,
+  type Health,
+  type Report,
+} from '../lib/ab.server.ts';
 import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
@@ -28,6 +47,7 @@ import {
   pillInfo,
   pillNeutral,
   pillSuccess,
+  pillWarn,
   ThemeToggle,
   UiStyle,
   useUiTheme,
@@ -48,6 +68,9 @@ async function loadTest(request: Request, id: string) {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  // Clicks still in memory first: the last-click time and the table below
+  // must tell the same story.
+  await flushHits();
   const { store, test } = await loadTest(request, params.id ?? '');
   const info = await storeInfo(store);
   const url = new URL(request.url);
@@ -72,6 +95,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     }
   }
   const variants = [...test.variants].sort((a, b) => a.position - b.position);
+  const live = test.status === 'live';
+  let health: Health | null = null;
+  if (live) health = await testHealth(test, store, url.origin);
+  // Version A without the split, from outside: on its own page the entry
+  // skips the draw with `dvf_ab=off`; through a redirect, it is `?view=`.
+  const viewA = !live
+    ? null
+    : test.entryMode === 'stay'
+      ? 'dvf_ab=off'
+      : `view=${test.previousSuffix ?? entryCopySuffix(test.id)}`;
   return {
     store: { id: store.id, label: store.label, unusable: storeUnusableReason(store) },
     storeUrl: info.url,
@@ -80,8 +113,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     from,
     to,
     startedDay: test.startedAt ? localDay(test.startedAt, info.timezone) : null,
-    // The template version A is shown with (`?view=`), once the test has been live.
-    entryView: test.status === 'draft' ? null : (test.previousSuffix ?? entryCopySuffix(test.id)),
+    viewA,
+    entryMode: live ? test.entryMode : null,
+    // Minutes and days inside are counted on the server: its clock decides,
+    // and the page renders the same on both sides.
+    health,
     test: {
       id: test.id,
       name: test.name,
@@ -147,13 +183,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
   try {
     if (intent === 'pause') {
       if (test.status !== 'live') return fail('O teste não está no ar.');
-      const { restored } = await pause(test, store);
+      const { restored, canonicalError } = await pause(test, store);
       return {
         ok: true,
-        message: restored
-          ? `Teste pausado. /products/${test.entryHandle} voltou a mostrar a página dele; os números ficam guardados.`
-          : `Teste pausado. O produto de entrada já tinha outro modelo escolhido na Shopify e ficou como estava.`,
+        message:
+          (restored
+            ? `Teste pausado. /products/${test.entryHandle} voltou a mostrar a página dele; os números ficam guardados.`
+            : `Teste pausado. O produto de entrada já tinha outro modelo escolhido na Shopify e ficou como estava.`) +
+          (canonicalError ? ` Atenção: o canonical das versões não voltou ao normal (${canonicalError}).` : ''),
       };
+    }
+
+    if (intent === 'reapply') {
+      if (test.status !== 'live') return fail('O teste não está no ar.');
+      try {
+        const result = await goLive(test, store, new URL(request.url).origin);
+        return { ok: true, message: `Teste regravado na loja.${liveNotes(result)}` };
+      } catch (error) {
+        return fail(`Não deu para regravar: ${await rememberApplyError(test.id, error)}`);
+      }
     }
 
     if (intent === 'promote') {
@@ -162,13 +210,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
       if (!winner) return fail('Escolha a versão vencedora.');
       const entryUrl = test.entryHandle;
       const winnerUrl = winner.handle;
-      const { swapped } = await promote(test, store, winner.id);
+      const { swapped, canonicalError } = await promote(test, store, winner.id);
       return {
         ok: true,
-        message: swapped
-          ? `Teste encerrado. "${winner.title}" agora responde em /products/${entryUrl}, a URL do anúncio; ` +
-            `"${test.entryTitle}" foi para /products/${winnerUrl}. Cliques e pedidos ficam guardados. "Desfazer troca" volta tudo como era.`
-          : `Teste encerrado. /products/${entryUrl} mostra a página dela, sem sorteio. Cliques e pedidos ficam guardados.`,
+        message:
+          (swapped
+            ? `Teste encerrado. "${winner.title}" agora responde em /products/${entryUrl}, a URL do anúncio; ` +
+              `"${test.entryTitle}" foi para /products/${winnerUrl}. Cliques e pedidos ficam guardados. "Desfazer troca" volta tudo como era.`
+            : `Teste encerrado. /products/${entryUrl} mostra a página dela, sem sorteio. Cliques e pedidos ficam guardados.`) +
+          (canonicalError
+            ? ` Atenção: o canonical das versões não voltou ao normal (${canonicalError}). Excluir o teste tenta de novo.`
+            : ''),
       };
     }
 
@@ -181,7 +233,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     if (intent === 'delete') {
-      await takeDown(test, store);
+      const { canonicalError } = await takeDown(test, store);
+      // The row is the only record of which products carry the test's
+      // canonical: it stays until they are given theirs back.
+      if (canonicalError) {
+        return fail(
+          `O teste saiu da loja, mas o canonical das versões não voltou ao normal (${canonicalError}). ` +
+            'Nada foi excluído: clique em Excluir de novo para tentar outra vez.',
+        );
+      }
       await db.abTest.delete({ where: { id: test.id } });
       return redirect(`/app/testes${back}`);
     }
@@ -204,20 +264,46 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const problem = readyProblem(payload);
       if (problem) return fail(problem);
     }
-    // Chains (a variant that is itself the door of another test) would send
-    // visitors on a second hop and count them twice.
+    // A page that would not open, or that another live test uses, is refused
+    // before anything is saved: the screen must never show settings the
+    // store is not running.
+    if (goingLive && payload.entry) {
+      const problem = await pagesProblem(store, test.id, {
+        entryProductGid: payload.entry.gid,
+        entryHandle: payload.entry.handle,
+        variants: payload.variants.map((v) => ({ productGid: v.gid, handle: v.handle, weight: v.weight })),
+      });
+      if (problem) return fail(problem);
+    }
+    // Chains, either way round (a version that is the door of another test,
+    // or a door that is a version of another test), would send visitors on a
+    // second hop and count them twice. Ended tests no longer redirect anyone.
     const others = await db.abTest.findMany({
-      where: { storeId: store.id, id: { not: test.id } },
-      select: { name: true, entryProductGid: true },
+      where: { storeId: store.id, id: { not: test.id }, status: { not: 'ended' } },
+      select: { name: true, entryProductGid: true, variants: { select: { productGid: true } } },
     });
     const clash = others.find((o) => o.entryProductGid && o.entryProductGid === payload.entry?.gid);
     if (clash) return fail(`Esse produto já é a entrada do teste "${clash.name}".`);
     const chain = others.find((o) => payload.variants.some((v) => v.gid === o.entryProductGid));
     if (chain) return fail(`Uma das versões é a entrada do teste "${chain.name}": o visitante pularia duas vezes.`);
+    const door = others.find((o) => o.entryProductGid !== payload.entry?.gid && o.variants.some((v) => v.productGid === payload.entry?.gid));
+    if (door) return fail(`Esse produto já é uma versão do teste "${door.name}": o visitante pularia duas vezes.`);
 
     // Variants keep their id (and their numbers) across edits; a removed one
     // takes its numbers with it.
     const keep = payload.variants.filter((v) => v.id && test.variants.some((t) => t.id === v.id)).map((v) => v.id!);
+    // Products that leave a live test get their own canonical back — before
+    // the app forgets they were in it.
+    const dropped = test.variants
+      .filter((t) => t.productGid !== test.entryProductGid && !payload.variants.some((v) => v.gid === t.productGid))
+      .map((t) => t.productGid);
+    if (test.status === 'live' && dropped.length > 0) {
+      try {
+        await releaseDropped(store, test.id, dropped);
+      } catch (error) {
+        return fail(`Nada foi salvo: o canonical das versões removidas não voltou ao normal (${error instanceof Error ? error.message : error}).`);
+      }
+    }
     await db.$transaction([
       db.abVariant.deleteMany({ where: { testId: test.id, id: { notIn: keep } } }),
       db.abTest.update({
@@ -239,17 +325,40 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     if (!goingLive) return { ok: true, message: 'Teste salvo. Nada mudou na loja.' };
     const fresh = await db.abTest.findUniqueOrThrow({ where: { id: test.id }, include: { variants: true } });
-    await goLive(fresh, store, new URL(request.url).origin);
+    let result: GoLiveResult;
+    try {
+      result = await goLive(fresh, store, new URL(request.url).origin);
+    } catch (error) {
+      if (test.status !== 'live') throw error;
+      // Saved, not on the store: said now, and remembered until a write works.
+      return fail(
+        `As mudanças foram salvas, mas não chegaram à loja: ${await rememberApplyError(test.id, error)} ` +
+          'A loja continua com a configuração anterior; "Regravar na loja" tenta de novo.',
+      );
+    }
     return {
       ok: true,
       message:
-        test.status === 'live'
+        (test.status === 'live'
           ? 'Mudanças aplicadas na loja: os próximos visitantes já seguem as porcentagens novas.'
-          : `Teste no ar. Quem abrir /products/${fresh.entryHandle} vai para uma das versões.`,
+          : `Teste no ar. Quem abrir /products/${fresh.entryHandle} vai para uma das versões.`) + liveNotes(result),
     };
   } catch (error) {
     return fail(error instanceof Error ? error.message : String(error));
   }
+}
+
+/** What a go-live has to add to its message: how version A opens, and a canonical that did not take. */
+function liveNotes(result: GoLiveResult): string {
+  const notes: string[] = [];
+  if (result.mode === 'stay') notes.push('Quem cai na versão A fica direto na URL de entrada, sem redirecionamento.');
+  if (result.mode === 'view') {
+    notes.push(`A versão A abre por um redirecionamento (?view=), porque ${result.modeNote ?? 'o modelo dela não permite'}.`);
+  } else if (result.modeNote) {
+    notes.push(`Observado: ${result.modeNote}.`);
+  }
+  if (result.canonicalError) notes.push(`O canonical das versões não foi gravado: ${result.canonicalError}`);
+  return notes.length > 0 ? ` ${notes.join(' ')}` : '';
 }
 
 // ---------------------------------------------------------------------------
@@ -559,6 +668,23 @@ export default function TestScreen() {
           </div>
         ) : null}
 
+        {data.health ? (
+          <HealthPanel
+            health={data.health}
+            entryHandle={test.entry?.handle ?? ''}
+            entryMode={data.entryMode}
+            busy={busy}
+            reapplyBlocked={
+              store.unusable
+                ? `Sem acesso à loja: ${store.unusable}.`
+                : dirty
+                  ? 'Há mudanças não aplicadas: use "Aplicar mudanças na loja".'
+                  : null
+            }
+            onReapply={() => act('reapply')}
+          />
+        ) : null}
+
         <section style={card} data-config>
           <div style={cardHead}>
             <h2 style={h2}>Configuração</h2>
@@ -597,8 +723,8 @@ export default function TestScreen() {
                     <Icon name={copied ? 'check' : 'copy'} />
                     {copied ? 'Copiada' : 'Copiar URL'}
                   </button>
-                  {entryIsA && data.entryView ? (
-                    <a className="dv-btn dv-plain" href={`${entryUrl}?view=${data.entryView}`} target="_blank" rel="noreferrer" title="Abre a página que a versão A mostra, sem sorteio e sem contar clique">
+                  {entryIsA && data.viewA ? (
+                    <a className="dv-btn dv-plain" href={`${entryUrl}?${data.viewA}`} target="_blank" rel="noreferrer" data-ver-a title="Abre a página que a versão A mostra, sem sorteio e sem contar clique">
                       <Icon name="external" />
                       Ver a versão A
                     </a>
@@ -744,10 +870,16 @@ export default function TestScreen() {
                 {data.startedDay && data.startedDay > report.from
                   ? ` · o teste começou em ${formatDay(data.startedDay)}: pedidos de antes disso não contam`
                   : ''}
+                {report.pausedInside
+                  ? ` · pedidos feitos com o teste ${test.status === 'ended' ? 'pausado ou depois de encerrado' : 'pausado'} não contam (a URL de entrada mostrava só a página dela)`
+                  : ''}
               </div>
               <div style={report.verdict.confident ? bannerOk : verdictNeutral} data-veredito>
                 {report.verdict.note}
               </div>
+              {report.estimate && test.status !== 'ended' ? (
+                <EstimateNote estimate={report.estimate} rows={report.rows} formatDay={(iso) => formatDay(localDay(new Date(iso), report.timezone))} />
+              ) : null}
               {report.ordersNote ? (
                 <div style={report.ordersOk ? verdictNeutral : bannerErr} data-pedidos-aviso>
                   {report.ordersNote}
@@ -775,7 +907,7 @@ export default function TestScreen() {
                           <span style={letterBadge}>{letter(i)}</span>{' '}
                           <a
                             className="dv-link"
-                            href={`${data.storeUrl}/products/${r.handle}${r.handle === test.entry?.handle && data.entryView ? `?view=${data.entryView}` : ''}`}
+                            href={`${data.storeUrl}/products/${r.handle}${r.handle === test.entry?.handle && data.viewA ? `?${data.viewA}` : ''}`}
                             target="_blank"
                             rel="noreferrer"
                           >
@@ -987,6 +1119,309 @@ export default function TestScreen() {
   );
 }
 
+/** "há 3 min", "há 2 h", "há 4 dias". */
+function ago(minutes: number): string {
+  if (minutes < 1) return 'agora há pouco';
+  if (minutes < 60) return `há ${minutes} min`;
+  if (minutes < 48 * 60) return `há ${Math.floor(minutes / 60)} h`;
+  return `há ${Math.floor(minutes / 1440)} dias`;
+}
+
+/** Arrivals stop being "a quiet hour" and start being "something is off" after this. */
+const QUIET_MINUTES = 60;
+
+const FIX_CHROME = 'Para apontar para a entrada, publique a página dela com "Só a página, sem o tema" (Configurações da página → Modo leve).';
+const CANONICAL_TEXT: Record<string, string> = {
+  theme: `usa o layout do tema, que o D&VFly não edita: o canonical dela continua sendo o próprio endereço. ${FIX_CHROME}`,
+  none: `o layout dela não tem a tag canonical no formato que o D&VFly ajusta (pode vir de um trecho do tema): o canonical continua sendo o próprio endereço. ${FIX_CHROME}`,
+  unset: 'ainda não aponta para a entrada. "Regravar na loja" corrige.',
+};
+
+/**
+ * What could be silently wrong with a live test, at the top of its screen:
+ * a page that would not open, a URL renamed in the admin, clicks that stopped
+ * arriving or go to another address, version A's copy behind its original,
+ * settings that did not reach the store, the canonical, a test left up too
+ * long. Each line says what was observed and where the fix is.
+ */
+function HealthPanel({
+  health,
+  entryHandle,
+  entryMode,
+  busy,
+  reapplyBlocked,
+  onReapply,
+}: {
+  health: Health;
+  entryHandle: string;
+  entryMode: string | null;
+  busy: boolean;
+  /** Why "Regravar na loja" cannot run now (unsaved edits, no access), or null. */
+  reapplyBlocked: string | null;
+  onReapply: () => void;
+}) {
+  const lines: Array<{ ok: boolean; text: React.ReactNode; key: string }> = [];
+  if (health.applyError) {
+    lines.push({
+      ok: false,
+      key: 'apply',
+      text: `A última gravação na loja falhou (${health.applyError}): a loja ainda roda a configuração anterior. "Regravar na loja" tenta de novo.`,
+    });
+  }
+  for (const p of health.problems) {
+    lines.push({
+      ok: false,
+      key: `p-${p.label}`,
+      text: (
+        <>
+          <strong>{p.label}</strong> (/products/{p.handle}): {p.problem}.{' '}
+          {p.label === 'URL de entrada'
+            ? 'A URL do anúncio não abre para ninguém: ative o produto na Shopify ou pause o teste.'
+            : p.receives
+              ? 'Quem é mandado para ela vê uma página de erro. Ative o produto na Shopify, ou ponha essa versão em 0% e aplique.'
+              : 'Está em 0%: ninguém é mandado para ela.'}
+        </>
+      ),
+    });
+  }
+  for (const d of health.doubts) {
+    lines.push({
+      ok: false,
+      key: `d-${d.label}`,
+      text: (
+        <>
+          <strong>{d.label}</strong> (/products/{d.handle}): {d.doubt}. Se a loja não tem senha, publique o produto no canal Loja virtual,
+          senão quem for mandado para ela vê uma página de erro.
+        </>
+      ),
+    });
+  }
+  for (const r of health.renamed) {
+    lines.push({
+      ok: false,
+      key: `r-${r.label}`,
+      text: (
+        <>
+          <strong>{r.label}</strong>: o endereço mudou de /products/{r.was} para /products/{r.now} no admin da Shopify. "Regravar na loja" faz o
+          teste usar o endereço novo.
+        </>
+      ),
+    });
+  }
+  if (health.trackerMismatch) {
+    lines.push({
+      ok: false,
+      key: 'tracker',
+      text: (
+        <>
+          Os cliques deste teste são enviados para <code style={code}>{health.trackerMismatch.recorded}</code>, mas este app está em{' '}
+          <code style={code}>{health.trackerMismatch.current}</code>. "Regravar na loja" faz a contagem chegar aqui.
+        </>
+      ),
+    });
+  }
+  const check =
+    'Abra a URL de entrada num celular: se ela troca de página e o número não sobe, a contagem não está chegando a este app.';
+  if (health.lastHitMinutes === null) {
+    const waiting = health.liveSinceMinutes !== null && health.liveSinceMinutes >= 30;
+    lines.push({
+      ok: !waiting,
+      key: 'hit',
+      text: waiting ? `Nenhum clique recebido desde que o teste entrou no ar. ${check}` : 'Nenhum clique recebido ainda.',
+    });
+  } else {
+    // Quiet only counts while live: a click older than this stretch is not news.
+    const quiet = health.lastHitMinutes >= QUIET_MINUTES && (health.liveSinceMinutes ?? 0) >= QUIET_MINUTES;
+    const when = health.lastHitApprox ? `na hora que começou ${ago(health.lastHitMinutes)}` : ago(health.lastHitMinutes);
+    lines.push({
+      ok: !quiet,
+      key: 'hit',
+      text: quiet ? `Último clique recebido ${when}. Se o anúncio está rodando: ${check.charAt(0).toLowerCase()}${check.slice(1)}` : `Último clique recebido ${when}.`,
+    });
+  }
+  if (entryMode === 'stay') {
+    lines.push({ ok: true, key: 'mode', text: 'Versão A: abre direto na URL de entrada, sem redirecionamento.' });
+    if (health.modeNote) lines.push({ ok: false, key: 'mode-note', text: `Versão A: ${health.modeNote}.` });
+    if (health.copyChanged) {
+      lines.push({
+        ok: false,
+        key: 'copy',
+        text: 'A página da versão A mudou no tema (modelo ou layout) depois da última gravação, e a URL de entrada ainda mostra a de antes. "Regravar na loja" leva a mudança para lá.',
+      });
+    }
+  } else if (entryMode === 'view') {
+    lines.push({
+      ok: true,
+      key: 'mode',
+      text: `Versão A: abre por um redirecionamento (?view=), porque ${health.modeNote ?? 'o modelo da página dela não permite outro jeito'}.`,
+    });
+  }
+  const pointing = health.canonical.filter((c) => c.state === 'ok');
+  if (pointing.length > 0) {
+    lines.push({
+      ok: true,
+      key: 'canon-ok',
+      text: `Canonical: ${pointing.map((c) => c.label).join(', ')} ${pointing.length > 1 ? 'apontam' : 'aponta'} para /products/${entryHandle} enquanto o teste roda (a regra do Google para teste A/B).`,
+    });
+  }
+  for (const c of health.canonical.filter((x) => x.state !== 'ok')) {
+    lines.push({
+      ok: false,
+      key: `canon-${c.label}`,
+      text: (
+        <>
+          Canonical da <strong>{c.label}</strong> (/products/{c.handle}): {CANONICAL_TEXT[c.state]}
+        </>
+      ),
+    });
+  }
+  if (health.productsError) {
+    lines.push({ ok: false, key: 'err', text: `Não deu para conferir os produtos na Shopify: ${health.productsError}` });
+  }
+  if (health.canonicalError) {
+    lines.push({ ok: false, key: 'canon-err', text: `Não deu para conferir o canonical das versões no tema: ${health.canonicalError}` });
+  }
+  if (health.liveDays >= AB_LONG_TEST_DAYS) {
+    lines.push({
+      ok: false,
+      key: 'long',
+      text: `No ar há ${health.liveDays} dias (sem contar pausas). O Google pede que um teste não fique rodando indefinidamente: decida a vencedora e use "Encerrar com a vencedora", lá embaixo.`,
+    });
+  }
+  const bad = lines.filter((l) => !l.ok).length;
+  return (
+    <section style={{ ...card, marginBottom: 18 }} data-saude>
+      <div style={{ ...cardHead, flexWrap: 'wrap' }}>
+        <h2 style={h2}>Situação na loja</h2>
+        <span style={bad > 0 ? pillWarn : pillSuccess} data-saude-resumo>
+          {bad > 0 ? `${bad} ${bad > 1 ? 'pontos de atenção' : 'ponto de atenção'}` : 'Tudo certo'}
+        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {reapplyBlocked ? <span style={reason} data-regravar-motivo>{reapplyBlocked}</span> : null}
+          <button
+            type="button"
+            className="dv-btn dv-secondary"
+            disabled={busy || !!reapplyBlocked || undefined}
+            data-regravar
+            title="Grava de novo o teste na loja, com os endereços, a página da versão A e a contagem de agora (as porcentagens salvas não mudam)"
+            onClick={onReapply}
+          >
+            Regravar na loja
+          </button>
+        </div>
+      </div>
+      <ul style={{ listStyle: 'none', margin: 0, padding: '8px 16px 12px', display: 'grid', gap: 8 }}>
+        {lines.map((l) => (
+          <li key={l.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }} data-saude-item={l.ok ? 'ok' : 'atencao'}>
+            <span style={{ color: l.ok ? 'var(--dv-accent-text)' : 'var(--dv-warn-text)', marginTop: 1, flex: 'none' }}>
+              <Icon name={l.ok ? 'check' : 'alert'} />
+            </span>
+            <span>{l.text}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * "How long until we know", under the verdict. Counted on the WHOLE test —
+ * said so, since the verdict above is the period's — at the pace of the last
+ * 7 days the test was live, and said as the estimate it is.
+ */
+function EstimateNote({
+  estimate,
+  rows,
+  formatDay,
+}: {
+  estimate: NonNullable<Report['estimate']>;
+  rows: Report['rows'];
+  formatDay: (iso: string) => string;
+}) {
+  const name = (id: string | null) => {
+    const i = rows.findIndex((r) => r.id === id);
+    return i >= 0 ? `a versão ${letter(i)}` : 'a versão';
+  };
+  const pace = estimate.clicksPerDay;
+  const paceText =
+    pace === null ? null : pace < 1 ? 'menos de 1 clique por dia' : `${Math.round(pace).toLocaleString('pt-BR')} cliques por dia`;
+  const days = (d: number | null) =>
+    d === null ? null : d < 1 ? 'menos de 1 dia' : `uns ${roughly(Math.ceil(d))} ${Math.ceil(d) === 1 ? 'dia' : 'dias'}`;
+  const rateText = (r: number | null) => (r === null ? '—' : percent(r, 1));
+  const atPace = (d: number | null) =>
+    d !== null && paceText ? (
+      <>
+        {' '}— <strong>{days(d)}</strong> no ritmo atual ({paceText}).
+      </>
+    ) : (
+      <>. {pace === null ? 'Com o teste parado não há ritmo para dizer em quantos dias.' : 'Sem cliques recentes para estimar em quantos dias.'}</>
+    );
+  let text: React.ReactNode;
+  switch (estimate.kind) {
+    case 'done':
+      text = estimate.wholeNote;
+      break;
+    case 'no-clicks':
+      text = 'Ainda não há duas versões com cliques para comparar.';
+      break;
+    case 'no-data':
+      text = `A estimativa aparece a partir do ${ESTIMATE_MIN_ORDERS}º pedido do teste (antes disso seria chute).`;
+      break;
+    case 'mismatch':
+      text = `${name(estimate.rivalId).replace(/^a/, 'A')} tem mais pedidos do que cliques: entram pedidos que não passaram pela URL do teste (outro anúncio, link direto) ou a contagem de cliques parou. Assim a conta não vale.`;
+      break;
+    case 'equal':
+      text = `Até agora ${name(estimate.leaderId)} e ${name(estimate.rivalId)} convertem igual (${rateText(estimate.leaderRate)}): não há diferença para medir. Deixe rodar, ou teste algo mais diferente.`;
+      break;
+    case 'near':
+      text = 'Pelos números de agora os cliques já bastariam, mas a diferença ainda não passou de 95%: ela pode ser menor do que parece. Deixe rodar mais alguns dias.';
+      break;
+    case 'never':
+      text = `${name(estimate.rivalId).replace(/^a/, 'A')} está em 0% e não recebe mais visitantes: com os números dela parados (${rateText(estimate.rivalRate)} contra ${rateText(estimate.leaderRate)} da ${name(estimate.leaderId).replace(/^a /, '')}), nenhuma quantidade de cliques separa as duas. Compare sem ela pela tabela, ou devolva visitantes a ela.`;
+      break;
+    case 'remaining':
+      text = (
+        <>
+          Faltam <strong>~{roughly(estimate.clicks!)} cliques</strong> (somando todas as versões) para saber se {name(estimate.leaderId)} (
+          {rateText(estimate.leaderRate)}) é mesmo melhor que {name(estimate.rivalId)} ({rateText(estimate.rivalRate)}){atPace(estimate.days)}
+        </>
+      );
+      break;
+    case 'too-slow':
+      text = estimate.small ? (
+        <>
+          Com a diferença de agora ({name(estimate.leaderId)} {rateText(estimate.leaderRate)} contra {name(estimate.rivalId)}{' '}
+          {rateText(estimate.rivalRate)}), seriam <strong>~{roughly(estimate.clicks!)} cliques</strong> a mais — {days(estimate.days)} no
+          ritmo atual.{' '}
+          {estimate.allClose
+            ? 'A diferença é pequena demais para aparecer: as versões vendem quase igual. Vale encerrar com qualquer uma e testar algo mais diferente (oferta, preço, título).'
+            : `${name(estimate.leaderId).replace(/^a/, 'A')} e ${name(estimate.rivalId)} vendem quase igual; as outras ficam atrás. Vale encerrar com uma das duas e testar algo mais diferente.`}
+        </>
+      ) : (
+        <>
+          Para saber se {name(estimate.leaderId)} ({rateText(estimate.leaderRate)}) é mesmo melhor que {name(estimate.rivalId)} (
+          {rateText(estimate.rivalRate)}), seriam <strong>~{roughly(estimate.clicks!)} cliques</strong> a mais — {days(estimate.days)} no
+          ritmo atual ({paceText}). O que falta é tráfego: mais verba no anúncio, ou menos versões no teste, encurta a espera.
+        </>
+      );
+      break;
+    default:
+      return null;
+  }
+  return (
+    <div style={estimate.kind === 'too-slow' || estimate.kind === 'never' || estimate.kind === 'mismatch' ? verdictNeutral : estimateBox} data-estimativa={estimate.kind}>
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>Desde o início do teste ({formatDay(estimate.since)})</div>
+      {text}
+      {estimate.kind === 'done' ? null : (
+        <div style={{ ...reason, marginTop: 4 }}>
+          Estimativa com os números do teste inteiro (o veredito acima é do período escolhido), para 95% de confiança; muda conforme os pedidos
+          chegam.
+        </div>
+      )}
+    </div>
+  );
+}
+
 const formatDay = (day: string) => {
   const [y, m, d] = day.split('-');
   return `${d}/${m}/${y}`;
@@ -1010,6 +1445,7 @@ const resultsBox: React.CSSProperties = { marginTop: 4, border: '1px solid var(-
 const variantRow: React.CSSProperties = { display: 'flex', alignItems: 'flex-start', gap: 8 };
 const letterBadge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 6, background: 'var(--dv-inset)', fontWeight: 600, fontSize: 12, flex: 'none', marginTop: 4 };
 const empty: React.CSSProperties = { padding: '32px 24px', fontSize: 13.5, color: 'var(--dv-ink-2)', textAlign: 'center' };
+const estimateBox: React.CSSProperties = { borderRadius: 8, padding: '10px 12px', fontSize: 13, lineHeight: 1.45, background: 'var(--dv-sfc-sub)', border: '1px solid var(--dv-edge)' };
 const verdictNeutral: React.CSSProperties = { borderRadius: 8, padding: '10px 12px', fontSize: 13, lineHeight: 1.45, background: 'var(--dv-warn-tint)', border: '1px solid var(--dv-warn-edge)', color: 'var(--dv-warn-text)' };
 const table: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: 13 };
 const th: React.CSSProperties = { textAlign: 'left', fontSize: 12, fontWeight: 500, color: 'var(--dv-ink-2)', padding: '8px 12px', borderBottom: '1px solid var(--dv-edge)', background: 'var(--dv-sfc-sub)', whiteSpace: 'nowrap' };

@@ -154,6 +154,15 @@ export const config = {
    * Production ignores the switch.
    */
   authRequired: isProduction || process.env.DVFLY_AUTH?.trim().toLowerCase() !== 'off',
+
+  /**
+   * A/B clicks are added up in memory and written every couple of seconds.
+   * On a serverless host (Vercel sets `VERCEL`) an instance may freeze right
+   * after answering, with the write pending forever: there every click is
+   * written before the answer. `DVFLY_AB_GRAVAR_NA_HORA=on` forces that on any
+   * other host that freezes idle processes.
+   */
+  abWriteThrough: !!process.env.VERCEL || process.env.DVFLY_AB_GRAVAR_NA_HORA?.trim().toLowerCase() === 'on',
 };
 
 if (config.isProduction && (!config.shopifyClientId || !config.shopifyClientSecret)) {

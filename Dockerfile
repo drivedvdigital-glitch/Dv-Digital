@@ -62,4 +62,7 @@ EXPOSE 3000
 
 # As migrations pendentes são aplicadas a cada start e só então o servidor
 # sobe: publicar uma versão nova nunca exige lembrar de migrar à mão.
-CMD ["sh", "-c", "cd /app/app && node scripts/db-sync.mjs && node server.mjs"]
+# `exec`: o node toma o lugar do sh e recebe o SIGTERM do `docker stop` —
+# sem isso o sinal morre no sh, e os cliques do Teste A | B ainda na memória
+# (gravados a cada 2 s) se perdem a cada atualização.
+CMD ["sh", "-c", "cd /app/app && node scripts/db-sync.mjs && exec node server.mjs"]

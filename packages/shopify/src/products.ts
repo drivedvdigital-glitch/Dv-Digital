@@ -215,3 +215,128 @@ export async function swapProductHandles(
     );
   }
 }
+
+/** What a visitor gets at a product's URL, as the store says it now. */
+export interface ProductState {
+  id: string;
+  handle: string;
+  title: string;
+  /** ACTIVE, DRAFT, ARCHIVED, UNLISTED… as Shopify names it. */
+  status: string;
+  /** Null when the product is not published to the Online Store channel. */
+  onlineStoreUrl: string | null;
+  templateSuffix: string | null;
+  /** The A/B test entry this product's canonical points at (`dvfly.ab_entry`), if any. */
+  abEntry: string | null;
+}
+
+/** The products' current state; a deleted product maps to null. */
+export async function productStates(client: ShopifyClient, ids: string[]): Promise<Map<string, ProductState | null>> {
+  const unique = [...new Set(ids)];
+  const out = new Map<string, ProductState | null>(unique.map((id) => [id, null]));
+  if (unique.length === 0) return out;
+  const data = await client.graphql<{
+    nodes: Array<(Omit<ProductState, 'abEntry'> & { abEntry: { value: string } | null }) | null>;
+  }>(
+    `query DvflyProductStates($ids: [ID!]!) {
+       nodes(ids: $ids) {
+         ... on Product {
+           id handle title status onlineStoreUrl templateSuffix
+           abEntry: metafield(namespace: "dvfly", key: "ab_entry") { value }
+         }
+       }
+     }`,
+    { ids: unique },
+  );
+  for (const node of data.nodes) {
+    if (node && node.id) {
+      const { id, handle, title, status, onlineStoreUrl, templateSuffix, abEntry } = node;
+      out.set(id, { id, handle, title, status, onlineStoreUrl, templateSuffix, abEntry: abEntry?.value ?? null });
+    }
+  }
+  return out;
+}
+
+/**
+ * Why a visitor sent to this product would not see it — in the screen's
+ * words — or null when they would. Status only: a draft or a deleted
+ * product is a 404 (Shopify's help on URL redirects), and an archived one is
+ * hidden from the storefront. Unlisted products open by URL (they are only
+ * kept out of search and collections), so they pass.
+ */
+export function unreachableReason(state: ProductState | null): string | null {
+  if (!state) return 'o produto foi apagado da loja';
+  if (state.status === 'DRAFT') return 'o produto está como Rascunho na Shopify';
+  if (state.status === 'ARCHIVED') return 'o produto está Arquivado na Shopify';
+  if (state.status !== 'ACTIVE' && state.status !== 'UNLISTED') return `o produto está com status ${state.status} na Shopify`;
+  return null;
+}
+
+/**
+ * A doubt, not a verdict: Shopify gives no storefront URL for a product that
+ * is off the Online Store channel — and also for EVERY product while the
+ * store has a password (Shopify staff, community.shopify.dev 32775; dev
+ * stores always have one). Said with both causes, and never a reason to stop
+ * a test.
+ */
+export function publicationDoubt(state: ProductState | null): string | null {
+  if (!state || unreachableReason(state) || state.onlineStoreUrl) return null;
+  return 'a Shopify não deu o endereço dele na loja: ou ele não está publicado no canal Loja virtual (Online Store), ou a loja está com senha';
+}
+
+/** A text metafield on products, written or removed in one call per batch. */
+export async function setProductTextMetafields(
+  client: ShopifyClient,
+  namespace: string,
+  key: string,
+  values: Array<{ productId: string; value: string }>,
+): Promise<void> {
+  for (let i = 0; i < values.length; i += 25) {
+    const data = await client.graphql<{ metafieldsSet: { metafields: unknown[] | null; userErrors: unknown[] } }>(
+      `mutation DvflyMetafieldsSet($metafields: [MetafieldsSetInput!]!) {
+         metafieldsSet(metafields: $metafields) {
+           metafields { id }
+           userErrors { field message code }
+         }
+       }`,
+      {
+        metafields: values
+          .slice(i, i + 25)
+          .map((v) => ({ ownerId: v.productId, namespace, key, type: 'single_line_text_field', value: v.value })),
+      },
+    );
+    if (data.metafieldsSet.userErrors.length > 0) {
+      throw new ShopifyError(
+        `Não foi possível gravar ${namespace}.${key} nos produtos de ${client.domain}: ${formatUserErrors(data.metafieldsSet.userErrors)}`,
+        { userErrors: data.metafieldsSet.userErrors },
+      );
+    }
+  }
+}
+
+/** Removes a metafield from products; one that is not there is not an error. */
+export async function deleteProductMetafields(
+  client: ShopifyClient,
+  namespace: string,
+  key: string,
+  productIds: string[],
+): Promise<void> {
+  const ids = [...new Set(productIds)];
+  for (let i = 0; i < ids.length; i += 25) {
+    const data = await client.graphql<{ metafieldsDelete: { userErrors: unknown[] } }>(
+      `mutation DvflyMetafieldsDelete($metafields: [MetafieldIdentifierInput!]!) {
+         metafieldsDelete(metafields: $metafields) {
+           deletedMetafields { ownerId }
+           userErrors { field message }
+         }
+       }`,
+      { metafields: ids.slice(i, i + 25).map((ownerId) => ({ ownerId, namespace, key })) },
+    );
+    if (data.metafieldsDelete.userErrors.length > 0) {
+      throw new ShopifyError(
+        `Não foi possível remover ${namespace}.${key} dos produtos de ${client.domain}: ${formatUserErrors(data.metafieldsDelete.userErrors)}`,
+        { userErrors: data.metafieldsDelete.userErrors },
+      );
+    }
+  }
+}

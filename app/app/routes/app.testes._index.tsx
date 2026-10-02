@@ -2,14 +2,15 @@ import { Link, useLoaderData, useLocation, useNavigation, useSubmit } from 'reac
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 
-import { AB_STATUS_LABEL } from '../lib/ab.ts';
+import { AB_LONG_TEST_DAYS, AB_STATUS_LABEL } from '../lib/ab.ts';
+import { flushHits, liveDaysOf } from '../lib/ab.server.ts';
 import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
 import { shopSearch } from '../ui/embedded.ts';
 import { Icon } from '../ui/icons.tsx';
 import { LocalDateTime } from '../ui/local-time.tsx';
-import { FONT_STACK, pillNeutral, pillSuccess, ThemeToggle, UiStyle, useUiTheme } from '../ui/theme.tsx';
+import { FONT_STACK, pillNeutral, pillSuccess, pillWarn, ThemeToggle, UiStyle, useUiTheme } from '../ui/theme.tsx';
 
 export const headers = passHeaders;
 
@@ -27,6 +28,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { createdAt: 'desc' },
     include: { variants: { select: { id: true } } },
   });
+  await flushHits();
   const clicks = await db.abStat.groupBy({
     by: ['testId'],
     where: { testId: { in: tests.map((t) => t.id) } },
@@ -41,6 +43,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       status: t.status,
       variants: t.variants.length,
       startedAt: t.startedAt?.toISOString() ?? null,
+      // Days live, pauses left out, by the server's clock (the page renders the same on both sides).
+      liveDays: t.status === 'live' ? liveDaysOf(t) : null,
       clicks: clicks.find((c) => c.testId === t.id)?._sum.clicks ?? 0,
     })),
   };
@@ -133,6 +137,13 @@ export default function TestsList() {
                     </td>
                     <td style={td}>
                       <span style={t.status === 'live' ? pillSuccess : pillNeutral}>{AB_STATUS_LABEL[t.status] ?? t.status}</span>
+                      {t.liveDays !== null && t.liveDays >= AB_LONG_TEST_DAYS ? (
+                        <div style={{ marginTop: 4 }}>
+                          <span style={pillWarn} data-teste-longo title="O Google pede que um teste não fique rodando indefinidamente">
+                            {t.liveDays} dias no ar: decida a vencedora
+                          </span>
+                        </div>
+                      ) : null}
                     </td>
                     <td style={td}>{t.variants}</td>
                     <td style={td}>{t.clicks.toLocaleString('pt-BR')}</td>
