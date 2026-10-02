@@ -40,8 +40,11 @@ automatically_update_urls_on_dev = false
 #   write_content   páginas, blogs e artigos (pageCreate/pageUpdate)
 #   write_themes    templates e seções escritos no tema (cabeçalho/rodapé off, páginas de produto)
 #   write_products  templateSuffix dos produtos vinculados
+#   read_orders     Teste A | B: pedidos por produto de cada versão (últimos 60
+#                   dias). Exige também o formulário "Acesso a dados protegidos
+#                   de clientes" no Dev Dashboard (nível 1 basta). Ver docs/TESTE_AB.md
 # Quando a biblioteca de mídia sair: acrescentar write_files.
-scopes = "write_content,write_themes,write_products"
+scopes = "write_content,write_themes,write_products,read_orders"
 # Instalação gerenciada pela Shopify: ela pede a permissão, o app nunca faz OAuth.
 use_legacy_install_flow = false
 

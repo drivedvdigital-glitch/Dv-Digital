@@ -37,7 +37,7 @@ embedded = true
 automatically_update_urls_on_dev = false
 
 [access_scopes]
-scopes = "write_content,write_themes,write_products"
+scopes = "write_content,write_themes,write_products,read_orders"
 use_legacy_install_flow = false
 
 [auth]

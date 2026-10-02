@@ -404,6 +404,17 @@ export async function ensureProductTemplate(
 /** Removes the page's template and section from the main theme. */
 export async function removeProductTemplate(client: ShopifyClient, pageId: string): Promise<void> {
   const themeId = await mainThemeId(client);
+  // The page's own layout goes too, when it ever had one (a missing file is
+  // not an error).
+  await deleteThemeFiles(client, themeId, [
+    productTemplateFile(pageId),
+    productSectionFile(pageId),
+    pageBareLayoutFile(pageId),
+  ]);
+}
+
+/** Deletes theme files; one that is already gone is not a failure. */
+export async function deleteThemeFiles(client: ShopifyClient, themeId: string, files: string[]): Promise<void> {
   const data = await client.graphql<{
     themeFilesDelete: {
       deletedThemeFiles: Array<{ filename: string }> | null;
@@ -416,9 +427,7 @@ export async function removeProductTemplate(client: ShopifyClient, pageId: strin
          userErrors { code field message }
        }
      }`,
-    // The page's own layout goes too, when it ever had one (a missing file
-    // is not an error below).
-    { themeId, files: [productTemplateFile(pageId), productSectionFile(pageId), pageBareLayoutFile(pageId)] },
+    { themeId, files },
   );
   // A file that is already gone is not a failure — by code, or by wording
   // when the code is missing.
@@ -427,13 +436,13 @@ export async function removeProductTemplate(client: ShopifyClient, pageId: strin
   );
   if (errors.length > 0) {
     throw new ShopifyError(
-      `Não foi possível remover o modelo de produto do tema de ${client.domain}: ${JSON.stringify(errors)}`,
+      `Não foi possível remover arquivos do tema de ${client.domain}: ${JSON.stringify(errors)}`,
       { userErrors: errors },
     );
   }
 }
 
-async function upsertThemeFiles(
+export async function upsertThemeFiles(
   client: ShopifyClient,
   themeId: string,
   files: Array<{ filename: string; body: { type: string; value: string } }>,

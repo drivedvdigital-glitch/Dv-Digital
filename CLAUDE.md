@@ -54,13 +54,22 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   Telas próprias (tokens `--dv-*`, claro/escuro); editor
   em tela cheia (árvore / canvas / inspetor). **Toda rota de tela/dados chama `requireShop`**
   (ID token da Shopify; exceções por desenho: `/bounce`, webhooks com HMAC, `/` que só
-  redireciona, e `/api/chave`, que existe **porque** o token está falhando e por isso é
-  guardada pela senha de acesso); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só
+  redireciona, `/api/chave`, que existe **porque** o token está falhando e por isso é
+  guardada pela senha de acesso, e `/ab/hit`, a contagem de cliques que o navegador do
+  VISITANTE manda da vitrine — só soma 1 num teste no ar, com limite por IP, e responde 204
+  vazio para tudo); a loja se instala sozinha ao abrir o app (`installStore`). `DVFLY_AUTH=off` só
   em dev. Loaders nunca devolvem token/segredo de loja ao cliente.
   **Senha de acesso** (`DVFLY_ACCESS_KEY`, `access.server.ts`): loja instalada mas não
   liberada para em `/liberar` — a trava mora DENTRO do `requireShop`, que é a única porta por
   onde toda tela e todo dado já passam; portão em outro lugar é portão que a próxima rota
   esquece. Liberação é por loja e permanente (`Store.authorizedAt`). Vazio = sem trava.
+- **Teste A | B** (`/app/testes`, `docs/TESTE_AB.md`): o produto da URL do anúncio aponta
+  para um layout nosso cujo `<head>` sorteia a versão por peso ANTES do `content_for_header`
+  (`packages/shopify/src/split.ts`) e troca a URL mantendo a query (utm, fbclid). Sorteio só
+  por porcentagem — nunca por user agent, IP ou plataforma (isso seria cloaking); robô é
+  redirecionado igual e só fica fora da CONTA. Pedidos por produto da versão, de uma cópia
+  leve dos pedidos (sem dado de cliente; a busca da Shopify não filtra por produto), escopo
+  `read_orders`. Vencedor só com amostra mínima (~5 pedidos esperados por versão) e 95%.
 - Decisões e porquês: `docs/ARQUITETURA.md` (invariantes I1–I7), `docs/UX_FLUXOS.md` (U1–U7),
   histórico honesto em `docs/PROGRESSO.md` — **atualizar a cada entrega**, incluindo o que falhou.
   Estado real do código × plataforma × concorrente: `docs/CONFIGURACAO_E_MECANISMOS.md`

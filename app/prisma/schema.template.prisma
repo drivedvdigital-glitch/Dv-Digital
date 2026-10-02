@@ -44,6 +44,11 @@ model Store {
   productLinks  ProductLink[]
   /// Pages created from this store's admin. See `Page.ownerStore`.
   ownedPages    Page[]       @relation("PaginasDaLoja")
+  abTests       AbTest[]
+  abOrders      AbOrder[]
+  /// How far the light copy of this store's orders is synced (`updated_at`
+  /// of the last change read). Null: never synced.
+  ordersSyncedTo DateTime?
 }
 
 /// A page is authored once and deployed to many stores. It deliberately does
@@ -142,4 +147,83 @@ model Deployment {
   publishedAt DateTime @default(now())
 
   @@unique([pageId, storeId])
+}
+
+/// "Teste A | B": one product URL of a store that sends each visitor to one of
+/// several product pages, by weight (packages/shopify/src/split.ts). The
+/// entry product is pointed at a template of ours while the test is live;
+/// pausing gives it back the template it had (`previousSuffix`).
+model AbTest {
+  id              String      @id @default(cuid())
+  storeId         String
+  store           Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name            String
+  /// The product whose URL the ads point at (`/products/piadebanho`).
+  entryProductGid String
+  entryHandle     String
+  entryTitle      String
+  /// The suffix the entry product rendered with before the test took it over.
+  previousSuffix  String?
+  /// "draft" (never went live) | "live" | "paused".
+  status          String      @default("draft")
+  /// Where the storefront script reports arrivals: this app's public origin,
+  /// recorded when the test goes live.
+  trackerOrigin   String?
+  startedAt       DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  variants        AbVariant[]
+
+  @@index([storeId])
+}
+
+/// One version of a test: another product of the same store, with its share
+/// of the visitors. Orders are attributed by this product (orders.ts).
+model AbVariant {
+  id         String   @id @default(cuid())
+  testId     String
+  test       AbTest   @relation(fields: [testId], references: [id], onDelete: Cascade)
+  productGid String
+  handle     String
+  title      String
+  /// Percent of the visitors (the variants of a test add up to 100).
+  weight     Int
+  position   Int
+  stats      AbStat[]
+}
+
+/// Arrivals per variant per hour (UTC). Hours, not days: the report counts
+/// days in the STORE's timezone, which is only known when someone reads it.
+model AbStat {
+  variantId String
+  variant   AbVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  testId    String
+  hour      DateTime
+  /// Every arrival through the test URL.
+  clicks    Int       @default(0)
+  /// First arrivals of a browser (the variant was drawn, not remembered).
+  visitors  Int       @default(0)
+
+  @@id([variantId, hour])
+  @@index([testId, hour])
+}
+
+/// A light copy of a store's orders, for the A/B report: Shopify's order
+/// search cannot filter by product, so the report counts here. No customer
+/// data — id, dates, total and the products in it. Synced by `updated_at`
+/// (orders.ts), so a cancellation reaches the copy too.
+model AbOrder {
+  /// The order's GID.
+  id         String   @id
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  createdAt  DateTime
+  cancelled  Boolean
+  test       Boolean
+  total      Float
+  currency   String
+  /// Product GIDs in the order, space-separated.
+  productIds String
+
+  @@index([storeId, createdAt])
 }

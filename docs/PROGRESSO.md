@@ -2686,6 +2686,66 @@ medianas):
   republicar a partir do link raw; os placeholders do rodapé (`{{ nome_loja }}` etc.)
   continuam no ar até serem preenchidos.
 
+### Teste A | B — uma URL no anúncio, várias páginas, cliques e pedidos de cada (02/10)
+
+Pedido do Miguel: `ofertascolombianas.store/products/piadebanho` dividindo 25% para cada uma de
+`piadebanho1…4`, com cliques, pedidos e conversão por versão num calendário. Guia de uso em
+`docs/TESTE_AB.md`.
+
+O que foi feito:
+
+- **Aba nova** `Teste A | B` (menu do admin e atalho na lista de páginas): lista de testes da
+  loja; tela do teste com configuração (produto de entrada, 2 a 6 versões, porcentagens,
+  "Dividir igualmente", soma que precisa dar 100%) e resultados (Hoje / Ontem / 7 dias / 30
+  dias / Desde o início / calendário com De–Até; resumo por versão e tabela dia a dia).
+- **Na loja**: o produto de entrada aponta para um modelo nosso cujo layout sorteia a versão
+  no `<head>`, antes do `content_for_header` — o mesmo mecanismo das páginas de produto, nada
+  novo para confiar. A query (`utm_*`, `fbclid`) e o prefixo de mercado seguem junto; a mesma
+  pessoa volta sempre para a mesma versão; `?dvf_ab=off` mostra a entrada sem redirecionar.
+- **Cliques**: `POST /ab/hit` por `sendBeacon`, guardados por hora (UTC) e somados por dia no
+  fuso da loja. Rota pública por desenho (como os webhooks): soma 1 num teste no ar, limite
+  por IP, 204 vazio para tudo.
+- **Pedidos**: por PRODUTO da versão, de uma cópia leve dos pedidos (id, datas, total,
+  produtos; nenhum dado de cliente), sincronizada por `updated_at` a cada abertura do
+  relatório. Escolhido assim porque a busca de pedidos da Shopify não filtra por produto, e
+  porque o formulário COD cria o pedido sem passar pelo carrinho (um rastreio no checkout não
+  veria nada). Escopo novo: `read_orders`, nos três `shopify.app*.toml`.
+- **Sem cloaking**: o sorteio usa só a porcentagem. Robôs (e o PageSpeed) são redirecionados
+  igual e só ficam fora da CONTA.
+
+Provas:
+
+- Pacote Shopify: 12 testes novos (o script rodado num navegador falso: faixas de peso, peso 0
+  nunca recebe, query e prefixo preservados, mesma versão na volta, `?dvf_ab=off`, moldura do
+  editor de tema; recusa de handle/URL perigosos; ordem de gravação e remoção dos arquivos;
+  pedidos paginados, recusa de acesso traduzida). App: 8 testes novos (dias no fuso, horário de
+  verão, pesos, p-valor, veredito).
+- **Dirigido de verdade** (Playwright, servidor de produção, Admin API respondida por arquivo de
+  estado, vitrine falsa que serve O LAYOUT QUE O APP GRAVOU): 45/45, em SQLite **e** em
+  Postgres. Criar → configurar → no ar → 40 visitantes novos de celular Android (as 4 versões
+  receberam: 14/8/9/9, query intacta) → mesma pessoa volta na mesma → robô redirecionado e não
+  contado → relatório com 42 cliques e os pedidos certos (cancelado e pedido de teste fora,
+  pedido com dois produtos contado para a versão) → calendário (30 dias, ontem, dia escolhido)
+  → 100% numa versão → sem `read_orders` (aviso com os dois passos, cliques continuam) →
+  pausar (entrada volta ao modelo `original-x` que tinha) → voltar a rodar → excluir (arquivos
+  fora do tema). Migration aplicada num Postgres zerado.
+
+O que a prova pegou e foi corrigido antes do commit:
+
+- **Veredito dizendo "95% de confiança" com 2 pedidos contra 0.** O teste de duas proporções
+  usa uma aproximação que só vale com amostra mínima; com 2 pedidos ele "provava" qualquer
+  coisa. Agora só há vencedor com ~5 pedidos esperados por versão E 95% — antes disso a tela
+  diz quem está na frente e que ainda cabe no acaso.
+- **Pedido de antes do teste entrando na conta** quando o período escolhido começava antes do
+  início. Pedido feito antes do teste existir não é pedido do teste: a contagem começa no
+  maior entre o início do período e o início do teste, e a tela diz isso.
+- **Limite de 60 cliques por IP por minuto** era baixo para operadora de celular (milhares de
+  aparelhos atrás de um IP só): subiu para 600.
+
+Não verificado (precisa da loja de verdade): o escopo `read_orders` concedido e o formulário de
+dados protegidos preenchido nos três apps; o redirecionamento na vitrine real da Shopify (a
+prova usou o layout gravado servido por uma vitrine falsa); a contagem através do Caddy da VM.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

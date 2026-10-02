@@ -6,6 +6,8 @@ export default [
   route('app', 'routes/app.tsx', [
     index('routes/app._index.tsx'),
     route('pages/:id', 'routes/app.pages.$id.tsx'),
+    route('testes', 'routes/app.testes._index.tsx'),
+    route('testes/:id', 'routes/app.testes.$id.tsx'),
   ]),
   route('api/preview/:id', 'routes/api.preview.$id.tsx'),
   route('api/pages/:id/export', 'routes/api.pages.$id.export.tsx'),
@@ -26,4 +28,7 @@ export default [
   // já instala a loja, e o bloqueio tem que vir antes disso.
   route('liberar', 'routes/liberar.tsx'),
   route('webhooks/:topic', 'routes/webhooks.$topic.tsx'),
+  // Contagem de cliques do Teste A | B, enviada pelo navegador do VISITANTE
+  // na vitrine da loja: sem token da Shopify por desenho (ab.hit.tsx).
+  route('ab/hit', 'routes/ab.hit.tsx'),
 ] satisfies RouteConfig;

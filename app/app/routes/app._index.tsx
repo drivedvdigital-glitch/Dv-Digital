@@ -434,6 +434,9 @@ export default function PagesList() {
           ) : null}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <ThemeToggle theme={uiTheme} onToggle={toggleUiTheme} className="dv-btn dv-secondary dv-icon-btn" />
+            <Link to={`/app/testes${shopSearch(search)}`} className="dv-btn dv-secondary" data-link-testes>
+              Teste A | B
+            </Link>
             <button
               type="button"
               className="dv-btn dv-secondary"
