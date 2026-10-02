@@ -28,6 +28,7 @@ import { CLASS_PREFIX, StyleSheet } from './css.ts';
 import { tag } from './html.ts';
 import { DEFAULT_ROOT_PX, optimizeHtml } from './html-optimize.ts';
 import { isHeroCandidate, isPreloadable, type LcpImage } from './images.ts';
+import { codeOnly, hasLiquid, LIQUID_CLOSE, LIQUID_OPEN } from './liquid.ts';
 import { validate, type Doc, type Node } from './schema.ts';
 
 export interface CompileResult {
@@ -207,11 +208,26 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
   const belowFold = new Set<Node>(visibleRoot.slice(1).filter((node) => node.type === 'section'));
   let belowFoldUsed = false;
 
+  // What a hidden subtree still ships: the CODE of its HTML blocks (Liquid
+  // tags and scripts), never what shows. The eye means "not on the page", and
+  // a block that is code — `{% include 'gtm-roteador' %}`, a pixel — is
+  // hidden precisely because it should run without being seen.
+  function hiddenCode(node: Node): string {
+    if (node.type === 'html') {
+      const source = String(node.props?.html ?? '');
+      const liquid = (node.props?.liquid as boolean | undefined) ?? hasLiquid(source);
+      const code = codeOnly(source, liquid);
+      if (!code) return '';
+      return tag('div', { 'data-dvf-code': '', hidden: '', style: 'display:none' }, liquid && hasLiquid(code) ? LIQUID_OPEN + code + LIQUID_CLOSE : code);
+    }
+    return (node.children ?? []).map(hiddenCode).join('');
+  }
+
   function render(node: Node): string {
-    // The eye toggle: a hidden node (and its whole subtree) simply does not
-    // exist in the output. CSS hiding would still ship the bytes and the
-    // content to every visitor; omission is the only honest "hidden".
-    if (node.hidden) return '';
+    // The eye toggle: a hidden node (and its whole subtree) does not show.
+    // Its visible content does not ship at all — CSS hiding would still send
+    // the bytes and the images; only the code of its HTML blocks does.
+    if (node.hidden) return hiddenCode(node);
     nodes++;
     const renderer = BLOCKS[node.type];
     if (!renderer) {

@@ -136,8 +136,10 @@ export interface Node {
   children?: Node[];
   /**
    * Switched off by the tree panel's eye toggle. A hidden node stays in the
-   * document (the work is not lost) but the compiler emits nothing for it —
-   * not `display:none`, nothing: hidden content must not ship to visitors.
+   * document (the work is not lost) and nothing it SHOWS ships — not
+   * `display:none`, nothing. The one exception is code: the Liquid tags and
+   * scripts of hidden HTML blocks still ship, invisible, and run (a block
+   * holding `{% include 'gtm-roteador' %}` is hidden to run unseen).
    */
   hidden?: boolean;
 }

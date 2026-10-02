@@ -1748,7 +1748,7 @@ export default function PageEditor() {
                   type="button"
                   className="dv-btn dv-plain"
                   style={actionButton}
-                  title={selectedNode.hidden ? 'Voltar a mostrar este bloco na página' : 'Esconder da página publicada sem apagar'}
+                  title={selectedNode.hidden ? 'Voltar a mostrar este bloco na página' : 'Esconder da página publicada sem apagar. Em bloco HTML, o código (Liquid e scripts) continua rodando'}
                   data-action-hide
                   onClick={() => setRoot(toggleHidden(doc.root, selectedNode.id))}
                 >
@@ -2619,7 +2619,7 @@ function Tree({
                 tabIndex={0}
                 className="dv-tree-tools"
                 data-eye={node.id}
-                title={node.hidden ? 'Mostrar este bloco' : 'Esconder este bloco (não sai na página)'}
+                title={node.hidden ? 'Mostrar este bloco' : 'Esconder este bloco (não aparece na página; em bloco HTML, o código continua rodando)'}
                 aria-label={node.hidden ? 'Mostrar este bloco' : 'Esconder este bloco'}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -3865,7 +3865,7 @@ const HELP = [
   { title: 'Selecionar', text: 'Clique no bloco, no canvas ou na Estrutura. Ctrl+clique soma à seleção para agir em vários de uma vez.' },
   { title: 'Mover', text: 'Arraste a linha na Estrutura (solte em cima de uma Seção para entrar nela) ou arraste pelo nome na barra do canvas. Ou use Subir / Descer no inspetor.' },
   { title: 'Duplicar e excluir', text: 'Duplicar (Ctrl+D) e Excluir (Delete) ficam no inspetor, na barra do canvas e no menu do botão direito. Ctrl+Z desfaz qualquer coisa.' },
-  { title: 'Esconder sem apagar', text: 'O olho na Estrutura tira o bloco da página publicada e o mantém aqui para depois.' },
+  { title: 'Esconder sem apagar', text: 'O olho na Estrutura tira o bloco da página publicada e o mantém aqui para depois. Num bloco HTML, o código continua rodando escondido: um {% include %} ou um script de pixel funciona sem aparecer.' },
   { title: 'Salvar e publicar', text: 'Salvar guarda uma versão. Publicar coloca a página no ar nas lojas marcadas em "Publicar em". Configurações da página (no trilho à esquerda) define URL, tipo e produtos vinculados.' },
 ];
 

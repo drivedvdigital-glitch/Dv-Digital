@@ -111,6 +111,8 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   desligado (`liquid: false`) = texto. Página comum: a Shopify nunca roda Liquid no CORPO da
   Page, então página comum com Liquid ganha modelo próprio (`page.dvfly-pg-<id>` + seção,
   `ensurePageLiquidTemplate`); sem Liquid, volta ao modelo normal e os arquivos saem.
+  **Bloco escondido (olho) não mostra nada, mas o CÓDIGO de bloco HTML roda** (`codeOnly`:
+  tags Liquid + `<script>`): o include fica escondido justamente para rodar sem aparecer.
 - **Medir sempre COM o tema da loja por cima.** Documento nu mente: o tema tem
   `html{font-size:62.5%}` (1rem = 10px: o `rem` do HTML colado é convertido para px pelo
   compilador — a 16px por padrão, o visual que o Miguel aprovou, ou à raiz do tema

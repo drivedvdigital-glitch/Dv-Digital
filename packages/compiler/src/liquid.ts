@@ -60,3 +60,14 @@ export function liquidRegions(fragment: string): Array<{ liquid: boolean; text: 
 export function stripLiquidMarkers(fragment: string): string {
   return fragment.split(LIQUID_OPEN).join('').split(LIQUID_CLOSE).join('');
 }
+
+/**
+ * What of an HTML block still has to RUN when the block is hidden: its Liquid
+ * tags (`{% include 'gtm-roteador' %}` assigns variables and injects GTM) and
+ * its `<script>` elements, in their order. Nothing that shows: no markup, no
+ * `{{ }}` output, no images.
+ */
+export function codeOnly(source: string, liquid: boolean): string {
+  const pattern = liquid ? /\{%[\s\S]*?%\}|<script\b[\s\S]*?<\/script\s*>/gi : /<script\b[\s\S]*?<\/script\s*>/gi;
+  return (source.match(pattern) ?? []).join('\n');
+}

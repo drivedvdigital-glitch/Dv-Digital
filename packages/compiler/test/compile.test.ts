@@ -531,3 +531,20 @@ test('Liquid can be switched off per block, and markup without it is not fenced'
   assert.ok(!html.includes('dvf-liquid'), html);
   assert.ok(html.includes('<p>{{ vue }}</p>'));
 });
+
+test('a hidden HTML block still runs its code, and ships nothing that shows', () => {
+  const doc = {
+    version: 1,
+    root: [
+      { id: 'g', type: 'html', hidden: true, props: { html: "{% include 'gtm-roteador' %}" } },
+      { id: 'lp', type: 'html', props: { html: '<h1>LP</h1>' } },
+      { id: 'x', type: 'html', hidden: true, props: { html: '<h2>rascunho</h2>{{ nome_loja }}<img src="https://cdn.shopify.com/a.jpg"><script>px()</script>' } },
+      { id: 's', type: 'section', hidden: true, children: [{ id: 't', type: 'heading', props: { text: 'oculto', level: 2 } }] },
+    ],
+  } as unknown as Doc;
+  const { html } = compile(doc);
+  assert.ok(html.includes("<!--dvf-liquid-->{% include 'gtm-roteador' %}<!--/dvf-liquid-->"), html);
+  assert.ok(html.includes('<script>px()</script>'), html);
+  for (const shown of ['rascunho', 'nome_loja', 'a.jpg', 'oculto']) assert.ok(!html.includes(shown), `${shown} leaked: ${html}`);
+  assert.equal((html.match(/style="display:none"/g) ?? []).length, 2);
+});

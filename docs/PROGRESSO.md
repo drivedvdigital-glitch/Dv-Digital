@@ -3024,6 +3024,27 @@ criada pelo instalador como administrador).
 - Não testado em Windows (o sandbox não tem PowerShell): revisado linha a linha contra as
   armadilhas já pagas do 5.1.
 
+### O olho escondia o código junto: bloco HTML escondido agora roda o código (03/10)
+
+A causa real de "o include não puxa", achada pelo Miguel: no editor o
+`{% include 'gtm-roteador' %}` aparece como texto (o Liquid só roda na loja), então ele
+escondeu o bloco com o olho — e o olho tirava o bloco inteiro da página publicada. Na LP no
+ar não havia include nenhum; o rodapé saía em branco e sem GTM. Eu passei quatro rodadas
+procurando no servidor (versão na VM, script de atualização, snippet sem o domínio) antes de
+olhar o que o editor fazia com o bloco; a conferência certa era a primeira que fiz na página
+no ar ("o include não está em lugar nenhum"), e eu culpei o publicador em vez do editor.
+
+- Bloco escondido: o que APARECE continua não indo (marcação, `{{ }}`, imagens, blocos de
+  texto, seções). O CÓDIGO dos blocos HTML vai, invisível (`<div data-dvf-code hidden
+  style="display:none">`), e roda: tags Liquid (`{% … %}`, cercadas como sempre) e
+  `<script>`, na ordem. Vale em qualquer profundidade de bloco escondido.
+- Tooltips do olho e a Ajuda dizem isso. Consequência: script de pixel num bloco HTML de
+  rascunho escondido agora roda — é o que "escondido, mas funcionando" quer dizer.
+- Prova: compilador 93 (+1: include e script escondidos saem; título, `{{ }}`, imagem e
+  seção escondidos não); ponta a ponta com o `gtm-roteador` do Miguel em
+  `www.ofercolombianas.store`, bloco do include ESCONDIDO: nome, e-mail e GTM-M4788D35 no
+  rodapé, em produto e em página comum. **Não visto ainda na loja.**
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
