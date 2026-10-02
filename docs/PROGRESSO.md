@@ -2746,6 +2746,30 @@ Não verificado (precisa da loja de verdade): o escopo `read_orders` concedido e
 dados protegidos preenchido nos três apps; o redirecionamento na vitrine real da Shopify (a
 prova usou o layout gravado servido por uma vitrine falsa); a contagem através do Caddy da VM.
 
+### Teste A | B: a URL de entrada é a versão A (02/10, depois)
+
+Correção de modelo pedida pelo Miguel: `/products/piadebanho` não é só a porta — é a **versão
+A** e também quem distribui; B = `piadebanho1`, C = `piadebanho2`. A primeira entrega tratava a
+entrada só como porta (o conteúdo dela sumia durante o teste e ela nem podia ser versão).
+
+- A entrada pode ser versão (caixa "A própria URL de entrada é a versão A", marcada sozinha ao
+  escolher a entrada). Quem cai na A fica em `/products/piadebanho?view=<modelo que ela tinha>`:
+  o `?view=` da Shopify escolhe outro modelo do mesmo produto, então é a mesma URL, a página
+  dela, e sem laço. Entrada no modelo padrão do tema ganha uma cópia dele com nome nosso
+  (`product.dvfly-ab-<teste>-a`), porque o padrão não tem nome para o `view`.
+- **Buraco achado no caminho, que já existia na primeira entrega:** publicar uma página do
+  D&VFly ligada ao produto de entrada (ou vincular o produto com a página no ar) apontava o
+  produto para a página e desligava o teste sem ninguém decidir. Agora o produto fica no teste,
+  o modelo da página é gravado e vira o que a versão A mostra (e o que volta ao pausar); a
+  mensagem da publicação diz isso.
+- Prova dirigida: 52/52 em SQLite e em Postgres. A distribuição com a A ficou 8/11/9/12 em 40
+  visitantes; quem cai na A vê o título da entrada, sem laço; 100% na A mantém todos na entrada;
+  publicar página na entrada mantém o teste e a A passa a mostrar a página nova; pausar devolve
+  a página; segundo teste com entrada no modelo padrão grava a cópia, a A abre nela, e excluir
+  apaga a cópia. Pacote Shopify +2 testes (65).
+- A primeira rodada de prova falhou por um furo do DUBLÊ da Shopify (não sabia ler arquivos do
+  tema), não do app — corrigido no dublê.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

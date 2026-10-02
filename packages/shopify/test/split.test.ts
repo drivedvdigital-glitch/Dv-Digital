@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { ShopifyError, type ShopifyClient } from '../src/client.ts';
 import { ordersUpdatedSince } from '../src/orders.ts';
 import {
+  ensureEntryCopy,
   ensureSplitTemplate,
   removeSplitTemplate,
   splitLayoutLiquid,
@@ -92,6 +93,15 @@ describe('A/B split script', () => {
     assert.equal(r.beacons[0].f, 1);
   });
 
+  it('version A is the entry URL itself: same path, its own template through ?view=', () => {
+    const input = { ...INPUT, variants: [{ id: 'va', handle: 'piadebanho', weight: 50, view: 'dvfly-pagina1' }, { id: 'vb', handle: 'piadebanho1', weight: 50 }] };
+    assert.equal(run(input, { random: 0 }).replaced, '/products/piadebanho?view=dvfly-pagina1#oferta');
+    assert.equal(run(input, { random: 0, search: '?fbclid=x1' }).replaced, '/products/piadebanho?fbclid=x1&view=dvfly-pagina1#oferta');
+    assert.equal(run(input, { random: 0.9 }).replaced, '/products/piadebanho1#oferta');
+    assert.match(splitLayoutLiquid(input), /content="0;url=\/products\/piadebanho\?view=dvfly-pagina1"/);
+    assert.throws(() => splitScript({ ...input, variants: [{ ...input.variants[0], view: 'x"><script>' }, input.variants[1]] }), /Modelo inválido/);
+  });
+
   it('stays put with ?dvf_ab=off (to look at the entry page) and inside the theme editor', () => {
     assert.equal(run(INPUT, { search: '?dvf_ab=off' }).replaced, null);
     assert.equal(run(INPUT, { framed: true }).replaced, null);
@@ -149,9 +159,39 @@ describe('A/B split theme files', () => {
     calls.length = 0;
     await removeSplitTemplate(client, 'cmtest1');
     assert.deepEqual(calls, [
-      ['delete', ['templates/product.dvfly-ab-cmtest1.json', 'sections/dvfly-ab-cmtest1.liquid']],
+      ['delete', ['templates/product.dvfly-ab-cmtest1.json', 'sections/dvfly-ab-cmtest1.liquid', 'templates/product.dvfly-ab-cmtest1-a.json', 'templates/product.dvfly-ab-cmtest1-a.liquid']],
       ['delete', ['layout/theme.dvfly-ab-cmtest1.liquid']],
     ]);
+  });
+});
+
+describe('version A copy of the default product template', () => {
+  it('copies product.json (comments stripped) under our suffix; removal takes it out', async () => {
+    const files: Record<string, string> = { 'templates/product.json': '/* auto */ {"sections":{"main":{"type":"main-product"}},"order":["main"],}' };
+    const deleted: string[] = [];
+    const client = {
+      domain: 'loja.myshopify.com',
+      async graphql(query: string, variables: Record<string, unknown> = {}) {
+        if (/roles: \[MAIN\]/.test(query)) return { themes: { nodes: [{ id: 't1' }] } };
+        if (/themeFilesUpsert/.test(query)) {
+          for (const f of variables.files as Array<{ filename: string; body: { value: string } }>) files[f.filename] = f.body.value;
+          return { themeFilesUpsert: { upsertedThemeFiles: (variables.files as unknown[]).map(() => ({})), userErrors: [] } };
+        }
+        if (/themeFilesDelete/.test(query)) {
+          deleted.push(...(variables.files as string[]));
+          return { themeFilesDelete: { deletedThemeFiles: [], userErrors: [] } };
+        }
+        if (/DvflyThemeFiles/.test(query)) {
+          const names = variables.filenames as string[];
+          return { theme: { files: { nodes: names.filter((n) => files[n]).map((n) => ({ filename: n, body: { content: files[n] } })) } } };
+        }
+        throw new Error(query.slice(0, 50));
+      },
+    } as unknown as ShopifyClient;
+    assert.equal(await ensureEntryCopy(client, 'cmtest1'), 'dvfly-ab-cmtest1-a');
+    assert.deepEqual(JSON.parse(files['templates/product.dvfly-ab-cmtest1-a.json']).order, ['main']);
+    await removeSplitTemplate(client, 'cmtest1');
+    assert.ok(deleted.includes('templates/product.dvfly-ab-cmtest1-a.json'));
   });
 });
 

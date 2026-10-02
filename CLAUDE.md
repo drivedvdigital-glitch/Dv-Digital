@@ -67,7 +67,9 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   para um layout nosso cujo `<head>` sorteia a versão por peso ANTES do `content_for_header`
   (`packages/shopify/src/split.ts`) e troca a URL mantendo a query (utm, fbclid). Sorteio só
   por porcentagem — nunca por user agent, IP ou plataforma (isso seria cloaking); robô é
-  redirecionado igual e só fica fora da CONTA. Pedidos por produto da versão, de uma cópia
+  redirecionado igual e só fica fora da CONTA. A versão A pode ser a própria URL de entrada:
+  ela é mostrada pelo `?view=<modelo que tinha>` (cópia do modelo padrão quando não tinha);
+  publicar página no produto de entrada com teste no ar NÃO o tira do teste. Pedidos por produto da versão, de uma cópia
   leve dos pedidos (sem dado de cliente; a busca da Shopify não filtra por produto), escopo
   `read_orders`. Vencedor só com amostra mínima (~5 pedidos esperados por versão) e 95%.
 - Decisões e porquês: `docs/ARQUITETURA.md` (invariantes I1–I7), `docs/UX_FLUXOS.md` (U1–U7),

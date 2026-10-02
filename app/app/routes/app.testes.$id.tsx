@@ -13,6 +13,7 @@ import {
   localDay,
   percent,
 } from '../lib/ab.ts';
+import { entryCopySuffix } from '../../../packages/shopify/src/split.ts';
 import { buildReport, goLive, pause, storeInfo, takeDown, type Report } from '../lib/ab.server.ts';
 import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
@@ -79,6 +80,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     from,
     to,
     startedDay: test.startedAt ? localDay(test.startedAt, info.timezone) : null,
+    // The template version A is shown with (`?view=`), once the test has been live.
+    entryView: test.status === 'draft' ? null : (test.previousSuffix ?? entryCopySuffix(test.id)),
     test: {
       id: test.id,
       name: test.name,
@@ -129,9 +132,6 @@ function readyProblem(p: Payload): string | null {
   if (p.variants.length < AB_MIN_VARIANTS) return `Um teste precisa de pelo menos ${AB_MIN_VARIANTS} versões.`;
   const sum = p.variants.reduce((s, v) => s + v.weight, 0);
   if (sum !== 100) return `As porcentagens somam ${sum}%; precisam somar 100%.`;
-  if (p.variants.some((v) => v.gid === p.entry!.gid)) {
-    return 'O produto de entrada não pode ser uma das versões: ele é a porta, as versões são os destinos.';
-  }
   if (new Set(p.variants.map((v) => v.gid)).size !== p.variants.length) return 'Duas versões apontam para o mesmo produto.';
   return null;
 }
@@ -380,9 +380,26 @@ export default function TestScreen() {
         ? 'Escolha o produto de cada versão.'
         : sum !== 100
           ? `As porcentagens somam ${sum}%; precisam somar 100%.`
-          : variants.some((v) => v.gid === entry.gid)
-            ? 'O produto de entrada não pode ser uma das versões.'
+          : new Set(variants.map((v) => v.gid)).size !== variants.length
+            ? 'Duas versões apontam para o mesmo produto.'
             : null;
+  const entryIsA = !!entry && variants.some((v) => v.gid === entry.gid);
+  /** Picking the entry: the version that WAS the entry follows it; a fresh test starts with it as A. */
+  const pickEntry = (p: Picked) => {
+    setVariants((list) => {
+      const old = entry ? list.find((v) => v.gid === entry.gid) : undefined;
+      if (old) return list.map((v) => (v === old ? { ...v, ...p } : v));
+      if (list.length === 0) return [{ key: `novo-${Date.now()}`, ...p, weight: 0 }];
+      return list;
+    });
+    setEntry(p);
+  };
+  const toggleEntryIsA = (on: boolean) =>
+    setVariants((list) =>
+      on && entry
+        ? [{ key: `novo-${Date.now()}`, ...entry, weight: 0 }, ...list.filter((v) => v.gid !== entry.gid)]
+        : list.filter((v) => v.gid !== entry?.gid),
+    );
 
   const send = (intent: string) => {
     const fd = new FormData();
@@ -513,7 +530,7 @@ export default function TestScreen() {
                   storeId={store.id}
                   value={entry}
                   name="entrada"
-                  onPick={setEntry}
+                  onPick={pickEntry}
                   disabled={live}
                   disabledReason="Pause o teste para trocar: é neste produto que ele está instalado."
                 />
@@ -534,15 +551,35 @@ export default function TestScreen() {
                     <Icon name={copied ? 'check' : 'copy'} />
                     {copied ? 'Copiada' : 'Copiar URL'}
                   </button>
-                  <a className="dv-btn dv-plain" href={`${entryUrl}?dvf_ab=off`} target="_blank" rel="noreferrer" title="Abre o produto de entrada sem redirecionar e sem contar clique">
-                    <Icon name="external" />
-                    Ver a entrada sem redirecionar
-                  </a>
+                  {entryIsA && data.entryView ? (
+                    <a className="dv-btn dv-plain" href={`${entryUrl}?view=${data.entryView}`} target="_blank" rel="noreferrer" title="Abre a página que a versão A mostra, sem sorteio e sem contar clique">
+                      <Icon name="external" />
+                      Ver a versão A
+                    </a>
+                  ) : null}
                 </div>
               ) : null}
-              <span style={reason}>
-                O produto de entrada precisa estar ativo na loja; o conteúdo dele nunca aparece enquanto o teste roda.
-              </span>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 4 }}>
+                <input
+                  type="checkbox"
+                  checked={entryIsA}
+                  disabled={!entry || undefined}
+                  data-entrada-e-a
+                  onChange={(e) => toggleEntryIsA(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  <span style={{ fontWeight: 500 }}>A própria URL de entrada é a versão A</span>
+                  <span style={{ ...reason, display: 'block' }}>
+                    {!entry
+                      ? 'Escolha o produto de entrada primeiro.'
+                      : entryIsA
+                        ? 'Quem cair na A fica nesta mesma URL e vê a página que este produto já tinha; os outros vão para as versões B, C…'
+                        : 'Desligado: a URL só distribui, e o conteúdo dela não aparece para ninguém enquanto o teste roda.'}
+                  </span>
+                </span>
+              </label>
+              <span style={reason}>O produto de entrada precisa estar ativo na loja.</span>
             </div>
 
             <div style={field}>
@@ -557,12 +594,21 @@ export default function TestScreen() {
                   <div key={v.key} style={variantRow} data-versao={letter(i)}>
                     <span style={letterBadge}>{letter(i)}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
+                      {entry && v.gid === entry.gid ? (
+                        <div style={pickedRow} data-picked={`versao-${letter(i)}`}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 600 }}>{v.title}</div>
+                            <div style={sub}>/products/{v.handle} · a própria URL de entrada, com a página que ela já tinha</div>
+                          </div>
+                        </div>
+                      ) : (
                       <ProductPicker
                         storeId={store.id}
                         value={v.gid ? { gid: v.gid, handle: v.handle, title: v.title } : null}
                         name={`versao-${letter(i)}`}
                         onPick={(p) => updateVariant(v.key, p)}
                       />
+                      )}
                     </div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <input
@@ -603,7 +649,7 @@ export default function TestScreen() {
                 {variants.length >= AB_MAX_VARIANTS ? <span style={reason}>Limite de {AB_MAX_VARIANTS} versões.</span> : null}
               </div>
               <span style={reason}>
-                Cada versão é outro produto da loja (por exemplo, /products/piadebanho1). Porcentagem 0 deixa a versão no
+                Cada versão além da A é outro produto da loja (por exemplo, /products/piadebanho1). Porcentagem 0 deixa a versão no
                 relatório sem mandar ninguém para ela. A mesma pessoa sempre cai na mesma versão.
               </span>
             </div>
@@ -681,7 +727,12 @@ export default function TestScreen() {
                       <tr key={r.id} className="dv-row" data-linha={letter(i)}>
                         <td style={td}>
                           <span style={letterBadge}>{letter(i)}</span>{' '}
-                          <a className="dv-link" href={`${data.storeUrl}/products/${r.handle}`} target="_blank" rel="noreferrer">
+                          <a
+                            className="dv-link"
+                            href={`${data.storeUrl}/products/${r.handle}${r.handle === test.entry?.handle && data.entryView ? `?view=${data.entryView}` : ''}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
                             {r.title}
                           </a>
                           {report.verdict.leaderId === r.id ? (
@@ -689,7 +740,10 @@ export default function TestScreen() {
                               {report.verdict.confident ? 'vencedora' : 'na frente'}
                             </span>
                           ) : null}
-                          <div style={sub}>/products/{r.handle}</div>
+                          <div style={sub}>
+                            /products/{r.handle}
+                            {r.handle === test.entry?.handle ? ' · a URL de entrada' : ''}
+                          </div>
                         </td>
                         <td style={tdNum}>{r.weight}%</td>
                         <td style={tdNum} data-cliques>{r.clicks.toLocaleString('pt-BR')}</td>

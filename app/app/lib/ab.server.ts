@@ -9,7 +9,12 @@ import type { AbTest, AbVariant, Store as StoreRow } from '@prisma/client';
 
 import { ordersUpdatedSince, shopInfo } from '../../../packages/shopify/src/orders.ts';
 import { productTemplateSuffix, setProductTemplate } from '../../../packages/shopify/src/products.ts';
-import { ensureSplitTemplate, removeSplitTemplate, splitSuffix } from '../../../packages/shopify/src/split.ts';
+import {
+  ensureEntryCopy,
+  ensureSplitTemplate,
+  removeSplitTemplate,
+  splitSuffix,
+} from '../../../packages/shopify/src/split.ts';
 
 import { addDays, dayStart, daysBetween, localDay, verdict } from './ab.ts';
 import { db } from './db.server.ts';
@@ -33,15 +38,25 @@ export async function goLive(test: TestWithVariants, store: StoreRow, origin: st
   if (current === undefined) {
     throw new Error(`O produto de entrada (${test.entryHandle}) não existe mais em ${store.label}.`);
   }
+  // Only a suffix that is not ours is worth remembering: re-applying a live
+  // test must not overwrite the original with our own.
+  const previousSuffix = current === suffix ? test.previousSuffix : current;
+  // Version A can be the entry URL itself: it is shown its own page through
+  // `?view=` — the template it had, or a copy of the theme's default when it
+  // had none (the default has no name to put in the URL).
+  const entryIsVariant = test.variants.some((v) => v.productGid === test.entryProductGid);
+  const entryView = entryIsVariant ? (previousSuffix ?? (await ensureEntryCopy(client, test.id))) : undefined;
   await ensureSplitTemplate(client, {
     testId: test.id,
     name: test.name,
     hitUrl: new URL(HIT_PATH, origin).href,
-    variants: ordered(test).map((v) => ({ id: v.id, handle: v.handle, weight: v.weight })),
+    variants: ordered(test).map((v) => ({
+      id: v.id,
+      handle: v.handle,
+      weight: v.weight,
+      ...(v.productGid === test.entryProductGid ? { view: entryView } : {}),
+    })),
   });
-  // Only a suffix that is not ours is worth remembering: re-applying a live
-  // test must not overwrite the original with our own.
-  const previousSuffix = current === suffix ? test.previousSuffix : current;
   await setProductTemplate(client, test.entryProductGid, suffix);
   await db.abTest.update({
     where: { id: test.id },
@@ -74,6 +89,35 @@ export async function pause(test: TestWithVariants, store: StoreRow): Promise<{ 
 export async function takeDown(test: TestWithVariants, store: StoreRow): Promise<void> {
   if (test.status === 'live') await pause(test, store);
   if (test.status !== 'draft') await removeSplitTemplate(clientFor(store), test.id);
+}
+
+/**
+ * Products that are the entry of a LIVE test, among `links` — publishing a
+ * D&VFly product page must not point them at the page: that would switch
+ * the test off without anyone deciding to. The page's template is still
+ * written, and the test is told it is now the entry's own page (version A
+ * shows it through `?view=`; pausing restores it).
+ */
+export async function liveEntriesAmong(links: Array<{ storeId: string; productGid: string }>) {
+  if (links.length === 0) return [];
+  return db.abTest.findMany({
+    where: {
+      status: 'live',
+      OR: links.map((l) => ({ storeId: l.storeId, entryProductGid: l.productGid })),
+    },
+    include: { variants: true, store: true },
+  });
+}
+
+/** After a page published over a live test's entry: the page is now what the entry shows as itself. */
+export async function adoptEntryPage(
+  test: TestWithVariants & { store: StoreRow },
+  pageSuffix: string,
+): Promise<void> {
+  if (test.previousSuffix === pageSuffix) return;
+  await db.abTest.update({ where: { id: test.id }, data: { previousSuffix: pageSuffix } });
+  const fresh = await db.abTest.findUniqueOrThrow({ where: { id: test.id }, include: { variants: true } });
+  if (test.trackerOrigin) await goLive(fresh, test.store, test.trackerOrigin);
 }
 
 // ---- arrivals ---------------------------------------------------------------

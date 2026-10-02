@@ -15,6 +15,7 @@ import { ShopifyError } from '../../../packages/shopify/src/client.ts';
 import { releaseProducts, setProductTemplate } from '../../../packages/shopify/src/products.ts';
 import { productSuffix, removeProductTemplate } from '../../../packages/shopify/src/templates.ts';
 
+import { adoptEntryPage, liveEntriesAmong } from './ab.server.ts';
 import { db } from './db.server.ts';
 import { clientFor, storeUsable, updatePage } from './shopify.server.ts';
 
@@ -99,7 +100,10 @@ async function switchProducts(
   }
   let bound = 0;
   const failed: string[] = [];
+  // The entry URL of a live A/B test keeps pointing at the test (ab.server.ts).
+  const held = await liveEntriesAmong(mine);
   for (const link of mine) {
+    if (held.some((t) => t.entryProductGid === link.productGid)) continue;
     try {
       await setProductTemplate(client, link.productGid, suffix);
       bound++;
@@ -184,7 +188,11 @@ export async function applyLinkNow(
   }
   const client = clientFor(deployment.store);
   const suffix = productSuffix(pageId);
-  if (on) await setProductTemplate(client, productGid, suffix);
+  // The entry URL of a live A/B test keeps pointing at the test; the page
+  // becomes what it shows as itself (version A).
+  const [held] = on ? await liveEntriesAmong([{ storeId, productGid }]) : [];
+  if (held) await adoptEntryPage(held, suffix);
+  else if (on) await setProductTemplate(client, productGid, suffix);
   else await releaseProducts(client, [productGid], suffix);
   return 'applied';
 }

@@ -3,25 +3,29 @@
 Uma URL de produto no anúncio que divide os visitantes entre várias versões da página, pela
 porcentagem que você escolher, e um relatório de cliques e pedidos de cada versão, dia a dia.
 
-Exemplo: o anúncio aponta para `ofertascolombianas.store/products/piadebanho`. Quem clica cai,
-25% cada, em `/products/piadebanho1`, `…2`, `…3` ou `…4`. Depois de mil cliques, o relatório
-mostra quantos pedidos cada versão fez e a conversão de cada uma.
+Exemplo: o anúncio aponta para `ofertascolombianas.store/products/piadebanho`. Essa URL é a
+**versão A** e também quem distribui: uma parte dos visitantes fica nela e vê a página que ela
+já tinha; o resto vai para a **B** (`/products/piadebanho1`), a **C** (`/products/piadebanho2`)
+e assim por diante. Depois de mil cliques, o relatório mostra quantos pedidos cada versão fez e
+a conversão de cada uma.
 
 ## Como usar
 
-1. **Prepare as versões na Shopify.** Cada versão é um produto da loja (duplique o produto e
-   ligue cada cópia a uma página do D&VFly, ou a um modelo do tema). O produto da URL do
-   anúncio (`piadebanho`) também precisa existir e estar **ativo** — o conteúdo dele nunca
-   aparece enquanto o teste roda; ele é só a porta.
-2. **D&VFly → Teste A | B → Criar teste.** Escolha o produto de entrada e as versões (2 a 6),
-   e as porcentagens (ou **Dividir igualmente**). A soma tem que dar 100%.
+1. **Prepare as versões na Shopify.** A versão A é o próprio produto da URL do anúncio
+   (`piadebanho`), com a página que ele já tem. As outras (B, C…) são outros produtos da loja:
+   duplique o produto e ligue cada cópia a uma página do D&VFly ou a um modelo do tema.
+   Todos precisam estar **ativos**.
+2. **D&VFly → Teste A | B → Criar teste.** Escolha o produto de entrada: ele entra sozinho
+   como versão A (caixa "A própria URL de entrada é a versão A"). Adicione as outras versões
+   (até 6 no total) e as porcentagens (ou **Dividir igualmente**). A soma tem que dar 100%.
+   Desmarcando a caixa, a URL só distribui e o conteúdo dela não aparece para ninguém.
 3. **Colocar no ar.** A partir daí a URL de entrada redireciona. **Copiar URL** dá o endereço
    exato para o anúncio.
 4. **Resultados.** Hoje, Ontem, 7 dias, 30 dias, Desde o início, ou qualquer período no
    calendário. Os dias são os do fuso da loja.
 
-Para olhar a página de entrada sem ser redirecionado (e sem contar clique): **Ver a entrada sem
-redirecionar**, que abre a URL com `?dvf_ab=off`.
+Para ver a página da versão A sem sorteio e sem contar clique: **Ver a versão A** (abre a URL
+com `?view=<modelo dela>`).
 
 ## O que cada número quer dizer
 
@@ -72,6 +76,15 @@ exatamente qual das duas falta.
 
 ## Como funciona por dentro
 
+- **Versão A = a própria URL.** O produto de entrada passa a apontar para o teste, então a
+  página dele é alcançada pelo recurso `?view=` da Shopify, que escolhe outro modelo do mesmo
+  produto: quem cai na A fica em `/products/piadebanho?view=<modelo que ela tinha>` — mesma URL,
+  conteúdo dela, e sem laço (com `view`, a Shopify mostra aquele modelo, não o do teste). Se a
+  entrada usava o modelo padrão do tema (que não tem nome para pôr no `view`), o app grava uma
+  cópia dele (`product.dvfly-ab-<teste>-a`), refeita a cada vez que o teste entra no ar.
+- **Publicar uma página do D&VFly no produto de entrada** com o teste no ar não tira o produto
+  do teste: o modelo da página é gravado e passa a ser o que a versão A mostra (e o que volta
+  ao pausar). O aviso da publicação diz isso.
 - O produto de entrada passa a usar um modelo do D&VFly (`product.dvfly-ab-<teste>`), ligado a
   um layout próprio cujo `<head>` tem um script de ~1 KB **antes** do `content_for_header` da
   Shopify. Ele roda nos primeiros bytes da resposta, sorteia (ou relembra) a versão, avisa o

@@ -40,6 +40,7 @@ import {
   type DocNode,
   type DocTree,
 } from '../lib/doc-ops.ts';
+import { adoptEntryPage, liveEntriesAmong } from '../lib/ab.server.ts';
 import { requireShop } from '../lib/auth.server.ts';
 import { passHeaders } from '../lib/headers.ts';
 import {
@@ -471,8 +472,12 @@ async function publishProductPage(input: {
   retiredNote: string;
 }) {
   const links = await db.productLink.findMany({ where: { pageId: input.pageId }, include: { store: true } });
+  // A product that is the entry URL of a live A/B test stays in the test.
+  const held = await liveEntriesAmong(links);
+  const isHeld = (l: { storeId: string; productGid: string }) =>
+    held.some((t) => t.storeId === l.storeId && t.entryProductGid === l.productGid);
   const productsByDomain: Record<string, string[]> = {};
-  for (const link of links) (productsByDomain[link.store.domain] ??= []).push(link.productGid);
+  for (const link of links) if (!isHeld(link)) (productsByDomain[link.store.domain] ??= []).push(link.productGid);
 
   try {
     const result = await deployProductPage(
@@ -489,6 +494,17 @@ async function publishProductPage(input: {
       },
       { allowProduction: input.allowProduction, clientFor: clientForStore },
     );
+    // The held entries now show this page as their own (version A).
+    const heldNotes: string[] = [];
+    for (const test of held) {
+      if (!result.succeeded.some((t) => t.store.domain === test.store.domain)) continue;
+      try {
+        await adoptEntryPage(test, productSuffix(input.pageId));
+        heldNotes.push(`"${test.entryTitle}" está no Teste A | B "${test.name}" e continua nele (esta página é o que ele mostra como ele mesmo)`);
+      } catch (error) {
+        heldNotes.push(`"${test.entryTitle}" (Teste A | B "${test.name}"): ${error instanceof Error ? error.message : error}`);
+      }
+    }
     for (const target of result.succeeded) {
       const row = input.rows.find((r) => r.domain === target.store.domain)!;
       await db.deployment.upsert({
@@ -512,6 +528,7 @@ async function publishProductPage(input: {
     }
     const unbound = result.succeeded
       .filter((t) => (t.bound ?? 0) === 0 && (t.failedProducts?.length ?? 0) === 0)
+      .filter((t) => !held.some((h) => h.store.domain === t.store.domain))
       .map((t) => t.store.label);
     const bound = result.succeeded.reduce((n, t) => n + (t.bound ?? 0), 0);
     // A product that refused the template (deleted or archived since it was
@@ -529,7 +546,8 @@ async function publishProductPage(input: {
         : '') +
       (refused.length > 0
         ? ` Não aceitou o modelo: ${refused.join('; ')} — o produto pode ter sido excluído ou arquivado; desvincule em Configurações da página → Produtos vinculados.`
-        : '');
+        : '') +
+      (heldNotes.length > 0 ? ` ${heldNotes.join('; ')}.` : '');
     return {
       ok: failed.length === 0 && refused.length === 0,
       saved: true,
