@@ -48,7 +48,7 @@ import {
 } from './ab.ts';
 import { config } from './config.server.ts';
 import { db } from './db.server.ts';
-import { clientFor } from './shopify.server.ts';
+import { clientFor, storeUnusableReason } from './shopify.server.ts';
 
 export const HIT_PATH = '/ab/hit';
 
@@ -211,6 +211,8 @@ export async function goLive(test: TestWithVariants, store: StoreRow, origin: st
         entryHandle,
         applyError: null,
         goalReachedAt: null,
+        startAt: null,
+        startError: null,
         liveSpans: serializeSpans(openSpan(spansOf(test), liveFrom)),
       },
     }),
@@ -709,6 +711,72 @@ export function checkClickGoal(testId: string): Promise<boolean> {
   })();
   goalRunning.set(testId, run);
   return run;
+}
+
+// ---- scheduled start ------------------------------------------------------
+
+/**
+ * A test with `startAt` goes live by itself at that moment — the same
+ * `goLive` as the button, after the same checks it would have had then (the
+ * products may have changed since it was scheduled). Checked every
+ * SCHEDULE_CHECK_MS by this process and whenever the tests open, so a host
+ * that sleeps between requests (serverless) still starts it on the next
+ * visit. A start that cannot happen is not retried forever: the schedule is
+ * dropped and the reason kept for the screen.
+ */
+const SCHEDULE_CHECK_MS = 30_000;
+const starting = new Set<string>();
+
+export async function startDueTests(now = new Date()): Promise<void> {
+  const due = await db.abTest.findMany({
+    where: { startAt: { lte: now }, status: { not: 'live' } },
+    include: { variants: true, store: true },
+  });
+  for (const row of due) {
+    if (starting.has(row.id)) continue;
+    starting.add(row.id);
+    try {
+      await startScheduled(row);
+    } finally {
+      starting.delete(row.id);
+    }
+  }
+}
+
+async function startScheduled(row: TestWithVariants & { store: StoreRow }): Promise<void> {
+  const { store, ...test } = row;
+  const drop = (why: string) => db.abTest.update({ where: { id: test.id }, data: { startAt: null, startError: why } });
+  try {
+    const unusable = storeUnusableReason(store);
+    if (unusable) return void (await drop(`sem acesso à loja (${unusable})`));
+    if (test.status === 'ended' && test.promotedVariantId) return void (await drop('o teste foi encerrado com troca de endereços'));
+    if (!test.trackerOrigin) return void (await drop('falta o endereço do app para contar os cliques; programe de novo'));
+    const variants = ordered(test);
+    const sum = variants.reduce((total, v) => total + v.weight, 0);
+    if (!test.entryProductGid || variants.length < 2 || sum !== 100) {
+      return void (await drop('a configuração não está completa (produto de entrada, pelo menos 2 versões e porcentagens somando 100%)'));
+    }
+    const problem = await pagesProblem(store, test.id, {
+      entryProductGid: test.entryProductGid,
+      entryHandle: test.entryHandle,
+      variants: variants.map((v) => ({ productGid: v.productGid, handle: v.handle, weight: v.weight })),
+    });
+    if (problem) return void (await drop(problem));
+    if (test.clickGoal && (await totalClicks(test.id)) >= test.clickGoal) {
+      return void (await drop('o teste já passou da meta de cliques'));
+    }
+    await goLive(test, store, test.trackerOrigin);
+  } catch (error) {
+    await drop(errorText(error)).catch(() => {});
+  }
+}
+
+const scheduled = globalThis as { __dvflyAbScheduleTimer?: ReturnType<typeof setInterval> };
+if (!scheduled.__dvflyAbScheduleTimer) {
+  scheduled.__dvflyAbScheduleTimer = setInterval(() => {
+    startDueTests().catch((error) => console.error('[dvfly] início programado do teste A|B:', errorText(error)));
+  }, SCHEDULE_CHECK_MS);
+  scheduled.__dvflyAbScheduleTimer.unref?.();
 }
 
 /** One arrival through a test URL. Unknown or stopped tests are ignored, quietly. */

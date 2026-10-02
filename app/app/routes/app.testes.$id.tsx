@@ -10,18 +10,22 @@ import {
   AB_MIN_VARIANTS,
   AB_STATUS_LABEL,
   addDays,
+  DATETIME_SHAPE,
   DAY_SHAPE,
   ESTIMATE_MIN_ORDERS,
   evenWeights,
+  localDateTime,
   localDay,
   percent,
   roughly,
+  zonedToUtc,
 } from '../lib/ab.ts';
 import { entryCopySuffix } from '../../../packages/shopify/src/split.ts';
 import {
   buildReport,
   checkClickGoal,
   flushHits,
+  startDueTests,
   goLive,
   pagesProblem,
   releaseDropped,
@@ -74,6 +78,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Clicks still in memory first: the last-click time and the table below
   // must tell the same story.
   await flushHits();
+  // A start that came due while nobody was looking happens before the
+  // screen shows the test as waiting.
+  await startDueTests();
   let { store, test } = await loadTest(request, params.id ?? '');
   // A goal reached while nobody was looking (or whose pause failed) is
   // acted on before the screen shows the test as live.
@@ -123,6 +130,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     viewA,
     entryMode: live ? test.entryMode : null,
     clicksTotal,
+    // The schedule, as the store's clock reads it (the input edits it so).
+    startAt: test.startAt && test.status !== 'live' ? localDateTime(test.startAt, info.timezone) : null,
+    startError: test.status !== 'live' ? test.startError : null,
+    suggestedStart: localDateTime(new Date(Date.now() + 3600_000), info.timezone).slice(0, 14) + '00',
     goalReachedAt: test.status === 'paused' && test.goalReachedAt ? test.goalReachedAt.toISOString() : null,
     // A pause on the goal whose canonical step failed: said next to it.
     goalNote: test.status === 'paused' && test.goalReachedAt ? test.applyError : null,
@@ -210,6 +221,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       };
     }
 
+    if (intent === 'unschedule') {
+      await db.abTest.update({ where: { id: test.id }, data: { startAt: null } });
+      return { ok: true, message: 'Programação cancelada. Nada mudou na loja.' };
+    }
+
     if (intent === 'reapply') {
       if (test.status !== 'live') return fail('O teste não está no ar.');
       try {
@@ -262,7 +278,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return redirect(`/app/testes${back}`);
     }
 
-    if (intent !== 'save' && intent !== 'live') return fail('Ação desconhecida.');
+    if (intent !== 'save' && intent !== 'live' && intent !== 'schedule') return fail('Ação desconhecida.');
+    // A scheduled start, read on the store's clock and checked now; the rest
+    // of the checks are the ones going live would have.
+    let startAt: Date | null = null;
+    if (intent === 'schedule') {
+      if (test.status === 'live') return fail('O teste já está no ar.');
+      const local = String(form.get('startAt') ?? '');
+      if (!DATETIME_SHAPE.test(local)) return fail('Escolha o dia e a hora do início.');
+      startAt = zonedToUtc(local, (await storeInfo(store)).timezone);
+      if (startAt.getTime() < Date.now() + 60_000) return fail('O início programado tem que ser no futuro (pelo menos daqui a 1 minuto).');
+      if (startAt.getTime() > Date.now() + 366 * 86400_000) return fail('O início programado pode ser no máximo daqui a um ano.');
+    }
     if (test.status === 'ended' && test.promotedVariantId) {
       return fail('Este teste foi encerrado com troca de endereços. Desfaça a troca para mexer nele de novo.');
     }
@@ -275,7 +302,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (test.status === 'live' && entryChanged) {
       return fail('Pause o teste antes de trocar o produto de entrada: é nele que o teste está instalado.');
     }
-    const goingLive = intent === 'live' || test.status === 'live';
+    const goingLive = intent === 'live' || intent === 'schedule' || test.status === 'live';
     if (goingLive) {
       const problem = readyProblem(payload);
       if (problem) return fail(problem);
@@ -352,6 +379,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
     ]);
 
     if (!goingLive) return { ok: true, message: 'Teste salvo. Nada mudou na loja.' };
+    if (startAt) {
+      await db.abTest.update({
+        where: { id: test.id },
+        data: { startAt, startError: null, trackerOrigin: new URL(request.url).origin },
+      });
+      return {
+        ok: true,
+        message: `Programado: o teste entra no ar sozinho em ${formatLocal(String(form.get('startAt')))} (horário da loja). Até lá nada muda na loja.`,
+      };
+    }
     const fresh = await db.abTest.findUniqueOrThrow({ where: { id: test.id }, include: { variants: true } });
     let result: GoLiveResult;
     try {
@@ -521,6 +558,8 @@ export default function TestScreen() {
   const [variants, setVariants] = useState<Array<VariantDraft & { key: string }>>(
     test.variants.map((v) => ({ ...v, key: v.id })),
   );
+  const [scheduleOn, setScheduleOn] = useState(!!data.startAt);
+  const [startLocal, setStartLocal] = useState(data.startAt ?? data.suggestedStart);
   const [goalOn, setGoalOn] = useState(test.clickGoal !== null);
   const [goal, setGoal] = useState(test.clickGoal ?? 1000);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -539,14 +578,23 @@ export default function TestScreen() {
     setConfirmPromote(false);
   };
   const [copied, setCopied] = useState(false);
-  // After a save the loader's numbers are the truth again (ids of new variants).
+  // After a save the loader's numbers are the truth again (ids of new
+  // variants). Keyed on the saved CONTENT, not the object: every action
+  // revalidates the loader, and a refused one (a start in the past, a page
+  // that would not open) must not wipe what was typed and not yet saved.
+  const savedKey = JSON.stringify(test);
   useEffect(() => {
     setName(test.name);
     setEntry(test.entry);
     setVariants(test.variants.map((v) => ({ ...v, key: v.id })));
     setGoalOn(test.clickGoal !== null);
     setGoal(test.clickGoal ?? 1000);
-  }, [test]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+  useEffect(() => {
+    setScheduleOn(!!data.startAt);
+    if (data.startAt) setStartLocal(data.startAt);
+  }, [data.startAt]);
   const clickGoal = goalOn ? goal : null;
 
   const sum = variants.reduce((s, v) => s + v.weight, 0);
@@ -600,6 +648,7 @@ export default function TestScreen() {
         clickGoal,
       }),
     );
+    if (intent === 'schedule') fd.set('startAt', startLocal);
     submit(fd, { method: 'post' });
   };
 
@@ -678,9 +727,22 @@ export default function TestScreen() {
                 <button type="button" className="dv-btn dv-secondary" disabled={busy || !dirty || lockedByPromotion || undefined} data-salvar onClick={() => send('save')}>
                   Salvar
                 </button>
-                <button type="button" className="dv-btn dv-primary" disabled={busy || !!readyReason || !!store.unusable || lockedByPromotion || undefined} data-no-ar onClick={() => send('live')}>
-                  {test.status === 'paused' || ended ? 'Voltar a rodar' : 'Colocar no ar'}
-                </button>
+                {scheduleOn ? (
+                  <button
+                    type="button"
+                    className="dv-btn dv-primary"
+                    disabled={busy || !!readyReason || !!store.unusable || lockedByPromotion || !startLocal || undefined}
+                    data-programar
+                    title="Salva e deixa o teste programado: ele entra no ar sozinho no dia e hora escolhidos"
+                    onClick={() => send('schedule')}
+                  >
+                    {data.startAt ? 'Salvar programação' : 'Programar início'}
+                  </button>
+                ) : (
+                  <button type="button" className="dv-btn dv-primary" disabled={busy || !!readyReason || !!store.unusable || lockedByPromotion || undefined} data-no-ar onClick={() => send('live')}>
+                    {test.status === 'paused' || ended ? 'Voltar a rodar' : 'Colocar no ar'}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -705,6 +767,22 @@ export default function TestScreen() {
           </div>
         ) : null}
 
+        {data.startAt ? (
+          <div style={{ ...bannerOk, marginBottom: 14, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }} data-programado>
+            <span>
+              <strong>Programado</strong>: o teste entra no ar sozinho em {formatLocal(data.startAt)} (horário da loja, {data.timezone}). Até lá
+              nada muda na loja.
+            </span>
+            <button type="button" className="dv-btn dv-secondary" style={{ marginLeft: 'auto' }} disabled={busy || undefined} data-cancelar-programacao onClick={() => act('unschedule')}>
+              Cancelar programação
+            </button>
+          </div>
+        ) : null}
+        {data.startError ? (
+          <div style={{ ...bannerErr, marginBottom: 14 }} data-programacao-falhou>
+            O início programado não aconteceu: {data.startError}. Corrija e programe de novo, ou coloque no ar agora.
+          </div>
+        ) : null}
         {data.goalReachedAt ? (
           <div style={{ ...bannerOk, marginBottom: 14 }} data-meta-atingida>
             <strong>Pausado sozinho em {formatMoment(data.goalReachedAt, data.timezone)}</strong>: chegou à meta de{' '}
@@ -873,6 +951,35 @@ export default function TestScreen() {
                 relatório sem mandar ninguém para ela. A mesma pessoa sempre cai na mesma versão.
               </span>
             </div>
+
+            {!live ? (
+              <div style={field}>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <input type="checkbox" checked={scheduleOn} data-programar-ligado onChange={(e) => setScheduleOn(e.target.checked)} style={{ marginTop: 3 }} />
+                  <span>
+                    <span style={{ fontWeight: 500 }}>Programar o início</span>
+                    <span style={{ ...reason, display: 'block' }}>
+                      Opcional. O teste entra no ar sozinho no dia e na hora escolhidos, com as mesmas conferências do "Colocar no ar".
+                      Até lá nada muda na loja.
+                    </span>
+                  </span>
+                </label>
+                {scheduleOn ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginLeft: 24 }}>
+                    <input
+                      className="dv-input"
+                      type="datetime-local"
+                      style={{ width: 220 }}
+                      aria-label="Dia e hora do início"
+                      data-inicio
+                      value={startLocal}
+                      onChange={(e) => setStartLocal(e.target.value)}
+                    />
+                    <span style={reason}>horário da loja ({data.timezone})</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div style={field}>
               <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -1519,6 +1626,9 @@ const formatMoment = (iso: string, timeZone: string) => {
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   return `${get('day')}/${get('month')} às ${get('hour')}:${get('minute')}`;
 };
+
+/** `YYYY-MM-DDTHH:mm` (store clock) as "05/10 às 08:00". */
+const formatLocal = (local: string) => `${local.slice(8, 10)}/${local.slice(5, 7)} às ${local.slice(11, 16)}`;
 
 const formatDay = (day: string) => {
   const [y, m, d] = day.split('-');

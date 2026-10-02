@@ -2,15 +2,15 @@ import { Link, useLoaderData, useLocation, useNavigation, useSubmit } from 'reac
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 
-import { AB_LONG_TEST_DAYS, AB_STATUS_LABEL } from '../lib/ab.ts';
-import { checkClickGoal, flushHits, liveDaysOf } from '../lib/ab.server.ts';
+import { AB_LONG_TEST_DAYS, AB_STATUS_LABEL, localDateTime } from '../lib/ab.ts';
+import { checkClickGoal, flushHits, liveDaysOf, startDueTests, storeInfo } from '../lib/ab.server.ts';
 import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
 import { shopSearch } from '../ui/embedded.ts';
 import { Icon } from '../ui/icons.tsx';
 import { LocalDateTime } from '../ui/local-time.tsx';
-import { FONT_STACK, pillNeutral, pillSuccess, pillWarn, ThemeToggle, UiStyle, useUiTheme } from '../ui/theme.tsx';
+import { FONT_STACK, pillInfo, pillNeutral, pillSuccess, pillWarn, ThemeToggle, UiStyle, useUiTheme } from '../ui/theme.tsx';
 
 export const headers = passHeaders;
 
@@ -24,6 +24,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const store = await db.store.findUnique({ where: { domain: shop } });
   if (!store) return { store: null, tests: [] };
   await flushHits();
+  await startDueTests();
   // A goal reached while nobody was looking is acted on before the list says "no ar".
   const withGoal = await db.abTest.findMany({ where: { storeId: store.id, status: 'live', clickGoal: { not: null } }, select: { id: true } });
   for (const t of withGoal) await checkClickGoal(t.id);
@@ -32,6 +33,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     orderBy: { createdAt: 'desc' },
     include: { variants: { select: { id: true } } },
   });
+  const { timezone } = await storeInfo(store);
   const clicks = await db.abStat.groupBy({
     by: ['testId'],
     where: { testId: { in: tests.map((t) => t.id) } },
@@ -51,6 +53,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       clicks: clicks.find((c) => c.testId === t.id)?._sum.clicks ?? 0,
       clickGoal: t.clickGoal,
       goalReached: t.status === 'paused' && !!t.goalReachedAt,
+      // On the store's clock, like the screen that set it.
+      startAt: t.startAt && t.status !== 'live' ? localDateTime(t.startAt, timezone) : null,
     })),
   };
 }
@@ -146,6 +150,13 @@ export default function TestsList() {
                         <div style={{ marginTop: 4 }}>
                           <span style={pillWarn} data-teste-longo title="O Google pede que um teste não fique rodando indefinidamente">
                             {t.liveDays} dias no ar: decida a vencedora
+                          </span>
+                        </div>
+                      ) : null}
+                      {t.startAt ? (
+                        <div style={{ marginTop: 4 }}>
+                          <span style={pillInfo} data-programado-lista>
+                            Programado · {t.startAt.slice(8, 10)}/{t.startAt.slice(5, 7)} às {t.startAt.slice(11, 16)}
                           </span>
                         </div>
                       ) : null}

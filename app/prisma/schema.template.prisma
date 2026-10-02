@@ -202,6 +202,13 @@ model AbTest {
   /// When the test paused itself on reaching `clickGoal`; cleared on going
   /// live again. Null when it never did, or was paused by hand.
   goalReachedAt   DateTime?
+  /// Optional scheduled start: the test goes live by itself at this moment
+  /// (written from the store's clock). Cleared when it goes live, by hand or
+  /// on schedule, or when the schedule is cancelled.
+  startAt         DateTime?
+  /// Why the scheduled start did not happen (said on the screen); cleared by
+  /// the next schedule or go-live.
+  startError      String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   variants        AbVariant[]

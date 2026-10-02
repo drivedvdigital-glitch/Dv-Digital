@@ -3045,6 +3045,29 @@ no ar ("o include não está em lugar nenhum"), e eu culpei o publicador em vez 
   `www.ofercolombianas.store`, bloco do include ESCONDIDO: nome, e-mail e GTM-M4788D35 no
   rodapé, em produto e em página comum. **Não visto ainda na loja.**
 
+### Teste A | B: programar o início (03/10)
+
+Pedido do Miguel: programar o teste para começar tal dia, tal hora.
+
+- "Programar o início" na Configuração (dia e hora no horário da loja, `datetime-local` →
+  `zonedToUtc`). O botão principal vira "Programar início"; salva tudo como "Colocar no ar"
+  salvaria, com as mesmas recusas (passado, mais de um ano, página que não abre, produto em
+  outro teste, meta já passada), mas não toca na loja. Campos `startAt` e `startError`
+  (migration `20261005120000_teste_ab_programado`).
+- No horário, `startDueTests` (a cada 30 s no servidor, e ao abrir a tela ou a lista) confere
+  de novo e chama o mesmo `goLive`. Se não puder (produto virou rascunho, sem acesso à loja),
+  NÃO entra no ar, larga a programação e a tela diz por quê — nada de tentar a cada 30 s para
+  sempre.
+- **Defeito antigo achado pelo teste dirigido**: toda ação recusada (programar no passado,
+  "Colocar no ar" com página que não abre) recarregava os dados e o formulário voltava ao
+  salvo, apagando o que tinha sido digitado e não salvo. O reset agora só acontece quando o
+  teste salvo muda de verdade.
+- Prova: app 61 (+3: fuso de Bogotá ida e volta, horário de verão de Madri, formato);
+  dirigido 115/115 em SQLite e Postgres: recusa no passado, programado com dia/hora certos e
+  a loja intocada, selo na lista, **entra no ar sozinho no horário sem ninguém abrir o app**,
+  URL já sorteando, cancelar, e início impossível (versão em rascunho) que não entra no ar e
+  diz o motivo. `migrate diff` vazio num Postgres novo.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

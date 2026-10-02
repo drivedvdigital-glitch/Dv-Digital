@@ -18,6 +18,9 @@ import {
   roughly,
   serializeSpans,
   verdict,
+  DATETIME_SHAPE,
+  localDateTime,
+  zonedToUtc,
 } from '../app/lib/ab.ts';
 
 describe('A/B report days', () => {
@@ -228,5 +231,26 @@ describe('A/B live periods', () => {
     assert.deepEqual(parseSpans(null, { startedAt: t(1), status: 'live', updatedAt: t(9) }), [[t(1), null]]);
     assert.deepEqual(parseSpans(null, { startedAt: t(1), status: 'paused', updatedAt: t(9) }), [[t(1), t(9)]]);
     assert.deepEqual(parseSpans('lixo', { startedAt: null, status: 'draft', updatedAt: t(9) }), []);
+  });
+});
+
+describe('scheduled start on the store clock', () => {
+  it('reads a datetime-local value in the store time zone, both ways', () => {
+    // Bogotá is UTC-5 all year.
+    const at = zonedToUtc('2026-10-05T08:00', 'America/Bogota');
+    assert.equal(at.toISOString(), '2026-10-05T13:00:00.000Z');
+    assert.equal(localDateTime(at, 'America/Bogota'), '2026-10-05T08:00');
+  });
+
+  it('follows daylight saving where the store has it', () => {
+    // São Paulo has no DST since 2019; Madrid does (CEST = UTC+2 in summer, CET = UTC+1 in winter).
+    assert.equal(zonedToUtc('2026-07-01T10:00', 'Europe/Madrid').toISOString(), '2026-07-01T08:00:00.000Z');
+    assert.equal(zonedToUtc('2026-12-01T10:00', 'Europe/Madrid').toISOString(), '2026-12-01T09:00:00.000Z');
+  });
+
+  it('only accepts the datetime-local shape', () => {
+    assert.ok(DATETIME_SHAPE.test('2026-10-05T08:00'));
+    assert.ok(!DATETIME_SHAPE.test('2026-10-05 08:00'));
+    assert.ok(!DATETIME_SHAPE.test('amanhã'));
   });
 });

@@ -49,6 +49,26 @@ export function localDay(date: Date, tz: string): string {
   return new Date(date.getTime() + offsetMs(date, tz)).toISOString().slice(0, 10);
 }
 
+/** A moment as the clock in `tz` reads it: `YYYY-MM-DDTHH:mm` (what `<input type="datetime-local">` holds). */
+export function localDateTime(date: Date, tz: string): string {
+  return new Date(date.getTime() + offsetMs(date, tz)).toISOString().slice(0, 16);
+}
+
+/** The shape of a `datetime-local` value. */
+export const DATETIME_SHAPE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+/** The UTC instant the clock in `tz` reads as `local` (`YYYY-MM-DDTHH:mm`). */
+export function zonedToUtc(local: string, tz: string): Date {
+  const [day, time] = local.split('T');
+  const [y, m, d] = day.split('-').map(Number);
+  const [h, min] = time.split(':').map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, min);
+  // Twice, as in dayStart: the offset may change between guess and answer.
+  let t = guess - offsetMs(new Date(guess), tz);
+  t = guess - offsetMs(new Date(t), tz);
+  return new Date(t);
+}
+
 /** The UTC instant at which `day` (`YYYY-MM-DD`) starts in `tz`. */
 export function dayStart(day: string, tz: string): Date {
   const [y, m, d] = day.split('-').map(Number);

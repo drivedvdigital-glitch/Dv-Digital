@@ -32,7 +32,14 @@ resposta.
    desligue) e clique em **Voltar a rodar**; com a meta já passada, o botão fica cinza com o
    motivo. A conferência acontece a cada lote de cliques gravado (a cada ~2 s): podem entrar
    alguns cliques além da meta nesse meio-tempo.
-5. **Resultados.** Hoje, Ontem, 7 dias, 30 dias, Desde o início, ou qualquer período no
+5. **Programar o início (opcional).** Marque **Programar o início**, escolha dia e hora (no
+   horário da loja) e clique em **Programar início**. Até lá nada muda na loja; no horário o
+   teste entra no ar sozinho, com as mesmas conferências do "Colocar no ar" (produtos ativos,
+   produto em outro teste, meta de cliques). Se alguma impedir, ele não entra no ar e a tela
+   diz por quê. A tela e a lista mostram "Programado"; **Cancelar programação** desfaz. O
+   servidor confere a cada 30 s (na Vercel, que dorme entre visitas, o início acontece na
+   primeira abertura do app depois do horário).
+6. **Resultados.** Hoje, Ontem, 7 dias, 30 dias, Desde o início, ou qualquer período no
    calendário. Os dias são os do fuso da loja.
 
 Para ver a página da versão A sem sorteio e sem contar clique: **Ver a versão A** (abre a URL

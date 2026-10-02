@@ -84,6 +84,9 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   `read_orders`. **Meta de cliques** opcional (`AbTest.clickGoal`): conferida a cada lote
   gravado (`checkClickGoal`) e ao abrir tela/lista; atingida, o teste é PAUSADO (mesmo
   `pause()`, dados ficam, `goalReachedAt`), e voltar a rodar com a meta já passada é recusado.
+  **Início programado** (`AbTest.startAt`, gravado do relógio da loja via `zonedToUtc`):
+  `startDueTests` a cada 30 s e ao abrir tela/lista chama o MESMO `goLive`, depois das mesmas
+  conferências; se não puder, larga a programação e guarda `startError` (sem tentar para sempre).
   Vencedor só com amostra mínima (~5 pedidos esperados por versão) e 95%.
   **Encerrar com a vencedora** troca os handles dos dois produtos (`swapProductHandles`: handle
   temporário, `redirectNewHandle: false`, desfaz sozinho se falhar no meio, confere os handles
