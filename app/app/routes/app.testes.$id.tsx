@@ -5,6 +5,7 @@ import { redirect } from 'react-router';
 
 import {
   AB_LONG_TEST_DAYS,
+  AB_MAX_CLICK_GOAL,
   AB_MAX_VARIANTS,
   AB_MIN_VARIANTS,
   AB_STATUS_LABEL,
@@ -19,6 +20,7 @@ import {
 import { entryCopySuffix } from '../../../packages/shopify/src/split.ts';
 import {
   buildReport,
+  checkClickGoal,
   flushHits,
   goLive,
   pagesProblem,
@@ -29,6 +31,7 @@ import {
   storeInfo,
   takeDown,
   testHealth,
+  totalClicks,
   undoPromotion,
   type GoLiveResult,
   type Health,
@@ -71,7 +74,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Clicks still in memory first: the last-click time and the table below
   // must tell the same story.
   await flushHits();
-  const { store, test } = await loadTest(request, params.id ?? '');
+  let { store, test } = await loadTest(request, params.id ?? '');
+  // A goal reached while nobody was looking (or whose pause failed) is
+  // acted on before the screen shows the test as live.
+  if (test.status === 'live' && test.clickGoal && (await checkClickGoal(test.id))) ({ store, test } = await loadTest(request, test.id));
+  const clicksTotal = test.status === 'draft' ? 0 : await totalClicks(test.id);
   const info = await storeInfo(store);
   const url = new URL(request.url);
   const today = localDay(new Date(), info.timezone);
@@ -115,6 +122,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     startedDay: test.startedAt ? localDay(test.startedAt, info.timezone) : null,
     viewA,
     entryMode: live ? test.entryMode : null,
+    clicksTotal,
+    goalReachedAt: test.status === 'paused' && test.goalReachedAt ? test.goalReachedAt.toISOString() : null,
+    // A pause on the goal whose canonical step failed: said next to it.
+    goalNote: test.status === 'paused' && test.goalReachedAt ? test.applyError : null,
     // Minutes and days inside are counted on the server: its clock decides,
     // and the page renders the same on both sides.
     health,
@@ -123,6 +134,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       name: test.name,
       status: test.status,
       promotedVariantId: test.promotedVariantId,
+      clickGoal: test.clickGoal,
       entry: test.entryProductGid ? { gid: test.entryProductGid, handle: test.entryHandle, title: test.entryTitle } : null,
       variants: variants.map((v) => ({ id: v.id, gid: v.productGid, handle: v.handle, title: v.title, weight: v.weight })),
     },
@@ -133,7 +145,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 type ProductRef = { gid: string; handle: string; title: string };
 type VariantDraft = ProductRef & { id?: string; weight: number };
-type Payload = { name: string; entry: ProductRef | null; variants: VariantDraft[] };
+type Payload = { name: string; entry: ProductRef | null; variants: VariantDraft[]; clickGoal: number | null };
 
 const GID = /^gid:\/\/shopify\/Product\/\d+$/;
 const isRef = (value: unknown): value is ProductRef =>
@@ -160,7 +172,11 @@ function readPayload(raw: string): Payload | string {
     if (!isRef(v)) return `Versão ${letter(i)}: escolha o produto.`;
     if (!Number.isInteger(v.weight) || v.weight < 0 || v.weight > 100) return `Versão ${letter(i)}: a porcentagem vai de 0 a 100.`;
   }
-  return { name, entry, variants: variants.map((v) => ({ ...v, id: typeof v.id === 'string' ? v.id : undefined })) };
+  const goal = data.clickGoal ?? null;
+  if (goal !== null && (!Number.isInteger(goal) || goal < 1 || goal > AB_MAX_CLICK_GOAL)) {
+    return `A meta de cliques vai de 1 a ${AB_MAX_CLICK_GOAL.toLocaleString('pt-BR')}.`;
+  }
+  return { name, entry, variants: variants.map((v) => ({ ...v, id: typeof v.id === 'string' ? v.id : undefined })), clickGoal: goal };
 }
 
 /** What has to hold before the test can be on the store. */
@@ -263,6 +279,17 @@ export async function action({ request, params }: ActionFunctionArgs) {
     if (goingLive) {
       const problem = readyProblem(payload);
       if (problem) return fail(problem);
+      // Live past its goal, it would pause itself at the next click.
+      if (payload.clickGoal !== null) {
+        await flushHits();
+        const total = await totalClicks(test.id);
+        if (total >= payload.clickGoal) {
+          return fail(
+            `O teste já tem ${total.toLocaleString('pt-BR')} cliques, e a meta é ${payload.clickGoal.toLocaleString('pt-BR')}: ` +
+              'ele pararia de novo no próximo clique. Aumente a meta ou desligue "Parar sozinho numa meta de cliques".',
+          );
+        }
+      }
     }
     // A page that would not open, or that another live test uses, is refused
     // before anything is saved: the screen must never show settings the
@@ -313,6 +340,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
           entryProductGid: payload.entry?.gid ?? '',
           entryHandle: payload.entry?.handle ?? '',
           entryTitle: payload.entry?.title ?? '',
+          clickGoal: payload.clickGoal,
         },
       }),
       ...payload.variants.map((v, position) => {
@@ -493,6 +521,8 @@ export default function TestScreen() {
   const [variants, setVariants] = useState<Array<VariantDraft & { key: string }>>(
     test.variants.map((v) => ({ ...v, key: v.id })),
   );
+  const [goalOn, setGoalOn] = useState(test.clickGoal !== null);
+  const [goal, setGoal] = useState(test.clickGoal ?? 1000);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmPromote, setConfirmPromote] = useState(false);
   const ended = test.status === 'ended';
@@ -514,7 +544,10 @@ export default function TestScreen() {
     setName(test.name);
     setEntry(test.entry);
     setVariants(test.variants.map((v) => ({ ...v, key: v.id })));
+    setGoalOn(test.clickGoal !== null);
+    setGoal(test.clickGoal ?? 1000);
   }, [test]);
+  const clickGoal = goalOn ? goal : null;
 
   const sum = variants.reduce((s, v) => s + v.weight, 0);
   const complete = variants.every((v) => v.gid);
@@ -522,7 +555,8 @@ export default function TestScreen() {
     name !== test.name ||
     (entry?.gid ?? null) !== (test.entry?.gid ?? null) ||
     JSON.stringify(variants.map(({ id, gid, weight }) => [id ?? null, gid, weight])) !==
-      JSON.stringify(test.variants.map(({ id, gid, weight }) => [id, gid, weight]));
+      JSON.stringify(test.variants.map(({ id, gid, weight }) => [id, gid, weight])) ||
+    clickGoal !== test.clickGoal;
   const readyReason = !entry
     ? 'Escolha o produto de entrada.'
     : variants.length < AB_MIN_VARIANTS
@@ -533,7 +567,9 @@ export default function TestScreen() {
           ? `As porcentagens somam ${sum}%; precisam somar 100%.`
           : new Set(variants.map((v) => v.gid)).size !== variants.length
             ? 'Duas versões apontam para o mesmo produto.'
-            : null;
+            : clickGoal !== null && clickGoal <= data.clicksTotal
+              ? `O teste já tem ${data.clicksTotal.toLocaleString('pt-BR')} cliques: aumente a meta ou desligue "Parar sozinho numa meta de cliques".`
+              : null;
   const entryIsA = !!entry && variants.some((v) => v.gid === entry.gid);
   /** Picking the entry: the version that WAS the entry follows it; a fresh test starts with it as A. */
   const pickEntry = (p: Picked) => {
@@ -561,6 +597,7 @@ export default function TestScreen() {
         name,
         entry,
         variants: variants.map(({ id, gid, handle, title, weight }) => ({ id, gid, handle, title, weight })),
+        clickGoal,
       }),
     );
     submit(fd, { method: 'post' });
@@ -668,8 +705,19 @@ export default function TestScreen() {
           </div>
         ) : null}
 
+        {data.goalReachedAt ? (
+          <div style={{ ...bannerOk, marginBottom: 14 }} data-meta-atingida>
+            <strong>Pausado sozinho em {formatMoment(data.goalReachedAt, data.timezone)}</strong>: chegou à meta de{' '}
+            {(test.clickGoal ?? 0).toLocaleString('pt-BR')} cliques (somando as versões; contados até agora:{' '}
+            {data.clicksTotal.toLocaleString('pt-BR')}). /products/{test.entry?.handle} voltou a mostrar a página dela, e todos os
+            números ficam guardados. Para continuar, aumente a meta ou desligue e clique em "Voltar a rodar".
+            {data.goalNote ? ` Atenção: ${data.goalNote}.` : ''}
+          </div>
+        ) : null}
+
         {data.health ? (
           <HealthPanel
+            goal={test.clickGoal !== null ? { goal: test.clickGoal, total: data.clicksTotal } : null}
             health={data.health}
             entryHandle={test.entry?.handle ?? ''}
             entryMode={data.entryMode}
@@ -820,10 +868,45 @@ export default function TestScreen() {
                 </button>
                 {variants.length >= AB_MAX_VARIANTS ? <span style={reason}>Limite de {AB_MAX_VARIANTS} versões.</span> : null}
               </div>
-              <span style={reason}>
+              <span style={reason} data-dica-versoes>
                 Cada versão além da A é outro produto da loja (por exemplo, /products/piadebanho1). Porcentagem 0 deixa a versão no
                 relatório sem mandar ninguém para ela. A mesma pessoa sempre cai na mesma versão.
               </span>
+            </div>
+
+            <div style={field}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <input type="checkbox" checked={goalOn} data-meta-ligada onChange={(e) => setGoalOn(e.target.checked)} style={{ marginTop: 3 }} />
+                <span>
+                  <span style={{ fontWeight: 500 }}>Parar sozinho numa meta de cliques</span>
+                  <span style={{ ...reason, display: 'block' }}>
+                    Opcional. Quando o teste somar esse número de cliques (todas as versões juntas), ele é pausado sozinho: a URL de
+                    entrada volta à página dela e todos os números ficam guardados.
+                  </span>
+                </span>
+              </label>
+              {goalOn ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginLeft: 24 }}>
+                  <input
+                    className="dv-input"
+                    type="number"
+                    min={1}
+                    max={AB_MAX_CLICK_GOAL}
+                    step={1}
+                    style={{ width: 140, textAlign: 'right' }}
+                    aria-label="Meta de cliques"
+                    data-meta
+                    value={goal}
+                    onChange={(e) => setGoal(Math.max(1, Math.min(AB_MAX_CLICK_GOAL, Math.round(Number(e.target.value) || 1))))}
+                  />
+                  <span>cliques no total</span>
+                  {test.status !== 'draft' ? (
+                    <span style={reason} data-meta-progresso>
+                      · contados até agora: {data.clicksTotal.toLocaleString('pt-BR')}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -1130,10 +1213,8 @@ function ago(minutes: number): string {
 /** Arrivals stop being "a quiet hour" and start being "something is off" after this. */
 const QUIET_MINUTES = 60;
 
-const FIX_CHROME = 'Para apontar para a entrada, publique a página dela com "Só a página, sem o tema" (Configurações da página → Modo leve).';
 const CANONICAL_TEXT: Record<string, string> = {
-  theme: `usa o layout do tema, que o D&VFly não edita: o canonical dela continua sendo o próprio endereço. ${FIX_CHROME}`,
-  none: `o layout dela não tem a tag canonical no formato que o D&VFly ajusta (pode vir de um trecho do tema): o canonical continua sendo o próprio endereço. ${FIX_CHROME}`,
+  none: 'continua sendo o próprio endereço (o layout dela não tem a tag no formato que o D&VFly ajusta).',
   unset: 'ainda não aponta para a entrada. "Regravar na loja" corrige.',
 };
 
@@ -1145,6 +1226,7 @@ const CANONICAL_TEXT: Record<string, string> = {
  * long. Each line says what was observed and where the fix is.
  */
 function HealthPanel({
+  goal,
   health,
   entryHandle,
   entryMode,
@@ -1152,6 +1234,8 @@ function HealthPanel({
   reapplyBlocked,
   onReapply,
 }: {
+  /** The click goal and the clicks so far, when the test has one. */
+  goal: { goal: number; total: number } | null;
   health: Health;
   entryHandle: string;
   entryMode: string | null;
@@ -1220,14 +1304,12 @@ function HealthPanel({
       ),
     });
   }
-  const check =
-    'Abra a URL de entrada num celular: se ela troca de página e o número não sobe, a contagem não está chegando a este app.';
   if (health.lastHitMinutes === null) {
     const waiting = health.liveSinceMinutes !== null && health.liveSinceMinutes >= 30;
     lines.push({
       ok: !waiting,
       key: 'hit',
-      text: waiting ? `Nenhum clique recebido desde que o teste entrou no ar. ${check}` : 'Nenhum clique recebido ainda.',
+      text: waiting ? 'Nenhum clique recebido desde que o teste entrou no ar.' : 'Nenhum clique recebido ainda.',
     });
   } else {
     // Quiet only counts while live: a click older than this stretch is not news.
@@ -1236,7 +1318,14 @@ function HealthPanel({
     lines.push({
       ok: !quiet,
       key: 'hit',
-      text: quiet ? `Último clique recebido ${when}. Se o anúncio está rodando: ${check.charAt(0).toLowerCase()}${check.slice(1)}` : `Último clique recebido ${when}.`,
+      text: `Último clique recebido ${when}.`,
+    });
+  }
+  if (goal) {
+    lines.push({
+      ok: true,
+      key: 'goal',
+      text: `Meta: ${goal.total.toLocaleString('pt-BR')} de ${goal.goal.toLocaleString('pt-BR')} cliques (${Math.min(100, Math.floor((goal.total / goal.goal) * 100))}%). Ao chegar lá, o teste pausa sozinho e os números ficam.`,
     });
   }
   if (entryMode === 'stay') {
@@ -1264,7 +1353,9 @@ function HealthPanel({
       text: `Canonical: ${pointing.map((c) => c.label).join(', ')} ${pointing.length > 1 ? 'apontam' : 'aponta'} para /products/${entryHandle} enquanto o teste roda (a regra do Google para teste A/B).`,
     });
   }
-  for (const c of health.canonical.filter((x) => x.state !== 'ok')) {
+  // A version on the theme's layout keeps its own canonical by design (the
+  // theme is never edited): not a fault, so not a line.
+  for (const c of health.canonical.filter((x) => x.state !== 'ok' && x.state !== 'theme')) {
     lines.push({
       ok: false,
       key: `canon-${c.label}`,
@@ -1421,6 +1512,13 @@ function EstimateNote({
     </div>
   );
 }
+
+/** A moment as the store's clock reads it ("02/10 às 14:05"): the same on server and browser. */
+const formatMoment = (iso: string, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('pt-BR', { timeZone, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(iso));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('day')}/${get('month')} às ${get('hour')}:${get('minute')}`;
+};
 
 const formatDay = (day: string) => {
   const [y, m, d] = day.split('-');

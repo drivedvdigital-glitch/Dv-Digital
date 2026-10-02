@@ -210,6 +210,7 @@ export async function goLive(test: TestWithVariants, store: StoreRow, origin: st
         entryModeNote: split.note,
         entryHandle,
         applyError: null,
+        goalReachedAt: null,
         liveSpans: serializeSpans(openSpan(spansOf(test), liveFrom)),
       },
     }),
@@ -568,6 +569,7 @@ async function writePending(): Promise<void> {
   const last = [...pendingLast];
   pendingHits.clear();
   pendingLast.clear();
+  const counted = new Set<string>();
   for (const p of batch) {
     const where = { variantId_hour: { variantId: p.variantId, hour: p.hour } };
     const increment = { clicks: { increment: p.clicks }, visitors: { increment: p.visitors } };
@@ -588,6 +590,7 @@ async function writePending(): Promise<void> {
         if ((error as { code?: string }).code !== 'P2002') throw error;
         await db.abStat.update({ where, data: increment });
       }
+      if (p.clicks > 0) counted.add(p.testId);
     } catch (error) {
       // The database is out of reach: the counts wait for the next flush
       // instead of being lost. Bounded — keys are variant × hour.
@@ -603,6 +606,8 @@ async function writePending(): Promise<void> {
     }
   }
   if (pendingHits.size > 0 || pendingLast.size > 0) scheduleFlush();
+  // Not awaited: pausing talks to Shopify, and the counts must not wait on it.
+  for (const testId of counted) scheduleGoalCheck(testId);
 }
 
 function scheduleFlush(): void {
@@ -638,6 +643,72 @@ if (!hooked.__dvflyAbFlushHook) {
       });
     });
   }
+}
+
+// ---- click goal ---------------------------------------------------------------
+
+/** Every click the test has, all versions, all its time live. */
+export async function totalClicks(testId: string): Promise<number> {
+  const sum = await db.abStat.aggregate({ where: { testId }, _sum: { clicks: true } });
+  return sum._sum.clicks ?? 0;
+}
+
+/**
+ * A test with a click goal pauses itself once its clicks (all versions
+ * together) reach it — the same pause as the button: the entry gets its own
+ * page back, the versions their canonical, and every number stays. Checked
+ * after the counts that reached the database, at most every GOAL_CHECK_MS per
+ * test (with a trailing check, so the last arrivals are never left out), and
+ * again whenever the test's screen or the list opens.
+ */
+const GOAL_CHECK_MS = 2_000;
+const goalLastCheck = new Map<string, number>();
+const goalTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const goalRunning = new Map<string, Promise<boolean>>();
+
+function scheduleGoalCheck(testId: string): void {
+  if (goalTimers.has(testId)) return;
+  const wait = Math.max(0, (goalLastCheck.get(testId) ?? 0) + GOAL_CHECK_MS - Date.now());
+  const timer = setTimeout(() => {
+    goalTimers.delete(testId);
+    void checkClickGoal(testId);
+  }, wait);
+  timer.unref?.();
+  goalTimers.set(testId, timer);
+}
+
+/** True when this call (or one already running) paused the test on its goal. */
+export function checkClickGoal(testId: string): Promise<boolean> {
+  const running = goalRunning.get(testId);
+  if (running) return running;
+  goalLastCheck.set(testId, Date.now());
+  const run = (async () => {
+    try {
+      const test = await db.abTest.findUnique({ where: { id: testId }, include: { variants: true, store: true } });
+      if (!test || test.status !== 'live' || !test.clickGoal) return false;
+      if ((await totalClicks(testId)) < test.clickGoal) return false;
+      const { store, ...rest } = test;
+      try {
+        const { canonicalError } = await pause(rest, store);
+        // Paused all the same; what did not come back is said on the screen.
+        if (canonicalError) await rememberApplyError(testId, new Error(`o canonical das versões não voltou ao normal (${canonicalError})`));
+      } catch (error) {
+        // Still live, still counting: the next arrival or screen tries again,
+        // and the screen says why it has not stopped yet.
+        await rememberApplyError(testId, new Error(`chegou à meta de cliques, mas a pausa não chegou à loja (${errorText(error)})`));
+        return false;
+      }
+      await db.abTest.update({ where: { id: testId }, data: { goalReachedAt: new Date() } });
+      return true;
+    } catch (error) {
+      console.error('[dvfly] meta de cliques do teste A|B não conferida:', errorText(error));
+      return false;
+    } finally {
+      goalRunning.delete(testId);
+    }
+  })();
+  goalRunning.set(testId, run);
+  return run;
 }
 
 /** One arrival through a test URL. Unknown or stopped tests are ignored, quietly. */

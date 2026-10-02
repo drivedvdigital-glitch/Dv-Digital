@@ -196,6 +196,12 @@ model AbTest {
   /// The last write to the store failed after the settings were saved: the
   /// store still runs the previous ones. Cleared by the next write that works.
   applyError      String?
+  /// Optional: total clicks (all versions together) at which the test pauses
+  /// itself, keeping every number. Null = no goal.
+  clickGoal       Int?
+  /// When the test paused itself on reaching `clickGoal`; cleared on going
+  /// live again. Null when it never did, or was paused by hand.
+  goalReachedAt   DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   variants        AbVariant[]

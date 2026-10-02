@@ -10,6 +10,8 @@
 
 export const AB_MIN_VARIANTS = 2;
 export const AB_MAX_VARIANTS = 6;
+/** The highest click goal a test takes (a typo guard, not a business rule). */
+export const AB_MAX_CLICK_GOAL = 100_000_000;
 /**
  * A test live for this long gets a reminder to decide: Google asks that a
  * test not run indefinitely (a variant left up for good starts to look like

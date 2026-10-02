@@ -3,7 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 
 import { AB_LONG_TEST_DAYS, AB_STATUS_LABEL } from '../lib/ab.ts';
-import { flushHits, liveDaysOf } from '../lib/ab.server.ts';
+import { checkClickGoal, flushHits, liveDaysOf } from '../lib/ab.server.ts';
 import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
@@ -23,12 +23,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { shop } = await requireShop(request);
   const store = await db.store.findUnique({ where: { domain: shop } });
   if (!store) return { store: null, tests: [] };
+  await flushHits();
+  // A goal reached while nobody was looking is acted on before the list says "no ar".
+  const withGoal = await db.abTest.findMany({ where: { storeId: store.id, status: 'live', clickGoal: { not: null } }, select: { id: true } });
+  for (const t of withGoal) await checkClickGoal(t.id);
   const tests = await db.abTest.findMany({
     where: { storeId: store.id },
     orderBy: { createdAt: 'desc' },
     include: { variants: { select: { id: true } } },
   });
-  await flushHits();
   const clicks = await db.abStat.groupBy({
     by: ['testId'],
     where: { testId: { in: tests.map((t) => t.id) } },
@@ -46,6 +49,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Days live, pauses left out, by the server's clock (the page renders the same on both sides).
       liveDays: t.status === 'live' ? liveDaysOf(t) : null,
       clicks: clicks.find((c) => c.testId === t.id)?._sum.clicks ?? 0,
+      clickGoal: t.clickGoal,
+      goalReached: t.status === 'paused' && !!t.goalReachedAt,
     })),
   };
 }
@@ -144,9 +149,21 @@ export default function TestsList() {
                           </span>
                         </div>
                       ) : null}
+                      {t.goalReached ? (
+                        <div style={{ marginTop: 4 }}>
+                          <span style={pillNeutral} data-parou-na-meta>
+                            Parou na meta de {(t.clickGoal ?? 0).toLocaleString('pt-BR')} cliques
+                          </span>
+                        </div>
+                      ) : null}
                     </td>
                     <td style={td}>{t.variants}</td>
-                    <td style={td}>{t.clicks.toLocaleString('pt-BR')}</td>
+                    <td style={td} data-cliques-lista>
+                      {t.clicks.toLocaleString('pt-BR')}
+                      {t.clickGoal !== null && !t.goalReached && t.status !== 'ended' ? (
+                        <span style={{ color: 'var(--dv-ink-3)' }}> de {t.clickGoal.toLocaleString('pt-BR')}</span>
+                      ) : null}
+                    </td>
                     <td style={{ ...td, color: 'var(--dv-ink-2)', whiteSpace: 'nowrap' }}>
                       {t.startedAt ? <LocalDateTime iso={t.startedAt} /> : '—'}
                     </td>

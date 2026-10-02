@@ -24,7 +24,15 @@ resposta.
    Desmarcando a caixa, a URL só distribui e o conteúdo dela não aparece para ninguém.
 3. **Colocar no ar.** A partir daí a URL de entrada sorteia: quem cai na A fica nela, o resto é
    levado para a sua versão. **Copiar URL** dá o endereço exato para o anúncio.
-4. **Resultados.** Hoje, Ontem, 7 dias, 30 dias, Desde o início, ou qualquer período no
+4. **Meta de cliques (opcional).** Marque **Parar sozinho numa meta de cliques** e escolha o
+   número: quando o teste somar esses cliques (todas as versões juntas, desde o início), ele é
+   **pausado sozinho**, igual ao botão Pausar — a URL de entrada volta à página dela, as versões
+   voltam ao canonical delas, e todos os números ficam guardados. A tela do teste diz quando
+   parou; a lista mostra "Parou na meta de N cliques". Para continuar, aumente a meta (ou
+   desligue) e clique em **Voltar a rodar**; com a meta já passada, o botão fica cinza com o
+   motivo. A conferência acontece a cada lote de cliques gravado (a cada ~2 s): podem entrar
+   alguns cliques além da meta nesse meio-tempo.
+5. **Resultados.** Hoje, Ontem, 7 dias, 30 dias, Desde o início, ou qualquer período no
    calendário. Os dias são os do fuso da loja.
 
 Para ver a página da versão A sem sorteio e sem contar clique: **Ver a versão A** (abre a URL
@@ -41,11 +49,12 @@ o que está certo e o que precisa de atenção, com o caminho do conserto:
 | Sem endereço na loja | A Shopify não deu o endereço do produto na loja. Isso acontece fora do canal Loja virtual **e também em toda loja com senha** (equipe da Shopify, community.shopify.dev, tópico 32775). | Se a loja não tem senha, publicar o produto no canal Loja virtual. É aviso, não trava. |
 | Endereço mudou | Alguém renomeou o produto no admin depois que o teste foi gravado. | **Regravar na loja**. |
 | Último clique | Quando chegou o último clique. Mais de 1 hora sem clique fica em destaque. | Abrir a URL de entrada num celular: se troca de página e o número não sobe, a contagem não chega ao app. |
+| Meta | Com meta de cliques ligada: quantos já foram e quantos faltam. | — |
 | Contagem em outro endereço | O teste foi gravado por outro endereço do app (um túnel antigo, por exemplo) e manda os cliques para lá. | **Regravar na loja**. |
 | Última gravação falhou | "Aplicar mudanças" ou "Regravar" não chegou à loja (a Shopify recusou ou caiu no meio). A loja segue com a gravação anterior (as porcentagens de antes), e a linha diz o erro. | **Regravar na loja** tenta de novo. |
 | Cópia da A desatualizada | O modelo ou o layout da A foi mudado (no editor de tema) depois que o teste copiou. Quem cai na A ainda vê a cópia antiga. | **Regravar na loja** refaz a cópia. |
 | Versão A | Se abre direto na URL de entrada ou por redirecionamento (e por quê). | — |
-| Canonical | Para onde aponta o canonical de cada versão (abaixo). | O caminho aparece na linha. |
+| Canonical | Quais versões apontam para a entrada. Versão no layout do tema não vira aviso: fica com o canonical dela por desenho (abaixo). | Só aparece aviso quando há o que consertar. |
 | 30 dias no ar | O Google pede que teste não fique rodando indefinidamente. Aparece também na lista de testes. | Decidir e usar **Encerrar com a vencedora**. |
 
 **Regravar na loja** grava o teste de novo com os endereços e a contagem de agora (as
@@ -132,7 +141,8 @@ diz quem está na frente e que a diferença ainda cabe no acaso. Com poucos pedi
   para a primeira versão com porcentagem acima de 0 (sem sorteio e sem contagem).
 - **Canonical só nos layouts do D&VFly.** O D&VFly não edita os arquivos do tema. Uma versão
   cuja página usa o layout do tema (modelo do tema, ou página do D&VFly com "Só a página, sem o
-  tema" desligado) continua com o canonical apontando para ela mesma, e a tela diz isso.
+  tema" desligado) continua com o canonical apontando para ela mesma; a Situação na loja não
+  acusa isso (não é defeito), só lista as versões que apontam para a entrada.
 - **Bloqueador de anúncios** pode impedir a contagem do clique (o redirecionamento acontece
   igual). O número de cliques é um piso, não um teto.
 - **Atualizar o servidor na VM Windows perde até 2 s de cliques.** O Windows para o app sem

@@ -2919,6 +2919,35 @@ teste longo e contagem em lote.
   abrindo sem redirecionar no tema real, o tempo de quem vai para a B, e o canonical no
   código-fonte da página da versão.
 
+### Teste A | B: meta de cliques que pausa sozinho, e uma Situação na loja mais curta (03/10)
+
+Pedido do Miguel: uma meta opcional de cliques no total (todas as versões juntas); ao chegar
+nela o teste para sozinho e guarda tudo. E, vendo a tela no ar: as linhas "Canonical da Versão
+B/C/D usa o layout do tema…" não precisam aparecer, e o último clique só com a primeira frase.
+
+- **Meta**: caixa "Parar sozinho numa meta de cliques" + número na Configuração. Parar = a
+  mesma **pausa** do botão (entrada volta à página dela, canonical volta, números ficam;
+  "Voltar a rodar" continua). Conferida depois de cada lote gravado (no máximo a cada 2 s por
+  teste, com uma conferência no fim para os últimos cliques), e de novo ao abrir a tela do
+  teste e a lista — se a pausa falhar na Shopify, o teste segue contando e a próxima
+  conferência tenta de novo. Voltar a rodar com a meta já passada é recusado com o motivo (ele
+  pararia no clique seguinte). Campos `clickGoal` e `goalReachedAt` (migration
+  `20261004120000_teste_ab_meta`). Pode passar alguns cliques da meta: os que chegam entre a
+  gravação do lote e a pausa.
+- **Situação na loja**: versão no layout do tema não vira mais aviso (é escolha, não defeito;
+  o doc explica). "Último clique recebido há X" sem o parágrafo de instrução, que ficou só no
+  `docs/TESTE_AB.md`.
+- **O que falhou**: duas checagens antigas do teste dirigido caíram no Postgres por acaso — as
+  visitas sorteiam a versão, e numa rodada duas versões empataram na conversão; a tela disse
+  "convertem igual", que é verdade. A checagem aceitava só as outras respostas; agora aceita
+  também essa. Defeito do teste, não do app. O Postgres do sandbox também caiu no meio
+  (reinício do container) e foi religado.
+- Prova: dirigido 106/106 em SQLite e em Postgres, com 3 visitas reais numa meta de 3 e a
+  entrada voltando à página dela **sem ninguém abrir o app**; recusa ao voltar com a meta
+  passada; volta com a meta aumentada; lista com "de 50". Testes 90 + 88 + 58, typecheck
+  limpo, `migrate diff` vazio num Postgres novo.
+- **Não visto ainda** numa loja de verdade.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

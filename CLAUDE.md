@@ -81,7 +81,10 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   antes de ler; na Vercel, na hora). Pedidos por produto da versão, só dentro dos períodos no
   ar (`AbTest.liveSpans`; pausa não conta), de uma cópia
   leve dos pedidos (sem dado de cliente; a busca da Shopify não filtra por produto), escopo
-  `read_orders`. Vencedor só com amostra mínima (~5 pedidos esperados por versão) e 95%.
+  `read_orders`. **Meta de cliques** opcional (`AbTest.clickGoal`): conferida a cada lote
+  gravado (`checkClickGoal`) e ao abrir tela/lista; atingida, o teste é PAUSADO (mesmo
+  `pause()`, dados ficam, `goalReachedAt`), e voltar a rodar com a meta já passada é recusado.
+  Vencedor só com amostra mínima (~5 pedidos esperados por versão) e 95%.
   **Encerrar com a vencedora** troca os handles dos dois produtos (`swapProductHandles`: handle
   temporário, `redirectNewHandle: false`, desfaz sozinho se falhar no meio, confere os handles
   ANTES de tirar o teste do ar); "Desfazer troca" troca de volta (`AbTest.promotedVariantId`).
