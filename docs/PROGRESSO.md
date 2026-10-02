@@ -2805,6 +2805,23 @@ principal (`/products/cinta-led`), com a antiga indo para `cinta-led-2`.
 - A primeira rodada no Postgres falhou por ambiente (a senha do Postgres de teste do sandbox
   sumiu com o reinício do container), não por código.
 
+### Schema × migrations: o índice de `Page.ownerStoreId` (02/10)
+
+A migration `20260921190000_pagina_por_loja` cria `Page_ownerStoreId_idx`, mas o modelo
+`Page` do `schema.template.prisma` não declarava o índice. Num Postgres novo com todas as
+migrations, `prisma migrate diff --from-url … --to-schema-datamodel prisma/schema.prisma
+--script --exit-code` propunha `DROP INDEX "Page_ownerStoreId_idx"` e saía com 2: o próximo
+`migrate dev` jogaria fora um índice que a lista de páginas usa, e esse ruído escondia drift
+de verdade em outros modelos.
+
+- `@@index([ownerStoreId])` no modelo `Page`. **Sem migration nova**: o índice já existe no
+  banco; o schema é que estava atrasado.
+- Prova: Postgres novo (`node scripts/db-sync.mjs`) → `migrate diff` vazio, sai 0. SQLite novo
+  (`db push`) cria o mesmo índice e o diff também sai 0. `typecheck` e `npm test` (90 + 68 +
+  46) passando.
+- Fica de fora: `prisma format --check` já acusava o template antes (alinhamento de colunas
+  em vários modelos), e continua acusando o mesmo; nada vem da linha nova.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

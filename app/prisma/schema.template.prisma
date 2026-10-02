@@ -98,6 +98,10 @@ model Page {
 
   deployments  Deployment[]
   productLinks ProductLink[]
+
+  // The page list filters by owner. Created by migration
+  // 20260921190000_pagina_por_loja; declared here so the schema matches it.
+  @@index([ownerStoreId])
 }
 
 /// A product page is a theme template; the products that adopt it are linked
