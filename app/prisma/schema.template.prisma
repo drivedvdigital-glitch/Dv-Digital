@@ -164,8 +164,11 @@ model AbTest {
   entryTitle      String
   /// The suffix the entry product rendered with before the test took it over.
   previousSuffix  String?
-  /// "draft" (never went live) | "live" | "paused".
+  /// "draft" (never went live) | "live" | "paused" | "ended" (a winner was chosen).
   status          String      @default("draft")
+  /// Ended with a winner that took over the entry URL: the variant whose
+  /// product swapped handles with the entry product (undo swaps them back).
+  promotedVariantId String?
   /// Where the storefront script reports arrivals: this app's public origin,
   /// recorded when the test goes live.
   trackerOrigin   String?

@@ -2783,6 +2783,28 @@ entrada só como porta (o conteúdo dela sumia durante o teste e ela nem podia s
   dos docs. O passo que sobra é aprovar a permissão nova em cada loja (abrir o D&VFly no admin,
   ou "Instalar app" no Dev Dashboard).
 
+### Teste A | B: encerrar com a vencedora na URL do anúncio (02/10)
+
+Pedido do Miguel: achou a vencedora (a C, `/products/cinta-led-2`) e quer que ela vire a URL
+principal (`/products/cinta-led`), com a antiga indo para `cinta-led-2`.
+
+- Cartão **Encerrar com a vencedora** na tela do teste: escolhe a versão (a líder do relatório
+  vem marcada), mostra a troca exata antes do clique, pede confirmação. Vencedora = outro
+  produto → os dois **trocam de handle**; vencedora = a entrada (A) → só encerra.
+- `swapProductHandles` (pacote Shopify): lê os dois handles e recusa se não forem os esperados;
+  estaciona o primeiro num handle temporário (handles são únicos na loja); três escritas com
+  `redirectNewHandle: false`; falha no meio → desfaz o que já fez, em ordem inversa.
+- O app confere os handles ANTES de tirar o teste do ar — um produto renomeado no admin seria
+  descoberto pela troca só depois do teste já desligado.
+- **Desfazer troca** (status `ended` + `promotedVariantId`, migration nova): troca de volta e
+  deixa pausado. Encerrado com troca, "Voltar a rodar" fica cinza com o motivo.
+- Prova: pacote Shopify +3 testes (68: troca, falha no meio desfeita, recusa sem escrever).
+  Dirigido: 66/66 em SQLite e Postgres — recusa com handle mudado (teste segue no ar), troca,
+  URL do anúncio abre a C direto sem redirecionar, entrada abre no endereço antigo da C,
+  números preservados, desfazer, encerrar com a A sem mexer em endereço, voltar a rodar.
+- A primeira rodada no Postgres falhou por ambiente (a senha do Postgres de teste do sandbox
+  sumiu com o reinício do container), não por código.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

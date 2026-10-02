@@ -27,6 +27,30 @@ a conversão de cada uma.
 Para ver a página da versão A sem sorteio e sem contar clique: **Ver a versão A** (abre a URL
 com `?view=<modelo dela>`).
 
+## Encerrar com a vencedora
+
+Quando uma versão ganhou, o cartão **Encerrar com a vencedora** (na tela do teste) para o teste
+e deixa a vencedora na URL do anúncio:
+
+- **Vencedora é outro produto** (ex.: C = `/products/cinta-led-2`): os dois produtos **trocam de
+  endereço**. A C passa a responder em `/products/cinta-led`, a URL do anúncio, e o produto de
+  entrada vai para `/products/cinta-led-2`. Cada produto leva junto a página, o preço, as
+  variações, as avaliações e os pedidos dele: o que muda é qual produto atende em qual endereço.
+  A tela mostra a troca antes do clique e pede confirmação.
+- **Vencedora é a própria entrada (A)**: o teste só para, e a URL volta a mostrar a página dela.
+
+**Desfazer troca** devolve cada produto ao endereço de antes e deixa o teste pausado.
+
+Cuidados:
+- Anúncio ou link que apontava para o endereço antigo da vencedora (`/products/cinta-led-2`)
+  passa a abrir o produto de entrada.
+- A Shopify não cria redirecionamento nessa troca, de propósito: o endereço antigo de cada um
+  passa a ser do outro.
+- Se alguém mudou o endereço de um dos dois produtos no admin da Shopify, a troca é recusada
+  antes de qualquer mudança, e o teste continua como estava.
+- Se a troca falhar no meio, o app desfaz o que já fez. Se nem desfazer funcionar, a mensagem
+  diz quais endereços conferir no admin.
+
 ## O que cada número quer dizer
 
 | Coluna | De onde vem |

@@ -8,7 +8,12 @@
 import type { AbTest, AbVariant, Store as StoreRow } from '@prisma/client';
 
 import { ordersUpdatedSince, shopInfo } from '../../../packages/shopify/src/orders.ts';
-import { productTemplateSuffix, setProductTemplate } from '../../../packages/shopify/src/products.ts';
+import {
+  productHandle,
+  productTemplateSuffix,
+  setProductTemplate,
+  swapProductHandles,
+} from '../../../packages/shopify/src/products.ts';
 import {
   ensureEntryCopy,
   ensureSplitTemplate,
@@ -89,6 +94,90 @@ export async function pause(test: TestWithVariants, store: StoreRow): Promise<{ 
 export async function takeDown(test: TestWithVariants, store: StoreRow): Promise<void> {
   if (test.status === 'live') await pause(test, store);
   if (test.status !== 'draft') await removeSplitTemplate(clientFor(store), test.id);
+}
+
+/** The handles the app remembers for a product, after its URL changed on the store. */
+async function rememberHandle(storeId: string, testId: string, productGid: string, handle: string): Promise<void> {
+  await db.abVariant.updateMany({ where: { testId, productGid }, data: { handle } });
+  await db.productLink.updateMany({ where: { storeId, productGid }, data: { productHandle: handle } });
+}
+
+/**
+ * Ends the test with a winner. The test comes off the store first (the entry
+ * gets its own page back, our theme files go). Then, when the winner is not
+ * the entry itself, the two products swap URLs: the winner takes the entry's
+ * `/products/<handle>` — the one in the ads — and the entry product takes the
+ * winner's old one. Nothing else moves: each product keeps its page, price,
+ * variants, reviews and orders; what changes is which product answers at
+ * which address.
+ */
+export async function promote(test: TestWithVariants, store: StoreRow, variantId: string): Promise<{ swapped: boolean }> {
+  const winner = test.variants.find((v) => v.id === variantId);
+  if (!winner) throw new Error('Essa versão não é deste teste.');
+  if (test.status === 'ended') throw new Error('O teste já foi encerrado.');
+  const client = clientFor(store);
+  const swaps = winner.productGid !== test.entryProductGid;
+  if (swaps) {
+    // Checked BEFORE taking the test down: a product renamed in the admin
+    // would only be found by the swap, after the test was already off.
+    const [entryNow, winnerNow] = await Promise.all([
+      productHandle(client, test.entryProductGid),
+      productHandle(client, winner.productGid),
+    ]);
+    if (entryNow !== test.entryHandle || winnerNow !== winner.handle) {
+      throw new Error(
+        `O endereço de um dos produtos mudou na Shopify (esperado /products/${test.entryHandle} e /products/${winner.handle}, ` +
+          `encontrado ${entryNow ? `/products/${entryNow}` : 'produto apagado'} e ${winnerNow ? `/products/${winnerNow}` : 'produto apagado'}). ` +
+          'Nada foi feito; o teste continua como estava.',
+      );
+    }
+  }
+  await takeDown(test, store);
+  if (swaps) {
+    try {
+      await swapProductHandles(
+        client,
+        { id: test.entryProductGid, handle: test.entryHandle },
+        { id: winner.productGid, handle: winner.handle },
+      );
+    } catch (error) {
+      throw new Error(
+        `O teste foi pausado, mas a troca de endereços não aconteceu: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+    await rememberHandle(store.id, test.id, test.entryProductGid, winner.handle);
+    await rememberHandle(store.id, test.id, winner.productGid, test.entryHandle);
+  }
+  await db.abTest.update({
+    where: { id: test.id },
+    data: {
+      status: 'ended',
+      promotedVariantId: swaps ? winner.id : null,
+      ...(swaps ? { entryHandle: winner.handle } : {}),
+    },
+  });
+  return { swapped: swaps };
+}
+
+/** Swaps the two URLs back and leaves the test paused, ready to run again. */
+export async function undoPromotion(test: TestWithVariants, store: StoreRow): Promise<void> {
+  if (test.status !== 'ended' || !test.promotedVariantId) throw new Error('Não há troca de endereços para desfazer.');
+  const winner = test.variants.find((v) => v.id === test.promotedVariantId);
+  if (!winner) throw new Error('A versão que ganhou foi removida do teste; desfaça a troca pelo admin da Shopify.');
+  // Now: the entry product sits at the winner's old URL, the winner at the entry's.
+  const entryUrl = winner.handle;
+  const winnerUrl = test.entryHandle;
+  await swapProductHandles(
+    clientFor(store),
+    { id: test.entryProductGid, handle: winnerUrl },
+    { id: winner.productGid, handle: entryUrl },
+  );
+  await rememberHandle(store.id, test.id, test.entryProductGid, entryUrl);
+  await rememberHandle(store.id, test.id, winner.productGid, winnerUrl);
+  await db.abTest.update({
+    where: { id: test.id },
+    data: { status: 'paused', promotedVariantId: null, entryHandle: entryUrl },
+  });
 }
 
 /**

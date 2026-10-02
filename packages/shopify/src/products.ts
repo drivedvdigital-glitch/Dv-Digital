@@ -128,3 +128,90 @@ export async function releaseProducts(
   }
   return { released, skipped };
 }
+
+/** The product's handle (the `/products/<handle>` of its URL); undefined when it no longer exists. */
+export async function productHandle(client: ShopifyClient, id: string): Promise<string | undefined> {
+  const data = await client.graphql<{ product: { handle: string } | null }>(
+    `query DvflyProductHandle($id: ID!) { product(id: $id) { handle } }`,
+    { id },
+  );
+  return data.product ? data.product.handle : undefined;
+}
+
+/**
+ * Changes a product's handle — its URL. `redirectNewHandle: false` on
+ * purpose: Shopify would otherwise create a redirect from the old URL to the
+ * new one, and in a swap the old URL is about to belong to the other product.
+ */
+export async function setProductHandle(client: ShopifyClient, id: string, handle: string): Promise<void> {
+  const data = await client.graphql<{
+    productUpdate: { product: { id: string; handle: string } | null; userErrors: unknown[] };
+  }>(
+    `mutation DvflyProductHandleSet($product: ProductUpdateInput!) {
+       productUpdate(product: $product) {
+         product { id handle }
+         userErrors { field message }
+       }
+     }`,
+    { product: { id, handle, redirectNewHandle: false } },
+  );
+  const product = data.productUpdate.product;
+  if (!product || product.handle !== handle) {
+    throw new ShopifyError(
+      `Não foi possível mudar o endereço do produto ${id} para /products/${handle} em ${client.domain}: ` +
+        formatUserErrors(data.productUpdate.userErrors),
+      { userErrors: data.productUpdate.userErrors },
+    );
+  }
+}
+
+/**
+ * Swaps the URLs of two products: A takes B's handle and B takes A's.
+ *
+ * Handles are unique in a store, so A parks on a temporary handle first.
+ * Three writes; if one fails, the ones already made are undone, so the store
+ * never stays with one product parked on the temporary URL. Both handles are
+ * read first and must be what the caller expects — a product renamed in the
+ * admin meanwhile stops the swap before anything changes.
+ */
+export async function swapProductHandles(
+  client: ShopifyClient,
+  a: { id: string; handle: string },
+  b: { id: string; handle: string },
+): Promise<void> {
+  const [currentA, currentB] = await Promise.all([productHandle(client, a.id), productHandle(client, b.id)]);
+  if (currentA !== a.handle || currentB !== b.handle) {
+    throw new ShopifyError(
+      `Os endereços mudaram desde o que o D&VFly conhece (esperado /products/${a.handle} e /products/${b.handle}, ` +
+        `encontrado ${currentA ? `/products/${currentA}` : 'produto apagado'} e ${currentB ? `/products/${currentB}` : 'produto apagado'}). ` +
+        'Nada foi trocado.',
+    );
+  }
+  const parked = `${a.handle}-dvfly-troca-${Date.now().toString(36)}`;
+  const done: Array<() => Promise<void>> = [];
+  try {
+    await setProductHandle(client, a.id, parked);
+    done.push(() => setProductHandle(client, a.id, a.handle));
+    await setProductHandle(client, b.id, a.handle);
+    done.push(() => setProductHandle(client, b.id, b.handle));
+    await setProductHandle(client, a.id, b.handle);
+  } catch (error) {
+    // Undo in reverse order; a failure here is reported with the original one.
+    const undoErrors: string[] = [];
+    for (const undo of done.reverse()) {
+      try {
+        await undo();
+      } catch (e) {
+        undoErrors.push(e instanceof Error ? e.message : String(e));
+      }
+    }
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new ShopifyError(
+      undoErrors.length === 0
+        ? `A troca de endereços falhou e foi desfeita; os dois produtos estão como antes. Motivo: ${reason}`
+        : `A troca de endereços falhou E não consegui desfazer tudo. Confira no admin da Shopify os produtos ` +
+            `/products/${a.handle}, /products/${b.handle} e /products/${parked}. Motivo: ${reason}. ` +
+            `Ao desfazer: ${undoErrors.join('; ')}`,
+    );
+  }
+}

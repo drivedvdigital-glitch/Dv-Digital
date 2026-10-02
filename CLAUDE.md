@@ -73,6 +73,9 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   publicar página no produto de entrada com teste no ar NÃO o tira do teste. Pedidos por produto da versão, de uma cópia
   leve dos pedidos (sem dado de cliente; a busca da Shopify não filtra por produto), escopo
   `read_orders`. Vencedor só com amostra mínima (~5 pedidos esperados por versão) e 95%.
+  **Encerrar com a vencedora** troca os handles dos dois produtos (`swapProductHandles`: handle
+  temporário, `redirectNewHandle: false`, desfaz sozinho se falhar no meio, confere os handles
+  ANTES de tirar o teste do ar); "Desfazer troca" troca de volta (`AbTest.promotedVariantId`).
 - Decisões e porquês: `docs/ARQUITETURA.md` (invariantes I1–I7), `docs/UX_FLUXOS.md` (U1–U7),
   histórico honesto em `docs/PROGRESSO.md` — **atualizar a cada entrega**, incluindo o que falhou.
   Estado real do código × plataforma × concorrente: `docs/CONFIGURACAO_E_MECANISMOS.md`

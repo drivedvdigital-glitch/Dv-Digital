@@ -14,7 +14,7 @@ import {
   percent,
 } from '../lib/ab.ts';
 import { entryCopySuffix } from '../../../packages/shopify/src/split.ts';
-import { buildReport, goLive, pause, storeInfo, takeDown, type Report } from '../lib/ab.server.ts';
+import { buildReport, goLive, pause, promote, storeInfo, takeDown, undoPromotion, type Report } from '../lib/ab.server.ts';
 import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
@@ -86,6 +86,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       id: test.id,
       name: test.name,
       status: test.status,
+      promotedVariantId: test.promotedVariantId,
       entry: test.entryProductGid ? { gid: test.entryProductGid, handle: test.entryHandle, title: test.entryTitle } : null,
       variants: variants.map((v) => ({ id: v.id, gid: v.productGid, handle: v.handle, title: v.title, weight: v.weight })),
     },
@@ -155,6 +156,30 @@ export async function action({ request, params }: ActionFunctionArgs) {
       };
     }
 
+    if (intent === 'promote') {
+      if (test.status === 'draft' || test.status === 'ended') return fail('Só dá para encerrar um teste que já rodou e ainda não foi encerrado.');
+      const winner = test.variants.find((v) => v.id === String(form.get('variantId') ?? ''));
+      if (!winner) return fail('Escolha a versão vencedora.');
+      const entryUrl = test.entryHandle;
+      const winnerUrl = winner.handle;
+      const { swapped } = await promote(test, store, winner.id);
+      return {
+        ok: true,
+        message: swapped
+          ? `Teste encerrado. "${winner.title}" agora responde em /products/${entryUrl}, a URL do anúncio; ` +
+            `"${test.entryTitle}" foi para /products/${winnerUrl}. Cliques e pedidos ficam guardados. "Desfazer troca" volta tudo como era.`
+          : `Teste encerrado. /products/${entryUrl} mostra a página dela, sem sorteio. Cliques e pedidos ficam guardados.`,
+      };
+    }
+
+    if (intent === 'undo-promote') {
+      await undoPromotion(test, store);
+      return {
+        ok: true,
+        message: 'Troca desfeita: cada produto voltou para o endereço de antes. O teste ficou pausado; "Voltar a rodar" liga de novo.',
+      };
+    }
+
     if (intent === 'delete') {
       await takeDown(test, store);
       await db.abTest.delete({ where: { id: test.id } });
@@ -162,6 +187,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     if (intent !== 'save' && intent !== 'live') return fail('Ação desconhecida.');
+    if (test.status === 'ended' && test.promotedVariantId) {
+      return fail('Este teste foi encerrado com troca de endereços. Desfaça a troca para mexer nele de novo.');
+    }
     const payload = readPayload(String(form.get('payload') ?? ''));
     if (typeof payload === 'string') return fail(payload);
 
@@ -357,6 +385,20 @@ export default function TestScreen() {
     test.variants.map((v) => ({ ...v, key: v.id })),
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmPromote, setConfirmPromote] = useState(false);
+  const ended = test.status === 'ended';
+  const lockedByPromotion = ended && !!test.promotedVariantId;
+  const [winnerId, setWinnerId] = useState<string>(report?.verdict.leaderId ?? test.variants[0]?.id ?? '');
+  const winner = test.variants.find((v) => v.id === winnerId) ?? null;
+  const winnerIsEntry = !!winner && winner.gid === test.entry?.gid;
+  const promoted = test.variants.find((v) => v.id === test.promotedVariantId) ?? null;
+  const act = (intent: string, extra: Record<string, string> = {}) => {
+    const fd = new FormData();
+    fd.set('intent', intent);
+    for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+    submit(fd, { method: 'post' });
+    setConfirmPromote(false);
+  };
   const [copied, setCopied] = useState(false);
   // After a save the loader's numbers are the truth again (ids of new variants).
   useEffect(() => {
@@ -487,17 +529,21 @@ export default function TestScreen() {
               </button>
             ) : (
               <>
-                <button type="button" className="dv-btn dv-secondary" disabled={busy || !dirty || undefined} data-salvar onClick={() => send('save')}>
+                <button type="button" className="dv-btn dv-secondary" disabled={busy || !dirty || lockedByPromotion || undefined} data-salvar onClick={() => send('save')}>
                   Salvar
                 </button>
-                <button type="button" className="dv-btn dv-primary" disabled={busy || !!readyReason || !!store.unusable || undefined} data-no-ar onClick={() => send('live')}>
-                  {test.status === 'paused' ? 'Voltar a rodar' : 'Colocar no ar'}
+                <button type="button" className="dv-btn dv-primary" disabled={busy || !!readyReason || !!store.unusable || lockedByPromotion || undefined} data-no-ar onClick={() => send('live')}>
+                  {test.status === 'paused' || ended ? 'Voltar a rodar' : 'Colocar no ar'}
                 </button>
               </>
             )}
           </div>
         </header>
-        {!live && (readyReason || store.unusable) ? (
+        {lockedByPromotion ? (
+          <div style={{ ...reason, textAlign: 'right', marginTop: -6, marginBottom: 10 }} data-motivo>
+            Teste encerrado com troca de endereços. Para rodar de novo, use "Desfazer troca" lá embaixo.
+          </div>
+        ) : !live && (readyReason || store.unusable) ? (
           <div style={{ ...reason, textAlign: 'right', marginTop: -6, marginBottom: 10 }} data-motivo>
             {store.unusable ? `Sem acesso à loja: ${store.unusable}.` : readyReason}
           </div>
@@ -815,6 +861,102 @@ export default function TestScreen() {
             </div>
           ) : null}
         </section>
+
+        {test.status !== 'draft' && test.entry ? (
+          <section style={{ ...card, marginTop: 18 }} data-encerrar>
+            <div style={cardHead}>
+              <h2 style={h2}>Encerrar com a vencedora</h2>
+            </div>
+            {ended ? (
+              <div style={{ padding: 16, display: 'grid', gap: 10 }}>
+                {promoted ? (
+                  <>
+                    <p style={{ margin: 0 }} data-encerrado>
+                      Encerrado. <strong>{promoted.title}</strong> responde em <code style={code}>/products/{promoted.handle}</code>, a URL do anúncio, e o produto de entrada{' '}
+                      <strong>{test.entry.title}</strong> está em <code style={code}>/products/{test.entry.handle}</code>.
+                    </p>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button type="button" className="dv-btn dv-secondary" disabled={busy || !!store.unusable || undefined} data-desfazer-troca onClick={() => act('undo-promote')}>
+                        Desfazer troca
+                      </button>
+                      <span style={reason}>Cada produto volta para o endereço de antes, e o teste fica pausado.</span>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ margin: 0 }} data-encerrado>
+                    Encerrado com a URL de entrada como vencedora: <code style={code}>/products/{test.entry.handle}</code> mostra a página dela, sem sorteio.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div style={{ padding: 16, display: 'grid', gap: 12 }}>
+                <p style={{ ...reason, margin: 0 }}>
+                  Para de testar e deixa a versão escolhida na URL do anúncio. Se a vencedora for outro produto, os dois trocam de
+                  endereço: cada produto leva junto a página, o preço, as variações e os pedidos dele.
+                </p>
+                <div style={{ display: 'grid', gap: 6 }} role="radiogroup" aria-label="Versão vencedora">
+                  {test.variants.map((v, i) => (
+                    <label key={v.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }} data-escolher-vencedora={letter(i)}>
+                      <input
+                        type="radio"
+                        name="vencedora"
+                        checked={winnerId === v.id}
+                        onChange={() => {
+                          setWinnerId(v.id);
+                          setConfirmPromote(false);
+                        }}
+                      />
+                      <span style={letterBadge}>{letter(i)}</span>
+                      <span>
+                        {v.title} <span style={sub}>/products/{v.handle}</span>
+                      </span>
+                      {report?.verdict.leaderId === v.id ? (
+                        <span style={report.verdict.confident ? pillSuccess : pillNeutral}>
+                          {report.verdict.confident ? 'vencedora pelo relatório' : 'na frente'}
+                        </span>
+                      ) : null}
+                    </label>
+                  ))}
+                </div>
+                {winner ? (
+                  <div style={verdictNeutral} data-previa-troca>
+                    {winnerIsEntry ? (
+                      <>O teste para, e <strong>/products/{test.entry.handle}</strong> volta a mostrar a página dela para todo mundo.</>
+                    ) : (
+                      <>
+                        <strong>/products/{winner.handle}</strong> ({winner.title}) passa a responder em{' '}
+                        <strong>/products/{test.entry.handle}</strong>, a URL do anúncio. O produto de entrada ({test.entry.title}) vai para{' '}
+                        <strong>/products/{winner.handle}</strong>. Anúncio ou link que aponte para /products/{winner.handle} passa a abrir o
+                        produto de entrada.
+                      </>
+                    )}
+                  </div>
+                ) : null}
+                {report && !report.verdict.confident ? (
+                  <span style={reason} data-aviso-vencedora>
+                    O relatório ainda não aponta uma vencedora com segurança. Dá para encerrar mesmo assim; a decisão é sua.
+                  </span>
+                ) : null}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {confirmPromote ? (
+                    <>
+                      <button type="button" className="dv-btn dv-secondary" style={{ fontWeight: 600 }} disabled={busy || !winner || undefined} data-confirmar-vencedora onClick={() => act('promote', { variantId: winnerId })}>
+                        {winnerIsEntry ? 'Confirmar: encerrar' : 'Confirmar troca de endereços'}
+                      </button>
+                      <button type="button" className="dv-btn dv-plain" onClick={() => setConfirmPromote(false)}>
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="dv-btn dv-secondary" disabled={busy || !winner || !!store.unusable || undefined} data-encerrar-vencedora onClick={() => setConfirmPromote(true)}>
+                      {winnerIsEntry ? 'Encerrar mantendo a URL de entrada' : `Levar a versão ${letter(test.variants.findIndex((v) => v.id === winnerId))} para a URL principal`}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <section style={{ ...card, marginTop: 18, padding: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1 }}>

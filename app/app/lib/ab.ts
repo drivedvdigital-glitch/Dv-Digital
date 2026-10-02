@@ -16,6 +16,7 @@ export const AB_STATUS_LABEL: Record<string, string> = {
   draft: 'Rascunho',
   live: 'No ar',
   paused: 'Pausado',
+  ended: 'Encerrado',
 };
 
 /** Offset of `tz` from UTC at `date`, in ms (positive east of Greenwich). */
