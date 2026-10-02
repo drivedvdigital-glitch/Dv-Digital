@@ -2948,6 +2948,40 @@ B/C/D usa o layout do tema…" não precisam aparecer, e o último clique só co
   limpo, `migrate diff` vazio num Postgres novo.
 - **Não visto ainda** numa loja de verdade.
 
+### Liquid no HTML colado roda na loja (03/10)
+
+O Miguel cola em toda LP `{% include 'gtm-roteador' %}` e um rodapé com `{{ nome_loja }}`,
+`{{ email_suporte }}`, `{{ endereco_fisico }}` — o snippet do tema define as variáveis e o
+rodapé as usa. Na loja aparecia o texto cru. Causa: a seção da página é publicada inteira
+dentro de `{% raw %}` (decisão antiga, para um `{{` qualquer de HTML colado chegar como
+texto), então a Shopify nunca via o Liquid.
+
+- O bloco HTML que tem `{% %}` ou `{{ }}` sai cercado por dois comentários
+  (`<!--dvf-liquid-->`); o `productSectionLiquid` deixa esse trecho fora do `{% raw %}`, e o
+  resto continua protegido. Como a página toda é uma seção só, variável definida pelo snippet
+  num bloco aparece no rodapé de outro bloco.
+- A otimização do HTML (rem → px, `<style>` com escopo, imagens) continua rodando: o Liquid é
+  trocado por marcadores inertes antes e devolvido depois, então `{{ x | asset_url }}` num
+  `src` e `{% if %}` entre atributos saem exatamente como escritos.
+- Inspetor do bloco HTML: "Rodar o Liquid na loja" (aparece só quando o código tem Liquid;
+  ligado por padrão; desligado mostra `{{ }}` como texto, para quem cola template de outro
+  sistema). No editor o Liquid aparece como está escrito — ele só roda na loja.
+- Erro de Liquid: a Shopify confere a seção ao gravar; a mensagem diz que a página tem Liquid
+  em bloco HTML e repassa a linha que a Shopify apontou. `{% schema %}` dentro do bloco é
+  recusado antes (a seção já tem o dela).
+- **Página comum (não produto)**: a Shopify não roda Liquid no corpo de página — limite dela.
+  Os marcadores saem, e a mensagem da publicação avisa. Para rodar ali seria preciso publicar
+  página comum como seção também (não feito).
+- **Mudança de comportamento**: página publicada antes, com `{{ }}` em HTML colado, passa a
+  rodar esse Liquid na próxima publicação. Quem não quer desliga no bloco.
+- Prova: compilador 92 (+2), pacote Shopify 90 (+2), app 58; typecheck. Ponta a ponta com
+  motor Liquid de verdade (liquidjs): compilar → seção que vai para a Shopify → renderizar com
+  um `gtm-roteador` que define as três variáveis: snippet rodou, nome/e-mail/endereço no
+  rodapé, bloco desligado como texto, nenhum marcador do D&VFly na saída. Editor dirigido
+  (Playwright): toggle aparece só no bloco com Liquid, liga/desliga, 0 erros de JavaScript.
+- **Não visto ainda** numa loja de verdade: falta publicar uma LP com o `gtm-roteador` e
+  conferir o rodapé preenchido.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

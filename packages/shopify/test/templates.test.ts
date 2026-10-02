@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { LIQUID_CLOSE, LIQUID_OPEN } from '../../compiler/src/liquid.ts';
 import { ShopifyError, type ShopifyClient } from '../src/client.ts';
 import {
   chromelessLayout,
@@ -250,7 +251,7 @@ describe('productSectionLiquid', () => {
       title: 'Um título bem comprido para a seção',
       fragment: '<div>{{ not liquid }}</div>',
     });
-    assert.match(liquid, /\{% raw %\}\n<div>\{\{ not liquid \}\}<\/div>\n\{% endraw %\}/);
+    assert.match(liquid, /\{% raw %\}<div>\{\{ not liquid \}\}<\/div>\{% endraw %\}/);
     const schema = JSON.parse(/\{% schema %\}\n([\s\S]*?)\n\{% endschema %\}/.exec(liquid)![1]);
     assert.ok(schema.name.length <= 25, schema.name);
     assert.ok(schema.name.startsWith('D&VFly'));
@@ -268,6 +269,31 @@ describe('productSectionLiquid', () => {
     assert.ok(emoji.name.isWellFormed(), emoji.name);
     assert.ok(Array.from(emoji.name).length <= 25);
     assert.equal(schemaOf('   ').name, 'D&VFly');
+  });
+
+  it('leaves the Liquid the compiler fenced OUT of raw, and only that', () => {
+    const fragment =
+      '<style>.a{}</style><div class="dvf-page"><div data-dvf-raw="">' +
+      LIQUID_OPEN + "{% include 'gtm-roteador' %}<h2>{{ nome_loja }}</h2>" + LIQUID_CLOSE +
+      '</div><div data-dvf-raw=""><p>{{ vue }}</p></div></div>';
+    const liquid = productSectionLiquid({ pageId: 'p1', title: 'x', fragment });
+    const body = liquid.split('\n')[1];
+    assert.equal(
+      body,
+      '{% raw %}<style>.a{}</style><div class="dvf-page"><div data-dvf-raw="">{% endraw %}' +
+        "{% include 'gtm-roteador' %}<h2>{{ nome_loja }}</h2>" +
+        '{% raw %}</div><div data-dvf-raw=""><p>{{ vue }}</p></div></div>{% endraw %}',
+    );
+    assert.ok(!liquid.includes('dvf-liquid'), 'the fences never reach the store');
+  });
+
+  it('lets fenced Liquid carry its own raw, but never a second schema', () => {
+    const own = productSectionLiquid({ pageId: 'p1', title: 'x', fragment: `${LIQUID_OPEN}{% raw %}{{ x }}{% endraw %}${LIQUID_CLOSE}` });
+    assert.ok(own.includes('{% raw %}{{ x }}{% endraw %}'));
+    assert.throws(
+      () => productSectionLiquid({ pageId: 'p1', title: 'x', fragment: `${LIQUID_OPEN}{% schema %}{}{% endschema %}${LIQUID_CLOSE}` }),
+      /schema/,
+    );
   });
 
   it('refuses a fragment that would close the raw block', () => {

@@ -11,6 +11,7 @@ import {
 import type { ActionFunctionArgs, LoaderFunctionArgs, ShouldRevalidateFunctionArgs } from 'react-router';
 
 import { COMPILER_VERSION, compile, toFragment, type Doc } from '../lib/compiler.server.ts';
+import { hasLiquid, LIQUID_OPEN, stripLiquidMarkers } from '../../../packages/compiler/src/liquid.ts';
 import {
   BUDGET_BYTES,
   PAGE_BODY_LIMIT_BYTES,
@@ -395,7 +396,9 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
       {
         title,
         handle,
-        body: fragment,
+        // A regular page's body is never run as Liquid by Shopify: the
+        // fences have nothing to fence there.
+        body: stripLiquidMarkers(fragment),
         // "Mostrar cabeçalho e rodapé" off binds the page to the D&VFly
         // chrome-less template; on returns it to the theme's default.
         templateSuffix: showChrome ? null : SOLO_SUFFIX,
@@ -440,7 +443,11 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
           ? `Publicado em ${result.succeeded.length} loja(s).`
           : `${result.succeeded.length} ok, ${failed.length} com erro: ${failed
               .map((f) => `${f.store.label} — ${f.error}`)
-              .join('; ')}`) + retiredNote,
+              .join('; ')}`) +
+        retiredNote +
+        (fragment.includes(LIQUID_OPEN)
+          ? ' Atenção: esta página tem Liquid em bloco HTML, e a Shopify não roda Liquid em página comum (limite da Shopify): ele aparece como texto. Em página de produto ele roda.'
+          : ''),
       urls: result.succeeded.map((t) => `https://${t.store.domain}/pages/${t.page!.handle}`),
     };
   } catch (error) {
@@ -3075,6 +3082,8 @@ function HtmlFields({
   onChange: (patch: Record<string, unknown>) => void;
 }) {
   const html = String(p.html ?? '');
+  const temLiquid = hasLiquid(html);
+  const liquidOn = typeof p.liquid === 'boolean' ? p.liquid : temLiquid;
   const [estado, setEstado] = useState<string | null>(null);
   const [medindo, setMedindo] = useState(false);
   const tags = html.match(/<img\b[^>]*>/gi) ?? [];
@@ -3160,6 +3169,25 @@ function HtmlFields({
                 : `${semTamanho.length} de ${tags.length} imagem(ns) sem largura/altura — a página pula quando elas chegam.`)}
         </span>
       </div>
+      {temLiquid || p.liquid === false ? (
+        <>
+          <label style={{ ...fieldLabel, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              data-rodar-liquid
+              checked={liquidOn}
+              // On = automatic (runs whenever the code has Liquid); off is remembered.
+              onChange={(e) => onChange({ liquid: e.target.checked ? undefined : false })}
+            />
+            Rodar o Liquid na loja
+          </label>
+          <div style={metaLine} data-liquid-nota>
+            {liquidOn
+              ? 'O Liquid deste bloco ({% include %}, {{ }}) roda na loja publicada, como num arquivo do tema: snippets, dados da loja e variáveis que um snippet definiu. No editor ele aparece como está escrito. Roda em página de produto; em página comum a Shopify não roda Liquid.'
+              : 'Desligado: {{ }} e {% %} aparecem na página como texto.'}
+          </div>
+        </>
+      ) : null}
     </>
   );
 }

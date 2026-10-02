@@ -501,3 +501,33 @@ test('contact form posts to the storefront /contact with the native field names'
   const plain = compile({ version: 1, root: [{ id: 'h', type: 'heading', props: { level: 1, text: 'x' } }] });
   assert.ok(!plain.css.includes('dvf-form'), 'no form CSS without a form');
 });
+
+test('Liquid in pasted HTML is fenced for the store and left exactly as written', () => {
+  const source =
+    "{% include 'gtm-roteador' %}<div style=\"padding:1rem\"><h2>{{ nome_loja }}</h2>" +
+    "<img src=\"{{ 'logo.png' | asset_url }}\" alt=\"\"><div {% if x %}class=\"a\"{% endif %}>y</div>" +
+    '<style>.z{color:{{ settings.cor }}}</style></div>';
+  const doc = { version: 1, root: [{ id: 'h', type: 'html', props: { html: source } }] } as unknown as Doc;
+  const { html } = compile(doc);
+  const inside = html.slice(html.indexOf('<!--dvf-liquid-->') + 17, html.indexOf('<!--/dvf-liquid-->'));
+  for (const piece of ["{% include 'gtm-roteador' %}", '{{ nome_loja }}', "src=\"{{ 'logo.png' | asset_url }}\"", '<div {% if x %}class="a"{% endif %}>', '{{ settings.cor }}']) {
+    assert.ok(inside.includes(piece), `${piece} kept in ${inside}`);
+  }
+  // The HTML pass still ran around it: rem rebased, <style> scoped.
+  assert.ok(inside.includes('padding:16px'), inside);
+  assert.ok(inside.includes('.dvf-page .z'), inside);
+  assert.ok(!/dvflq\d+q/.test(html), 'no placeholder left behind');
+});
+
+test('Liquid can be switched off per block, and markup without it is not fenced', () => {
+  const doc = {
+    version: 1,
+    root: [
+      { id: 'a', type: 'html', props: { html: '<p>{{ vue }}</p>', liquid: false } },
+      { id: 'b', type: 'html', props: { html: '<p>sem liquid</p>' } },
+    ],
+  } as unknown as Doc;
+  const { html } = compile(doc);
+  assert.ok(!html.includes('dvf-liquid'), html);
+  assert.ok(html.includes('<p>{{ vue }}</p>'));
+});

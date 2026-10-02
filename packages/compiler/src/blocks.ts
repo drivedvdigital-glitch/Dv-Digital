@@ -18,6 +18,7 @@
 
 import { escapeText, safeUrl, tag } from './html.ts';
 import { responsiveImage, type ImageClaim, type ImageRole } from './images.ts';
+import { hasLiquid, LIQUID_CLOSE, LIQUID_OPEN, withLiquidProtected } from './liquid.ts';
 import type { Node } from './schema.ts';
 
 export interface RenderContext {
@@ -446,7 +447,15 @@ const contact: Renderer = (node, ctx) => {
  */
 const html: Renderer = (node, ctx) => {
   const source = prop<string>(node, 'html', '');
-  const body = prop(node, 'raw', false) ? source : ctx.optimizeHtml(source);
+  const raw = prop(node, 'raw', false);
+  // Liquid in the markup runs on the store unless the block says otherwise
+  // (`liquid: false`: show `{{ }}` as text) — see liquid.ts.
+  const liquid = prop<boolean | undefined>(node, 'liquid', undefined) ?? hasLiquid(source);
+  const body = liquid
+    ? LIQUID_OPEN + (raw ? source : withLiquidProtected(source, (markup) => ctx.optimizeHtml(markup))) + LIQUID_CLOSE
+    : raw
+      ? source
+      : ctx.optimizeHtml(source);
   // `data-dvf-raw` marks the author's own territory: our reset steps back
   // inside it (see Sheet.toCss), so the pasted page renders as pasted.
   return tag('div', { ...ctx.baseAttrs(node), 'data-dvf-raw': '' }, body);

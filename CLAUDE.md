@@ -103,6 +103,12 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
 - **HTML colado é do autor**: nunca mover `style=""` para classe (a classe perde na cascata
   para o CSS do próprio autor e para o tema) nem deixar nosso reset alcançar o que está
   dentro de `[data-dvf-raw]`. Medir com o render comparado, não no olho.
+  **Liquid no HTML colado RODA na loja** (`packages/compiler/src/liquid.ts`): a seção da
+  página é `{% raw %}`, mas o bloco HTML com `{% %}`/`{{ }}` sai cercado por
+  `<!--dvf-liquid-->` e o `productSectionLiquid` deixa esse trecho FORA do raw
+  (`{% include 'gtm-roteador' %}`, variáveis que o snippet definiu). A otimização roda com o
+  Liquid trocado por marcadores inertes (`withLiquidProtected`). "Rodar o Liquid na loja"
+  desligado (`liquid: false`) = texto. Página comum: a Shopify nunca roda Liquid no corpo.
 - **Medir sempre COM o tema da loja por cima.** Documento nu mente: o tema tem
   `html{font-size:62.5%}` (1rem = 10px: o `rem` do HTML colado é convertido para px pelo
   compilador — a 16px por padrão, o visual que o Miguel aprovou, ou à raiz do tema
