@@ -2742,8 +2742,7 @@ O que a prova pegou e foi corrigido antes do commit:
 - **Limite de 60 cliques por IP por minuto** era baixo para operadora de celular (milhares de
   aparelhos atrás de um IP só): subiu para 600.
 
-Não verificado (precisa da loja de verdade): o escopo `read_orders` concedido e o formulário de
-dados protegidos preenchido nos três apps; o redirecionamento na vitrine real da Shopify (a
+Não verificado (precisa da loja de verdade): o escopo `read_orders` concedido nos três apps; o redirecionamento na vitrine real da Shopify (a
 prova usou o layout gravado servido por uma vitrine falsa); a contagem através do Caddy da VM.
 
 ### Teste A | B: a URL de entrada é a versão A (02/10, depois)
@@ -2769,6 +2768,20 @@ entrada só como porta (o conteúdo dela sumia durante o teste e ela nem podia s
   apaga a cópia. Pacote Shopify +2 testes (65).
 - A primeira rodada de prova falhou por um furo do DUBLÊ da Shopify (não sabia ler arquivos do
   tema), não do app — corrigido no dublê.
+
+### Teste A | B no ar na Shopify: o que o primeiro uso ensinou (02/10)
+
+- `PUBLICAR-APPS-SHOPIFY.cmd` (deploy dos 3 apps num duplo clique). No primeiro uso, o
+  principal e a Colômbia morreram com **"You are not a member of the requested
+  organization"**: o CLI estava logado na conta da SNEVY, e cada app mora na sua organização.
+  O script agora, nesse erro, sai da conta e tenta de novo, pedindo o login certo.
+  Colômbia confirmada no Dev Dashboard: versão `dvhub-colombia-4` Ativa.
+- **Erro meu de documentação:** mandei preencher "Protected customer data access" nos três
+  apps. Não existe no painel novo para app custom — e não precisa: a equipe da Shopify
+  confirmou (community.shopify.dev, tópico 35445) que app custom na loja da própria
+  organização já tem esse acesso; o formulário é de app público. Retirado do app, do script e
+  dos docs. O passo que sobra é aprovar a permissão nova em cada loja (abrir o D&VFly no admin,
+  ou "Instalar app" no Dev Dashboard).
 
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 

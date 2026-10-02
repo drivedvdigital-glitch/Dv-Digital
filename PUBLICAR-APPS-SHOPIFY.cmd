@@ -59,11 +59,10 @@ echo    %R1%
 echo    %R2%
 echo    %R3%
 echo.
-echo  Falta so voce, uma vez por app, no navegador:
-echo    1. dev.shopify.com - o app - API access - Protected customer
-echo       data access: preencher o formulario, nivel 1.
-echo    2. Abrir o DVFly no admin de cada loja e clicar em Aprovar
-echo       quando a Shopify mostrar a permissao nova de pedidos.
+echo  Falta so voce, uma vez por loja, no navegador:
+echo    Abrir o DVFly no admin de cada loja e clicar em Aprovar
+echo    quando a Shopify mostrar a permissao nova de pedidos.
+echo    Ou: dev.shopify.com - o app - Instalar app - confirmar.
 echo.
 pause
 exit /b 0

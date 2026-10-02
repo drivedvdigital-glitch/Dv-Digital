@@ -16,7 +16,9 @@
  * app's job.
  *
  * Needs the `read_orders` scope (the last 60 days; older orders need
- * `read_all_orders`) and the app's protected-customer-data declaration.
+ * `read_all_orders`). A custom app on its own organization's store has
+ * protected customer data access by default (Shopify staff, community.shopify.dev
+ * 35445); only public apps file the request.
  */
 
 import { ShopifyError, type ShopifyClient } from './client.ts';
@@ -58,10 +60,10 @@ type OrderNode = {
 function explainRefusal(client: ShopifyClient, error: unknown): unknown {
   if (error instanceof ShopifyError && error.isAccessDenied) {
     return new ShopifyError(
-      `A Shopify recusou a leitura de pedidos em ${client.domain}. Duas coisas precisam estar feitas: ` +
-        '(1) o app com o escopo read_orders publicado e lançado (shopify app deploy + "Release" no Dev Dashboard) ' +
-        'e a permissão aprovada no admin da loja; (2) no Dev Dashboard do app, "Acesso a dados protegidos de ' +
-        'clientes" preenchido (nível 1 basta: o relatório não lê nome, e-mail nem endereço). ' +
+      `A Shopify recusou a leitura de pedidos em ${client.domain}: a permissão read_orders ainda não ` +
+        'vale para esta loja. (1) Publique o app com o escopo (PUBLICAR-APPS-SHOPIFY.cmd) e confira no ' +
+        'Dev Dashboard que a versão nova está Ativa; (2) aprove a permissão nova: abra o D&VFly no admin ' +
+        'da loja, ou clique em "Instalar app" no Dev Dashboard do app e confirme. ' +
         `Resposta da Shopify: ${error.message}`,
       error.detail,
     );

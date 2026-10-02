@@ -62,18 +62,23 @@ diz quem está na frente e que a diferença ainda cabe no acaso. Com poucos pedi
 ## Antes do primeiro teste (uma vez por app)
 
 O relatório lê pedidos, e isso pede duas coisas da Shopify, em **cada** app (o principal e os
-das outras lojas — `shopify.app.toml`, `shopify.app.colombia.toml`, `shopify.app.snevy.toml`):
+das outras lojas — `shopify.app.toml`, `shopify.app.colombia.toml`, `shopify.app.snevy.toml`).
+Cada app mora numa organização da Shopify; o `PUBLICAR-APPS-SHOPIFY.cmd` pede o login da conta
+certa quando a logada não é membro dela ("You are not a member of the requested organization").
 
 1. **O escopo `read_orders`** — já está nos três arquivos. Publicar: duplo clique em
    **`PUBLICAR-APPS-SHOPIFY.cmd`** (roda o `shopify app deploy` dos três apps em sequência e
    mostra o resumo de cada um), e conferir no Dev Dashboard que a versão nova ficou ativa.
-   Na próxima abertura do app, o admin da loja pede a aprovação da permissão nova.
-2. **Acesso a dados protegidos de clientes** — Dev Dashboard → o app → **API access** →
-   **Protected customer data access** → preencher (nível 1 basta: o relatório não lê nome,
-   e-mail, telefone nem endereço).
+2. **Aprovar a permissão nova em cada loja** — abrir o D&VFly no admin da loja e aprovar quando
+   a Shopify pedir; ou, no Dev Dashboard do app, **Instalar app** e confirmar.
 
-Sem as duas, o teste roda e conta cliques normalmente, e o relatório diz, no lugar dos pedidos,
-exatamente qual das duas falta.
+**Não há formulário de "dados protegidos de clientes" a preencher.** Ele existe para app
+público; app custom instalado na loja da própria organização já tem esse acesso, e por isso o
+painel novo da Shopify nem mostra a opção (confirmado pela equipe da Shopify em 02/10:
+community.shopify.dev, tópico 35445).
+
+Sem os dois passos, o teste roda e conta cliques normalmente, e o relatório diz, no lugar dos
+pedidos, o que falta.
 
 ## Como funciona por dentro
 

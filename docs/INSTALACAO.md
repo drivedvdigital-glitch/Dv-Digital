@@ -36,10 +36,9 @@ Em `dev.shopify.com` → **Apps** → o app D&VFly (client id `90c1e96f…`, o m
 - **Versions → New version** (ou pelo CLI, abaixo): **App URL** = endereço público HTTPS
   onde o app roda (sem caminho, ex.: `https://dvfly.suaempresa.com`); **Embedded** ligado;
   **Scopes** = `write_content, write_themes, write_products, read_orders`; **Webhooks API
-  version** = `2026-07`; **Release**. O `read_orders` é do Teste A | B (pedidos por versão);
-  com ele vem uma exigência à parte: **API access → Protected customer data access** →
-  preencher o formulário (nível 1 basta — o relatório não lê nome, e-mail nem endereço).
-  Sem isso a Shopify recusa a leitura de pedidos mesmo com o escopo concedido.
+  version** = `2026-07`; **Release**. O `read_orders` é do Teste A | B (pedidos por versão).
+  App custom na loja da própria organização já tem acesso a dados protegidos de clientes:
+  não há formulário a preencher (o painel novo nem mostra a opção).
 - **Distribution**: escolha **Custom distribution** (não dá para trocar depois). Informe o
   domínio `.myshopify.com` da loja; deixe marcado **Allow multi-store installs for one Plus
   organization** se as lojas forem de uma organização Plus; **Generate link** → é o **link de

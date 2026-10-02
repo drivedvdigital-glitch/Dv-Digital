@@ -251,6 +251,6 @@ describe('orders updated since', () => {
         throw new ShopifyError('Access denied for orders field.', { errors: [{ message: 'Access denied for orders field.' }] });
       },
     } as unknown as ShopifyClient;
-    await assert.rejects(ordersUpdatedSince(client, new Date()), /read_orders.*dados protegidos/s);
+    await assert.rejects(ordersUpdatedSince(client, new Date()), /read_orders.*Instalar app/s);
   });
 });
