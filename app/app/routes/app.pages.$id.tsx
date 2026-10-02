@@ -396,8 +396,9 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
       {
         title,
         handle,
-        // A regular page's body is never run as Liquid by Shopify: the
-        // fences have nothing to fence there.
+        // Shopify never runs Liquid in a Page body: the body is the
+        // Liquid-free copy, and a page WITH Liquid renders from its own
+        // template instead (`liquidPage` below).
         body: stripLiquidMarkers(fragment),
         // "Mostrar cabeçalho e rodapé" off binds the page to the D&VFly
         // chrome-less template; on returns it to the theme's default.
@@ -409,6 +410,7 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
         bindSoloTemplate: !showChrome,
         existingIds,
         clientFor: clientForStore,
+        liquidPage: { pageId, title, fragment, chrome: showChrome },
       },
     );
 
@@ -445,8 +447,8 @@ async function handleAction({ request, params }: ActionFunctionArgs) {
               .map((f) => `${f.store.label} — ${f.error}`)
               .join('; ')}`) +
         retiredNote +
-        (fragment.includes(LIQUID_OPEN)
-          ? ' Atenção: esta página tem Liquid em bloco HTML, e a Shopify não roda Liquid em página comum (limite da Shopify): ele aparece como texto. Em página de produto ele roda.'
+        (fragment.includes(LIQUID_OPEN) && result.succeeded.length > 0
+          ? ' O Liquid dos blocos HTML roda na loja (a página usa um modelo próprio do D&VFly no tema).'
           : ''),
       urls: result.succeeded.map((t) => `https://${t.store.domain}/pages/${t.page!.handle}`),
     };
@@ -3183,7 +3185,7 @@ function HtmlFields({
           </label>
           <div style={metaLine} data-liquid-nota>
             {liquidOn
-              ? 'O Liquid deste bloco ({% include %}, {{ }}) roda na loja publicada, como num arquivo do tema: snippets, dados da loja e variáveis que um snippet definiu. No editor ele aparece como está escrito. Roda em página de produto; em página comum a Shopify não roda Liquid.'
+              ? 'O Liquid deste bloco ({% include %}, {{ }}) roda na loja publicada, como num arquivo do tema: snippets, dados da loja e variáveis que um snippet definiu. No editor ele aparece como está escrito: o Liquid só roda na página publicada.'
               : 'Desligado: {{ }} e {% %} aparecem na página como texto.'}
           </div>
         </>

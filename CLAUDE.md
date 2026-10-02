@@ -108,7 +108,9 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
   `<!--dvf-liquid-->` e o `productSectionLiquid` deixa esse trecho FORA do raw
   (`{% include 'gtm-roteador' %}`, variáveis que o snippet definiu). A otimização roda com o
   Liquid trocado por marcadores inertes (`withLiquidProtected`). "Rodar o Liquid na loja"
-  desligado (`liquid: false`) = texto. Página comum: a Shopify nunca roda Liquid no corpo.
+  desligado (`liquid: false`) = texto. Página comum: a Shopify nunca roda Liquid no CORPO da
+  Page, então página comum com Liquid ganha modelo próprio (`page.dvfly-pg-<id>` + seção,
+  `ensurePageLiquidTemplate`); sem Liquid, volta ao modelo normal e os arquivos saem.
 - **Medir sempre COM o tema da loja por cima.** Documento nu mente: o tema tem
   `html{font-size:62.5%}` (1rem = 10px: o `rem` do HTML colado é convertido para px pelo
   compilador — a 16px por padrão, o visual que o Miguel aprovou, ou à raiz do tema

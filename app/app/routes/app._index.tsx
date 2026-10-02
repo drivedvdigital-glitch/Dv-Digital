@@ -12,7 +12,7 @@ import { db } from '../lib/db.server.ts';
 import { passHeaders } from '../lib/headers.ts';
 import { deploymentKind, switchPage } from '../lib/publish.server.ts';
 import { STORE_LABEL_MAX, storeLabelFrom } from '../lib/shared.ts';
-import { clientFor, removeProductTemplate, storeUnusableReason } from '../lib/shopify.server.ts';
+import { clientFor, removePageLiquidTemplate, removeProductTemplate, storeUnusableReason } from '../lib/shopify.server.ts';
 
 export const headers = passHeaders;
 import {
@@ -175,9 +175,10 @@ export async function action({ request }: ActionFunctionArgs) {
     // refuses does not keep the page alive here.
     const page = await db.page.findUnique({ where: { id }, include: { deployments: { include: { store: true } } } });
     for (const deployment of page?.deployments ?? []) {
-      if (deploymentKind(deployment.shopifyGid) !== 'product') continue;
       try {
-        await removeProductTemplate(clientFor(deployment.store), id);
+        // A regular page with Liquid left its own template and section too.
+        if (deploymentKind(deployment.shopifyGid) === 'product') await removeProductTemplate(clientFor(deployment.store), id);
+        else await removePageLiquidTemplate(clientFor(deployment.store), id);
       } catch {
         // Out of reach (uninstalled) or the theme refused: the page still goes.
       }

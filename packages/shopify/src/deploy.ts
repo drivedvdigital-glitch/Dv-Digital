@@ -18,7 +18,14 @@
 import { ShopifyClient, ShopifyError, type StoreCredentials } from './client.ts';
 import { upsertPage, type PageInput, type ShopifyPage } from './pages.ts';
 import { setProductTemplate } from './products.ts';
-import { ensureProductTemplate, ensureSoloTemplate } from './templates.ts';
+import { liquidRegions } from '../../compiler/src/liquid.ts';
+import {
+  ensurePageLiquidTemplate,
+  ensureProductTemplate,
+  ensureSoloTemplate,
+  removePageLiquidTemplate,
+  type PageLiquidInput,
+} from './templates.ts';
 
 export interface Store extends StoreCredentials {
   /** Human label for reports, e.g. "Colômbia". */
@@ -75,6 +82,13 @@ export interface DeployOptions {
    * per deploy.
    */
   clientFor?: (store: Store) => ShopifyClient;
+  /**
+   * The page as a theme section, for a page whose HTML carries Liquid: the
+   * Page is pointed at its own template, where the theme runs that Liquid
+   * (Shopify never runs Liquid in a Page body). Given without Liquid in the
+   * fragment, a template left by an earlier publish is taken out instead.
+   */
+  liquidPage?: PageLiquidInput;
 }
 
 export class ProductionNotAllowedError extends Error {
@@ -108,9 +122,17 @@ export async function deployPage(
     ...(publishDate ? { publishDate } : {}),
   };
 
+  const liquid = options.liquidPage && liquidRegions(options.liquidPage.fragment).some((r) => r.liquid) ? options.liquidPage : null;
   const targets = await forEachStore(stores, options, async (store, client) => {
-    if (options.bindSoloTemplate) await ensureSoloTemplate(client);
-    const { page: published, created } = await upsertPage(client, input, options.existingIds?.[store.domain]);
+    let storeInput = input;
+    if (liquid) {
+      storeInput = { ...input, templateSuffix: await ensurePageLiquidTemplate(client, liquid) };
+    } else if (options.bindSoloTemplate) {
+      await ensureSoloTemplate(client);
+    }
+    const { page: published, created } = await upsertPage(client, storeInput, options.existingIds?.[store.domain]);
+    // No Liquid any more: the page is off its template; the files go (I3).
+    if (!liquid && options.liquidPage) await removePageLiquidTemplate(client, options.liquidPage.pageId).catch(() => {});
     return { created, page: published };
   });
   return toResult(page.handle, targets);

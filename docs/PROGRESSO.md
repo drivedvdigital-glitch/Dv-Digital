@@ -2982,6 +2982,26 @@ texto), então a Shopify nunca via o Liquid.
 - **Não visto ainda** numa loja de verdade: falta publicar uma LP com o `gtm-roteador` e
   conferir o rodapé preenchido.
 
+### Liquid também em página comum (03/10, depois)
+
+"Ainda não está pegando as paradas do tema." A entrega anterior só valia para página de
+**produto**; em página comum (`/pages/…`) o D&VFly grava o HTML no corpo da Page, e a Shopify
+nunca roda Liquid ali — avisei na mensagem, mas a LP continuava sem o `gtm-roteador`. Sem
+acesso à loja para confirmar, a hipótese mais provável é que as LPs do Miguel sejam páginas
+comuns.
+
+- Página comum cujo HTML tem Liquid ganha o mesmo caminho do produto: modelo próprio
+  `templates/page.dvfly-pg-<id>.json` com uma só seção (`sections/dvfly-pg-<id>.liquid`), que
+  é a página, com o Liquid fora do `{% raw %}`. A Page aponta para esse modelo; com
+  "cabeçalho e rodapé do tema" o modelo usa o layout do tema, sem eles o layout mínimo.
+- O corpo da Page continua gravado (cópia sem marcadores), para busca e para tema que perdeu o
+  modelo. Publicar de novo sem Liquid volta a Page ao modelo normal e tira os dois arquivos;
+  excluir a página também tira.
+- Prova: pacote Shopify 93 (+3: modelo e seção gravados e a Page apontada; layout mínimo sem
+  cabeçalho; sem Liquid volta e limpa), ponta a ponta com liquidjs (snippet rodou, variáveis
+  no rodapé). **Não visto numa loja de verdade.** Se ainda assim não rodar, falta ver o
+  `gtm-roteador.liquid` (pode depender de algo que só existe no layout do tema).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
