@@ -10,6 +10,8 @@ rem
 rem  Um app que falhar nao impede os outros; no fim aparece o
 rem  resumo de cada um. A Shopify pode abrir o navegador para
 rem  login e perguntar "Release a new version?": responda sim.
+rem  Cada app mora numa organizacao da Shopify; se a conta logada
+rem  nao for dela, o script sai da conta e pede o login de novo.
 rem
 rem  Sem blocos entre parenteses de proposito (ver INICIAR-DVFLY):
 rem  um ")" num caminho ou num echo fecha o bloco antes da hora.
@@ -73,8 +75,25 @@ echo   App %2  -  %1
 echo  ============================================================
 if not exist "%1" goto deploy_sem_arquivo
 call npx --yes @shopify/cli@latest app deploy --config %1
-if errorlevel 1 goto deploy_falhou
+if errorlevel 1 goto deploy_trocar_conta
 set "%3=OK      %2"
+exit /b 0
+:deploy_trocar_conta
+rem Each app lives in its own Shopify organization, often under another
+rem login. The usual failure is "You are not a member of the requested
+rem organization": log out and try once more, so the browser asks which
+rem account to use.
+echo.
+echo  ------------------------------------------------------------
+echo   O app %2 nao abriu com a conta que esta logada agora.
+echo   Vou sair dessa conta e tentar de novo: o navegador vai abrir.
+echo   ENTRE COM A CONTA DA ORGANIZACAO DO APP %2.
+echo  ------------------------------------------------------------
+pause
+call npx --yes @shopify/cli@latest auth logout
+call npx --yes @shopify/cli@latest app deploy --config %1
+if errorlevel 1 goto deploy_falhou
+set "%3=OK      %2 - depois de trocar de conta"
 exit /b 0
 :deploy_falhou
 set "%3=FALHOU  %2 - o motivo esta na tela acima"
