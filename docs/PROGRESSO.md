@@ -3002,6 +3002,28 @@ comuns.
   no rodapé). **Não visto numa loja de verdade.** Se ainda assim não rodar, falta ver o
   `gtm-roteador.liquid` (pode depender de algo que só existe no layout do tema).
 
+### ATUALIZAR DVFly dizia "já está na versão mais nova" sem ter baixado nada (03/10)
+
+O Miguel clicou em ATUALIZAR na VM e leu "Já estava na versão mais nova, e o build é desta
+versão" com três commits novos no GitHub — e por isso o Liquid das LPs continuava cru. O
+`atualizar.ps1` rodava `git fetch` sem olhar o código de saída: no PowerShell 5.1 comando
+externo que falha não para o script, o `origin/<branch>` ficava velho, o reset voltava ao
+mesmo commit e a comparação "antes = depois" declarava tudo em dia. A causa exata da falha não
+apareceu (o fetch era `--quiet`); a mais provável no Windows é "dubious ownership" (pasta
+criada pelo instalador como administrador).
+
+- O fetch agora é conferido: falhou → mensagem vermelha com o que o git respondeu, nada é
+  tocado. A pasta da VM é liberada no `safe.directory` antes. A tela sempre mostra a versão
+  do GitHub (hash, mensagem, data). O reset é conferido contra `origin/<branch>`.
+- Armadilha do 5.1: com `$ErrorActionPreference = 'Stop'`, `2>&1` num comando externo aborta o
+  script assim que ele escreve no stderr — e o git fetch escreve progresso ali mesmo dando
+  certo. Essas linhas rodam em 'Continue' e quem julga é o `$LASTEXITCODE`.
+- **Ovo e galinha**: a VM roda o script que ela tem, o velho. Desta vez o fetch tem que ser
+  feito à mão uma vez (comandos passados ao Miguel); dali em diante o ATUALIZAR novo diz a
+  verdade.
+- Não testado em Windows (o sandbox não tem PowerShell): revisado linha a linha contra as
+  armadilhas já pagas do 5.1.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

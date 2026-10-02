@@ -22,11 +22,46 @@ if (-not (Test-Path (Join-Path $Raiz '.git'))) {
 Push-Location $Raiz
 
 Passo 'Baixando a versao nova'
-git fetch origin $Branch --quiet
+# Um comando do git que FALHA nao para um script do PowerShell 5.1: sem
+# conferir o codigo de saida, um `git fetch` recusado deixava o
+# `origin/<branch>` velho, o reset voltava para o mesmo commit, e a tela dizia
+# "ja estava na versao mais nova" com a versao nova parada no GitHub.
+#
+# Motivo mais comum no Windows: a pasta foi criada por outro usuario (o
+# instalador roda como administrador) e o git recusa com "dubious ownership".
+# Liberar esta pasta, e so ela, e o conserto que o proprio git sugere.
+#
+# Com 'Stop', o PowerShell 5.1 aborta o script quando um comando externo com
+# stderr redirecionado escreve QUALQUER coisa ali - e o git fetch escreve o
+# progresso no stderr mesmo dando certo. So nestas linhas, 'Continue'; quem
+# julga e o codigo de saida.
+$pastaGit = $Raiz -replace '\\', '/'
+$ErrorActionPreference = 'Continue'
+$liberadas = @(git config --global --get-all safe.directory 2>$null)
+if ($liberadas -notcontains $pastaGit) { git config --global --add safe.directory $pastaGit }
+$saida = git fetch origin $Branch 2>&1
+$codigoFetch = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($codigoFetch -ne 0) {
+    Write-Host ''
+    Write-Host '  NAO CONSEGUI BAIXAR A VERSAO NOVA do GitHub. O que esta no ar continua como estava.' -ForegroundColor Red
+    Write-Host '  O git respondeu:' -ForegroundColor Red
+    $saida | ForEach-Object { Write-Host "    $_" }
+    Write-Host ''
+    Write-Host '  Mande um print desta janela.'
+    Pop-Location
+    exit 1
+}
 $antes = (git rev-parse HEAD)
 git checkout $Branch --quiet
 git reset --hard "origin/$Branch" --quiet
 $depois = (git rev-parse HEAD)
+if ($depois -ne (git rev-parse "origin/$Branch")) {
+    Pop-Location
+    throw "O codigo nao ficou na versao do GitHub (origin/$Branch). Mande um print desta janela."
+}
+# Dito sempre, para ninguem ter de adivinhar qual versao esta rodando.
+Write-Host "   Versao do GitHub: $(git log -1 --format='%h  %s  (%cd)' --date=format:'%d/%m %H:%M' "origin/$Branch")"
 
 . (Join-Path $Raiz 'deploy\windows\comum.ps1')
 $porta = PortaDoRunner $Raiz '3000'

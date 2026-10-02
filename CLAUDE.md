@@ -160,6 +160,10 @@ Configuração: toda variável de ambiente é lida em `app/app/lib/config.server
      `127.0.0.1:443`; o Caddy procurava na 3000 e devolvia 502 para o mundo. Toda checagem
      local dizia que estava tudo certo — porque nenhuma passava pelo proxy. **Medir o caminho
      do visitante**: `curl --resolve dominio:443:127.0.0.1` bate no Caddy sem sair da máquina.
+  7. **Comando externo que falha NÃO para o script** (PowerShell 5.1): `git fetch` recusado e o
+     ATUALIZAR dizia "já está na versão mais nova". Todo comando externo que importa confere
+     `$LASTEXITCODE`. E com `$ErrorActionPreference='Stop'`, `2>&1` num comando externo aborta
+     ao primeiro byte no stderr (o git escreve progresso ali): essas linhas rodam em 'Continue'.
 - **npm 12 vai BLOQUEAR script de instalação** não aprovado (hoje só avisa): o campo
   `allowScripts` na raiz já aprova `prisma`, `@prisma/*` e `esbuild`. Dependência nova com
   postinstall entra ali, senão a VM para de compilar no dia em que o npm subir de versão.
