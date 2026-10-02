@@ -64,8 +64,9 @@ diz quem está na frente e que a diferença ainda cabe no acaso. Com poucos pedi
 O relatório lê pedidos, e isso pede duas coisas da Shopify, em **cada** app (o principal e os
 das outras lojas — `shopify.app.toml`, `shopify.app.colombia.toml`, `shopify.app.snevy.toml`):
 
-1. **O escopo `read_orders`** — já está nos três arquivos. Publicar:
-   `npx shopify app deploy --config <nome>` e **lançar** (Release) a versão no Dev Dashboard.
+1. **O escopo `read_orders`** — já está nos três arquivos. Publicar: duplo clique em
+   **`PUBLICAR-APPS-SHOPIFY.cmd`** (roda o `shopify app deploy` dos três apps em sequência e
+   mostra o resumo de cada um), e conferir no Dev Dashboard que a versão nova ficou ativa.
    Na próxima abertura do app, o admin da loja pede a aprovação da permissão nova.
 2. **Acesso a dados protegidos de clientes** — Dev Dashboard → o app → **API access** →
    **Protected customer data access** → preencher (nível 1 basta: o relatório não lê nome,

@@ -27,6 +27,7 @@ Construtor visual de páginas para Shopify (app privado, lojas próprias). O Pag
 | `npm run typecheck` | `tsc` do app |
 | `npm run build` / `npm start` | build de produção e servidor próprio `app/server.mjs` (`trust proxy`; `NODE_ENV=production`, credenciais no ambiente) |
 | `PUBLICAR-DVFLY.cmd` / `PUBLICAR-DVFLY-VM.cmd` | publica uma versão nova no servidor (Vercel / VM). O que está no ar só muda aqui |
+| `PUBLICAR-APPS-SHOPIFY.cmd` (Windows, duplo clique) | `shopify app deploy` dos 3 apps em sequência (escopos e webhooks na Shopify); resumo por app no fim |
 | `npm run gerar-chave` | gera a `DVFLY_TOKEN_KEY` (criptografa o acesso das lojas no banco) |
 | `npm run migrar-dados` | copia o banco local (SQLite) para o Postgres do servidor |
 | `npm run fix:duplicados` | remove `node_modules` órfão (React duplicado) |
