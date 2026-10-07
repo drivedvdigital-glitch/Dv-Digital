@@ -1,0 +1,713 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:wght@400;600&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:wght@400;600&display=optional"></noscript>
+
+<div id="pelador-lp" style="background:#FDF8F2;color:#0D1B3E">
+<style>
+:root{--cor-principal-lp:#1A4FBF}
+:root,html,body,#es-popup-container,.es-popup-wrapper{
+  --es-primary-color:var(--cor-principal-lp)!important;
+  --es-color:var(--cor-principal-lp)!important;
+  --primary-color:var(--cor-principal-lp)!important
+}
+button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
+#es-popup-container button[type="submit"],button.es-accept-offer,#es-popup-button{
+  background-color:var(--cor-principal-lp)!important;
+  background:var(--cor-principal-lp)!important;
+  border-color:var(--cor-principal-lp)!important;
+  color:#fff!important
+}
+.es-offer-modal button:nth-of-type(2),.es-discount-modal button:nth-of-type(2){
+  background-color:#f1f3f5!important;border:1px solid #ced4da!important;
+  color:#6c757d!important;opacity:.85!important
+}
+.es-button-title{color:#fff!important}
+
+#pelador-lp{
+  /* ╔══════ CONFIG · EDITE AQUI ══════╗ */
+  --fs:1;
+  --fs-ui:1;
+  /* ╚═════════════════════════════════╝ */
+  --bg:#FDF8F2;--card:#FFFFFF;--ink:#0D1B3E;--ink-2:#3D4F70;--muted:#8A96A8;
+  --brand:#1A4FBF;--brand-dk:#0E3490;--accent:#F59E0B;--accent-dk:#D97706;--line:#DDE4F0;--star:#F59E0B;
+  --green:#16A34A;
+  --display:"Barlow Condensed","Roboto Condensed","sans-serif-condensed","Avenir Next Condensed","Bahnschrift Condensed","Arial Narrow",system-ui,-apple-system,sans-serif;
+  --sans:"DM Sans",system-ui,-apple-system,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--r:12px;--r-lg:20px;--r-xl:28px;
+  font-family:var(--sans);color:var(--ink);
+  background-color:#FDF8F2!important;
+}
+#pelador-lp *{box-sizing:border-box}
+#pelador-lp img{display:block!important;max-width:100%!important;height:auto;margin:0!important;border:0!important}
+#pelador-lp h1,#pelador-lp h2,#pelador-lp h3{font-family:var(--display)!important;margin:0!important;line-height:1.04!important;color:var(--ink)!important;text-transform:uppercase;letter-spacing:-.5px}
+#pelador-lp p{margin:0;text-align:left!important;color:var(--ink-2)}
+#pelador-lp .wrap{max-width:1080px;margin:0 auto;padding:0 18px}
+#pelador-lp .sec{padding:clamp(44px,6.5vw,88px) 0;background-color:var(--bg)!important;color:var(--ink)!important}
+#pelador-lp .sec-alt{background-color:#EBF0FA!important}
+#pelador-lp .sec-dark{background-color:var(--brand)!important;color:#fff!important}
+#pelador-lp .sec-dark h2,#pelador-lp .sec-dark h3,#pelador-lp .sec-dark p{color:#fff!important}
+
+#pelador-lp .h1{font-size:calc(clamp(3.2rem,8.5vw,4.8rem)*var(--fs))!important;line-height:1.01!important}
+#pelador-lp .h2{font-size:calc(clamp(2.8rem,6.5vw,4.4rem)*var(--fs))!important}
+#pelador-lp .h3{font-size:calc(clamp(1.9rem,3.8vw,2.6rem)*var(--fs))!important}
+#pelador-lp .body-p{font-size:calc(1.5rem*var(--fs));line-height:1.6}
+#pelador-lp .head{margin:0 auto 36px!important;width:100%;text-align:center!important}
+#pelador-lp .head p{text-align:center!important;color:var(--ink-2);margin-top:12px!important;font-size:calc(1.45rem*var(--fs));line-height:1.55}
+#pelador-lp .eyebrow{display:inline-flex;align-items:center;gap:7px;font-family:var(--display);font-weight:700;font-size:calc(1.12rem*var(--fs));letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+
+#pelador-lp .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--display)!important;font-weight:800;color:#fff!important;background:linear-gradient(160deg,var(--accent),var(--accent-dk));border:0;border-radius:var(--r);cursor:pointer;min-height:58px;padding:16px 28px;font-size:calc(1.45rem*var(--fs));width:100%;text-decoration:none;letter-spacing:.5px;text-transform:uppercase;transition:filter .2s;box-shadow:0 4px 18px rgba(245,158,11,.35)}
+#pelador-lp .btn:hover{filter:brightness(1.08)}
+
+#pelador-lp[id]{background:#FDF8F2!important;color:#0D1B3E!important}
+#pelador-lp[id] h1,#pelador-lp[id] h2,#pelador-lp[id] h3{color:#0D1B3E!important}
+#pelador-lp[id] .sec-dark h2,#pelador-lp[id] .sec-dark h3{color:#fff!important}
+
+#pelador-lp .hero{padding:10px 0 clamp(40px,5vw,60px);background-color:var(--brand)!important;overflow:hidden}
+#pelador-lp .hero-content{display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;max-width:760px;margin:0 auto;padding:0 18px}
+#pelador-lp .hero-rating{display:inline-flex;align-items:center;gap:9px;background:rgba(255,255,255,.15);border-radius:30px;padding:7px 16px;align-self:center}
+#pelador-lp .hero-rating .st{color:var(--star);font-size:calc(1.25rem*var(--fs));letter-spacing:2px}
+#pelador-lp .hero-rating .rn{font-family:var(--display);font-weight:800;font-size:calc(1.2rem*var(--fs));color:#fff}
+#pelador-lp .hero-rating .rc{font-size:calc(1rem*var(--fs));color:rgba(255,255,255,.8)}
+#pelador-lp .hero h1{color:#fff!important;text-align:center!important}
+#pelador-lp .hero .hl{color:var(--accent)}
+#pelador-lp .hero .subhead{font-size:calc(clamp(1.5rem,3vw,1.8rem)*var(--fs));color:rgba(255,255,255,.88)!important;line-height:1.55;max-width:52ch;text-align:center!important}
+#pelador-lp .hero-price{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+#pelador-lp .hero-price .now{font-family:var(--display);font-weight:800;font-size:calc(clamp(3rem,7vw,4.2rem)*var(--fs-ui));color:#fff;line-height:1}
+#pelador-lp .hero-price .was{color:rgba(255,255,255,.6);text-decoration:line-through;font-size:calc(1.5rem*var(--fs-ui))}
+#pelador-lp .hero-price .off{background:var(--accent);color:#fff;font-family:var(--display);font-weight:800;font-size:calc(1.05rem*var(--fs-ui));padding:7px 14px;border-radius:8px;letter-spacing:.5px}
+#pelador-lp .hero .btn{max-width:480px;align-self:center}
+#pelador-lp .hero-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px}
+#pelador-lp .hero-trust span{display:flex;align-items:center;gap:6px;font-size:calc(1.08rem*var(--fs));color:rgba(255,255,255,.85);font-weight:600}
+
+#pelador-lp .hero-photo{width:min(100%,480px);aspect-ratio:1/1;border-radius:var(--r-xl);overflow:hidden;background:#DDE4F0;box-shadow:0 12px 40px rgba(0,0,0,.28);margin:4px auto}
+#pelador-lp .hero-photo img{width:100%!important;height:100%!important;object-fit:cover}
+
+/* HERO COMPACTO — tamanhos em px (independem do rem do tema) para caber tudo na 1a dobra */
+#pelador-lp .hero{padding:10px 0 22px}
+#pelador-lp .hero-content{gap:10px}
+#pelador-lp .hero-rating{padding:4px 12px;gap:8px}
+#pelador-lp .hero-rating .st{font-size:14px;letter-spacing:1px}
+#pelador-lp .hero-rating .rn{font-size:15px}
+#pelador-lp .hero-rating .rc{font-size:12px}
+#pelador-lp .hero h1.h1{font-size:clamp(30px,8.5vw,48px)!important;line-height:1.01!important}
+#pelador-lp .hero-photo{width:min(100%,480px,40vh);width:min(100%,480px,40svh);margin:0 auto}
+#pelador-lp .hero .subhead{font-size:clamp(13px,3.6vw,16px);line-height:1.4}
+#pelador-lp .hero-price{gap:10px}
+#pelador-lp .hero-price .now{font-size:clamp(30px,8vw,40px)}
+#pelador-lp .hero-price .was{font-size:15px}
+#pelador-lp .hero-price .off{font-size:12px;padding:4px 10px}
+#pelador-lp .hero .btn{min-height:50px;padding:11px 22px;font-size:17px}
+#pelador-lp .hero-trust{gap:4px 14px}
+#pelador-lp .hero-trust span{font-size:12px}
+
+#pelador-lp .marquee-sec{background-color:#0E3490!important;padding:14px 0;overflow:hidden}
+#pelador-lp .marquee-track{display:flex;white-space:nowrap;animation:pelador-scroll 24s linear infinite}
+#pelador-lp .marquee-item{display:inline-flex;align-items:center;gap:10px;padding:0 28px;font-family:var(--display);font-weight:700;font-size:calc(1.18rem*var(--fs));color:#fff;text-transform:uppercase;letter-spacing:1px;flex-shrink:0}
+#pelador-lp .marquee-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;display:inline-block}
+@keyframes pelador-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){#pelador-lp .marquee-track{animation:none}}
+
+#pelador-lp .dolor-grid{display:grid;grid-template-columns:1fr;gap:32px;align-items:center}
+@media(min-width:720px){#pelador-lp .dolor-grid{grid-template-columns:1fr 1fr;gap:48px}}
+#pelador-lp .dolor-img{aspect-ratio:4/3;border-radius:var(--r-xl);overflow:hidden;background:#DDE4F0;box-shadow:0 8px 32px rgba(26,79,191,.12)}
+#pelador-lp .dolor-img img{width:100%!important;height:100%!important;object-fit:cover}
+#pelador-lp .dolor-list{list-style:none;padding:0;margin:20px 0 0;display:flex;flex-direction:column;gap:14px}
+#pelador-lp .dolor-list li{display:flex;align-items:flex-start;gap:12px;font-size:calc(1.35rem*var(--fs));color:var(--ink-2);line-height:1.5}
+#pelador-lp .dolor-list .icon{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:#FDECEA;display:flex;align-items:center;justify-content:center;margin-top:2px}
+
+#pelador-lp .calc-sec{background-color:#EBF0FA!important}
+#pelador-lp .calc-box{background:#fff;border-radius:var(--r-xl);padding:clamp(28px,5vw,52px);box-shadow:0 4px 24px rgba(26,79,191,.1);max-width:700px;margin:0 auto}
+#pelador-lp .calc-label{font-family:var(--display);font-weight:700;font-size:calc(1.5rem*var(--fs));color:var(--ink);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:block;text-align:center!important}
+#pelador-lp .calc-slider{-webkit-appearance:none;appearance:none;width:100%;height:8px;border-radius:4px;background:var(--line);outline:none;margin:8px 0 20px;cursor:pointer}
+#pelador-lp .calc-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:var(--brand);cursor:pointer;box-shadow:0 2px 8px rgba(26,79,191,.4)}
+#pelador-lp .calc-slider::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--brand);cursor:pointer;border:0}
+#pelador-lp .calc-results{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+#pelador-lp .calc-card{background:var(--bg);border-radius:var(--r);padding:20px 16px;text-align:center;border:2px solid var(--line)}
+#pelador-lp .calc-card.good{border-color:var(--brand);background:#EBF0FA}
+#pelador-lp .calc-num{font-family:var(--display);font-weight:800;font-size:calc(2.8rem*var(--fs));line-height:1;color:var(--brand)}
+#pelador-lp .calc-card.bad .calc-num{color:#E03131}
+#pelador-lp .calc-unit{font-size:calc(1.08rem*var(--fs));color:var(--ink-2);font-weight:600;margin-top:4px;display:block}
+#pelador-lp .calc-desc{font-size:calc(1.18rem*var(--fs));color:var(--ink-2);margin-top:16px;text-align:center!important}
+
+#pelador-lp .steps-grid{display:grid;grid-template-columns:1fr;gap:0;max-width:760px;margin:0 auto;position:relative}
+@media(min-width:600px){#pelador-lp .steps-grid{grid-template-columns:repeat(3,1fr);gap:24px}}
+#pelador-lp .step{display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 20px;position:relative}
+#pelador-lp .step:not(:last-child)::after{content:"";position:absolute;background:var(--line)}
+@media(max-width:599px){#pelador-lp .step:not(:last-child)::after{width:2px;height:40px;left:50%;bottom:-20px;transform:translateX(-50%)}}
+@media(min-width:600px){#pelador-lp .step:not(:last-child)::after{width:calc(100% - 80px);height:2px;top:44px;left:calc(50% + 40px)}}
+#pelador-lp .step-num{width:56px;height:56px;border-radius:50%;background:var(--brand);color:#fff;font-family:var(--display);font-weight:800;font-size:calc(1.7rem*var(--fs));display:flex;align-items:center;justify-content:center;margin:0 auto 16px;flex-shrink:0;position:relative;z-index:1}
+#pelador-lp .step h3{margin-bottom:8px!important;text-align:center!important}
+#pelador-lp .step p{text-align:center!important;font-size:calc(1.3rem*var(--fs));line-height:1.5;max-width:24ch;margin:0 auto!important}
+
+#pelador-lp .feats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+@media(min-width:720px){#pelador-lp .feats-grid{grid-template-columns:repeat(3,1fr)}}
+#pelador-lp .feat{background:var(--card);border-radius:var(--r-lg);padding:24px 20px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+#pelador-lp .feat .fi{width:44px;height:44px;background:#EBF0FA;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#pelador-lp .feat .ft{font-family:var(--display);font-weight:700;font-size:calc(1.3rem*var(--fs));color:var(--ink);text-transform:uppercase;line-height:1.2}
+#pelador-lp .feat .fd{font-size:calc(1.18rem*var(--fs));color:var(--ink-2);line-height:1.5}
+
+#pelador-lp .gal-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(min-width:720px){#pelador-lp .gal-grid{grid-template-columns:repeat(4,1fr);gap:18px}}
+#pelador-lp .gal-item{border-radius:var(--r-lg);overflow:hidden;background:#DDE4F0;box-shadow:0 6px 24px rgba(26,79,191,.12)}
+#pelador-lp .gal-item img{width:100%!important;height:auto}
+
+#pelador-lp .statement{text-align:center;padding:clamp(56px,8vw,100px) 0}
+#pelador-lp .statement h2{color:#fff!important;max-width:20ch;margin:0 auto!important;text-align:center!important}
+#pelador-lp .statement .hl{color:var(--accent)}
+#pelador-lp .statement p{text-align:center!important;color:rgba(255,255,255,.8)!important;max-width:52ch;margin:16px auto 0!important;font-size:calc(1.4rem*var(--fs));line-height:1.6}
+
+#pelador-lp .offer-sec{background-color:#EBF0FA!important}
+#pelador-lp .offer-card{background:var(--card);border-radius:var(--r-xl);overflow:hidden;box-shadow:0 8px 40px rgba(26,79,191,.15);max-width:880px;margin:0 auto;display:grid;grid-template-columns:1fr}
+@media(min-width:720px){#pelador-lp .offer-card{grid-template-columns:1fr 1fr}}
+#pelador-lp .offer-photo{aspect-ratio:16/10;background:#DDE4F0;overflow:hidden}
+#pelador-lp .offer-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#pelador-lp .offer-body{padding:clamp(24px,4vw,44px)}
+#pelador-lp .offer-compare{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+#pelador-lp .oc{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;font-size:calc(1.18rem*var(--fs-ui))}
+#pelador-lp .oc.bad{background:#FDECEA;color:#C92A2A}
+#pelador-lp .oc.bad .v{font-family:var(--display);font-weight:800;font-size:calc(1.5rem*var(--fs-ui));text-decoration:line-through;color:#C92A2A}
+#pelador-lp .oc.good{background:#EBF0FA;color:var(--brand)}
+#pelador-lp .oc.good .v{font-family:var(--display);font-weight:800;font-size:calc(1.7rem*var(--fs-ui));color:var(--brand)}
+#pelador-lp .offer-save{background:var(--accent);color:#fff;text-align:center;padding:10px 16px;border-radius:10px;font-family:var(--display);font-weight:800;font-size:calc(1.2rem*var(--fs-ui));margin:12px 0;letter-spacing:.5px}
+#pelador-lp .offer-seals{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+#pelador-lp .seal{display:flex;align-items:center;gap:6px;font-size:calc(1.05rem*var(--fs));color:var(--ink-2);font-weight:600}
+#pelador-lp .seal svg{flex-shrink:0;color:var(--green)}
+#pelador-lp .stock-line{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:calc(1.1rem*var(--fs));color:#C92A2A;font-weight:700}
+#pelador-lp .dot-pulse{width:10px;height:10px;border-radius:50%;background:#C92A2A;flex-shrink:0;animation:pelador-pulse 1.4s ease-in-out infinite}
+@keyframes pelador-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+@media(prefers-reduced-motion:reduce){#pelador-lp .dot-pulse{animation:none}}
+
+#pelador-lp .testi-grid{display:grid;grid-template-columns:1fr;gap:20px}
+@media(min-width:600px){#pelador-lp .testi-grid{grid-template-columns:repeat(3,1fr)}}
+#pelador-lp .tcard{background:var(--card);border-radius:var(--r-lg);padding:24px 20px;border:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+#pelador-lp .tcard .st{color:var(--star);font-size:calc(1.25rem*var(--fs));letter-spacing:2px}
+#pelador-lp .tcard .tq{font-size:calc(1.28rem*var(--fs));color:var(--ink);line-height:1.55;flex:1}
+#pelador-lp .tcard .tuser{display:flex;align-items:center;gap:12px}
+#pelador-lp .tcard .tuser .av{width:48px!important;height:48px!important;border-radius:50%;object-fit:cover;object-position:center 22%!important;border:2px solid var(--line);flex-shrink:0}
+#pelador-lp .tcard .tuser .tn{font-family:var(--display);font-weight:700;font-size:calc(1.18rem*var(--fs));color:var(--ink)}
+#pelador-lp .tcard .tuser .tc{font-size:calc(1.02rem*var(--fs));color:var(--muted)}
+
+#pelador-lp .guar{text-align:center;padding:clamp(48px,7vw,88px) 0}
+#pelador-lp .guar-icon{width:80px;height:80px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+#pelador-lp .guar h2{color:#fff!important;text-align:center!important;margin:0 auto 12px!important}
+#pelador-lp .guar p{text-align:center!important;color:rgba(255,255,255,.85)!important;max-width:52ch;margin:0 auto!important;font-size:calc(1.38rem*var(--fs));line-height:1.6}
+
+#pelador-lp .faq-list{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+#pelador-lp details.faq-item{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+#pelador-lp details.faq-item summary{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;cursor:pointer;list-style:none;font-family:var(--display);font-weight:700;font-size:calc(1.32rem*var(--fs));color:var(--ink);gap:12px}
+#pelador-lp details.faq-item summary::-webkit-details-marker{display:none}
+#pelador-lp details.faq-item summary .faq-icon{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;transition:transform .25s var(--ease)}
+#pelador-lp details.faq-item[open] summary .faq-icon{transform:rotate(45deg)}
+#pelador-lp details.faq-item .faq-body{padding:0 20px 18px;font-size:calc(1.28rem*var(--fs));color:var(--ink-2);line-height:1.6}
+
+#pelador-lp.js .reveal{opacity:0;transform:translateY(16px);transition:opacity .55s var(--ease),transform .55s var(--ease)}
+#pelador-lp.js .reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  #pelador-lp *{animation:none!important;transition:none!important}
+  #pelador-lp.js .reveal{opacity:1!important;transform:none!important}
+}
+
+#pelador-lp .sticky{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;background:rgba(255,255,255,.97);border-top:2px solid var(--accent);transform:translateY(110%);transition:transform .3s var(--ease);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+#pelador-lp .sticky.show{transform:translateY(0)}
+#pelador-lp .sticky .in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:14px;justify-content:space-between;flex-wrap:wrap}
+#pelador-lp .sticky .pr{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+#pelador-lp .sticky .n{font-family:var(--display);font-weight:800;font-size:calc(1.7rem*var(--fs-ui));color:var(--brand)}
+#pelador-lp .sticky .w{color:var(--muted);text-decoration:line-through;font-size:calc(.95rem*var(--fs-ui))}
+#pelador-lp .sticky .btn{width:auto;min-height:50px;padding:13px 24px;font-size:calc(1.15rem*var(--fs-ui))}
+</style>
+
+<section class="hero" id="pelador-hero">
+  <div class="hero-content">
+    <div class="hero-rating">
+      <span class="st">★★★★★</span>
+      <span class="rn js-rating">4.9</span>
+      <span class="rc js-rating-count">+2.100 clientes</span>
+    </div>
+    <h1 class="h1">Pela en <span class="hl">segundos</span>,<br>sin cortes ni esfuerzo.</h1>
+    <div class="hero-photo">
+      <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/1_HERO_1932acb1-8af7-4b1d-a1bf-9a53c8d84bc1.jpg?v=1790967660" alt="Pelador automático recargable azul con frutas y verduras" width="800" height="800" fetchpriority="high">
+    </div>
+    <p class="subhead">Pelador automático recargable con cuchillas de acero inoxidable. Aprieta un botón — manzanas, papas y mangos listos en instantes.</p>
+    <div class="hero-price">
+      <span class="now js-price-now">$119.900</span>
+      <span class="was js-price-was">$239.900</span>
+      <span class="off js-off">50% OFF</span>
+    </div>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      Pedir ahora — $119.900
+    </a>
+    <div class="hero-trust">
+      <span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Pago contra entrega
+      </span>
+      <span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Envío gratis
+      </span>
+      <span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+        Entrega en 24–48h
+      </span>
+    </div>
+  </div>
+</section>
+
+<div class="marquee-sec" aria-hidden="true">
+  <div class="marquee-track">
+    <span class="marquee-item"><span class="marquee-dot"></span>Pelado automático en segundos</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Cuchillas de acero inoxidable</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Recargable por USB</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>100% inalámbrico</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Sin cortes · Sin esfuerzo</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Pago contra entrega</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Pelado automático en segundos</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Cuchillas de acero inoxidable</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Recargable por USB</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>100% inalámbrico</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Sin cortes · Sin esfuerzo</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>Pago contra entrega</span>
+  </div>
+</div>
+
+<section class="sec reveal" id="pelador-dolor">
+  <div class="wrap">
+    <div class="dolor-grid">
+      <div>
+        <div class="dolor-img">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/2_DOLOR_b912baba-c1e6-402b-9689-6b2e5634e749.jpg?v=1790967660" alt="Cocina desordenada con cáscaras regadas" width="800" height="600" loading="lazy">
+        </div>
+      </div>
+      <div>
+        <span class="eyebrow">¿Te identificas?</span>
+        <h2 class="h2">Pelar a mano es lento, sucio y peligroso.</h2>
+        <ul class="dolor-list">
+          <li>
+            <span class="icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E03131" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+            Dedos cansados después de pelar apenas 3 papas
+          </li>
+          <li>
+            <span class="icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E03131" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+            Cáscaras por toda la mesada y el piso
+          </li>
+          <li>
+            <span class="icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E03131" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+            Riesgo de cortes con cuchillos y peladores manuales
+          </li>
+          <li>
+            <span class="icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E03131" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </span>
+            Desperdicio de fruta por pelado desigual
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec calc-sec reveal" id="pelador-calc">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Calculadora de tiempo</span>
+      <h2 class="h2">¿Cuánto tiempo pierdes pelando a mano?</h2>
+      <p>Mueve el deslizador y descubre cuánto tiempo recuperas cada semana.</p>
+    </div>
+    <div class="calc-box">
+      <label class="calc-label" for="pelador-slider">Frutas y verduras por semana: <strong id="pelador-qty">15</strong> unidades</label>
+      <input class="calc-slider" type="range" id="pelador-slider" min="5" max="60" value="15" aria-label="Cantidad de frutas y verduras por semana">
+      <p class="calc-desc" id="pelador-calc-desc">Con el pelador automático ahorras <strong id="pelador-save-min">54</strong> minutos cada semana.</p>
+      <div class="calc-results">
+        <div class="calc-card bad">
+          <div class="calc-num" id="calc-manual">135</div>
+          <span class="calc-unit">min/semana<br>pelando a mano</span>
+        </div>
+        <div class="calc-card good">
+          <div class="calc-num" id="calc-auto">81</div>
+          <span class="calc-unit">min/semana<br>con el pelador automático</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec reveal" id="pelador-steps">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Súper simple</span>
+      <h2 class="h2">Tres pasos y ya tienes todo listo</h2>
+    </div>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3 class="h3">Coloca la fruta</h3>
+        <p>Inserta la manzana, papa o mango en el soporte giratorio del pelador.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3 class="h3">Presiona el botón</h3>
+        <p>Un solo botón activa el motor. Las cuchillas giran de forma segura alrededor del alimento.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3 class="h3">¡Listo en segundos!</h3>
+        <p>Cáscara retirada uniformemente, sin desperdiciar pulpa ni ensuciarte las manos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt reveal" id="pelador-feats">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Lo que lo hace diferente</span>
+      <h2 class="h2">Diseñado para tu cocina real</h2>
+    </div>
+    <div class="feats-grid">
+      <div class="feat">
+        <div class="fi">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A4FBF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <div class="ft">Motor potente</div>
+        <div class="fd">Pela cualquier fruta o verdura de corteza firme en segundos, sin atascarse.</div>
+      </div>
+      <div class="feat">
+        <div class="fi">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A4FBF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="ft">Cuchillas de acero</div>
+        <div class="fd">Acero inoxidable de alta dureza para pelado uniforme y sin óxido.</div>
+      </div>
+      <div class="feat">
+        <div class="fi">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A4FBF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        </div>
+        <div class="ft">Recargable USB</div>
+        <div class="fd">Batería de larga duración. Sin cables en la cocina, sin depender de enchufes.</div>
+      </div>
+      <div class="feat">
+        <div class="fi">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A4FBF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="ft">Diseño seguro</div>
+        <div class="fd">Cuchillas encapsuladas: sin riesgo de cortes accidentales al operar.</div>
+      </div>
+      <div class="feat">
+        <div class="fi">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A4FBF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="ft">Pelado uniforme</div>
+        <div class="fd">Remoción constante sin desperdiciar pulpa aprovechable.</div>
+      </div>
+      <div class="feat">
+        <div class="fi">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A4FBF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
+        <div class="ft">Fácil de limpiar</div>
+        <div class="fd">Piezas desmontables que se limpian bajo el chorro de agua en segundos.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec reveal" id="pelador-galeria">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Míralo de cerca</span>
+      <h2 class="h2">Así es el pelador automático</h2>
+    </div>
+    <div class="gal-grid">
+      <div class="gal-item">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/3.1_ASSINATURA_3ef15613-52d8-4d7e-b35a-18264f157bd8.jpg?v=1790967660" alt="Pelador automático recargable — vista 1" loading="lazy">
+      </div>
+      <div class="gal-item">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/3.2_ASSINATURA_e370f40e-40eb-44e8-8eef-ab0852fe12b6.jpg?v=1790967660" alt="Pelador automático recargable — vista 2" loading="lazy">
+      </div>
+      <div class="gal-item">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/3.3_ASSINATURA_9cd4fc00-cee3-4493-87e4-83d003436c3b.jpg?v=1790967660" alt="Pelador automático recargable — vista 3" loading="lazy">
+      </div>
+      <div class="gal-item">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/3.4_ASSINATURA_efccec6d-2efb-429f-918c-5edb682ae9cd.jpg?v=1790967660" alt="Pelador automático recargable — vista 4" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-dark statement reveal" id="pelador-statement">
+  <div class="wrap">
+    <h2 class="h2">La cocina que siempre quisiste, <span class="hl">sin el trabajo que odias.</span></h2>
+    <p>Un pelador automático no es un lujo. Es el tiempo que le devuelves a tu familia cada día.</p>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite" style="max-width:380px;margin:28px auto 0;display:flex">Quiero el mío ahora</a>
+  </div>
+</section>
+
+<section class="sec offer-sec reveal" id="pelador-oferta">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Oferta especial hoy</span>
+      <h2 class="h2">Aprovecha el 50% OFF</h2>
+    </div>
+    <div class="offer-card">
+      <div class="offer-photo">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/5_OFERTA_77aa936a-14f7-46cc-b349-3c991b8c977a.jpg?v=1790967660" alt="Pelador automático con accesorios incluidos" width="800" height="500" loading="lazy">
+      </div>
+      <div class="offer-body">
+        <span class="eyebrow">Hoy solamente</span>
+        <h3 class="h3">Pelador Automático Recargable</h3>
+        <div class="offer-compare">
+          <div class="oc bad"><span>Precio normal</span><span class="v js-price-was">$239.900</span></div>
+          <div class="oc good"><span>Tu precio hoy</span><span class="v js-price-now">$119.900</span></div>
+        </div>
+        <div class="offer-save js-save">Ahorras $120.000 hoy — 50% OFF</div>
+        <div class="offer-seals">
+          <div class="seal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Pago contra entrega
+          </div>
+          <div class="seal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Envío gratis a todo Colombia
+          </div>
+          <div class="seal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Entrega en 24–48h capitales
+          </div>
+          <div class="seal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Garantía de satisfacción
+          </div>
+        </div>
+        <a href="javascript:void(0)" class="btn es-popup-button-overwrite" style="margin-top:8px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          Confirmar pedido — $119.900
+        </a>
+        <div class="stock-line">
+          <span class="dot-pulse"></span>
+          Stock limitado — alta demanda esta semana
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt reveal" id="pelador-testi">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Lo que dicen nuestros clientes</span>
+      <h2 class="h2">+2.100 cocinas transformadas</h2>
+    </div>
+    <div class="testi-grid">
+      <div class="tcard">
+        <div class="st">★★★★★</div>
+        <p class="tq">"Lo pedí un lunes y llegó el miércoles. Pagué al mensajero sin problema. Pela las papas en 10 segundos, mis hijos quedaron fascinados."</p>
+        <div class="tuser">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/Valeria_M..png?v=1790967990" alt="Avatar María C." width="96" height="96" loading="lazy" class="av">
+          <div>
+            <div class="tn">María C.</div>
+            <div class="tc">Bogotá · Compra verificada</div>
+          </div>
+        </div>
+      </div>
+      <div class="tcard">
+        <div class="st">★★★★★</div>
+        <p class="tq">"Tengo artritis y pelar con cuchillo ya era un problema. Este pelador me cambió la cocina. Liviano, fácil de usar y no se resbala."</p>
+        <div class="tuser">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/Karla_F..png?v=1790967990" alt="Avatar Gloria R." width="96" height="96" loading="lazy" class="av">
+          <div>
+            <div class="tn">Gloria R.</div>
+            <div class="tc">Medellín · Compra verificada</div>
+          </div>
+        </div>
+      </div>
+      <div class="tcard">
+        <div class="st">★★★★★</div>
+        <p class="tq">"Excelente producto. Lo compré de regalo y terminé pidiendo uno para mí también. La entrega fue rapidísima y el empaque llegó en perfecto estado."</p>
+        <div class="tuser">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/Captura_de_tela_2026-09-09_093853.png?v=1790967990" alt="Avatar Juliana P." width="96" height="96" loading="lazy" class="av">
+          <div>
+            <div class="tn">Juliana P.</div>
+            <div class="tc">Cali · Compra verificada</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-dark guar reveal" id="pelador-garantia">
+  <div class="wrap">
+    <div class="guar-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+    </div>
+    <h2 class="h2">Tu pedido llega o te devolvemos el dinero.</h2>
+    <p>Pagas solo cuando el producto llega a tu puerta. Sin tarjeta, sin riesgos, sin complicaciones. Si el pelador no cumple tus expectativas, contáctanos y lo resolvemos sin preguntas.</p>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite" style="max-width:380px;margin:28px auto 0;display:flex">Pedir con total confianza</a>
+  </div>
+</section>
+
+<section class="sec reveal" id="pelador-faq">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Preguntas frecuentes</span>
+      <h2 class="h2">Todo lo que necesitas saber</h2>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>¿Cómo funciona el pago contra entrega?
+          <span class="faq-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </summary>
+        <div class="faq-body">Haces tu pedido aquí, un mensajero te lo lleva a domicilio y pagas en efectivo al recibirlo. No necesitas tarjeta de crédito ni cuentas bancarias. 100% seguro.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Cuánto demora la entrega?
+          <span class="faq-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </summary>
+        <div class="faq-body">En ciudades capitales (Bogotá, Medellín, Cali, Barranquilla) la entrega toma 24 a 48 horas hábiles. En municipios y zonas más alejadas puede tomar entre 3 y 5 días hábiles.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Qué frutas y verduras puede pelar?
+          <span class="faq-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </summary>
+        <div class="faq-body">Funciona muy bien con manzanas, peras, papas, zanahorias, mangos, pepinos y otros alimentos de corteza firme y forma redondeada. No está diseñado para frutas muy pequeñas como uvas o alimentos de forma muy irregular.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Cuánta batería dura y cómo se recarga?
+          <span class="faq-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </summary>
+        <div class="faq-body">La batería permite pelar entre 30 y 50 frutas con una sola carga. Se recarga por cable USB estándar (incluido) en aproximadamente 2 horas, desde cualquier cargador de celular o computador.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Es fácil de limpiar?
+          <span class="faq-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </summary>
+        <div class="faq-body">Sí. Las piezas en contacto con el alimento se desmontan y limpian bajo el agua directamente. El cuerpo principal se limpia con un paño húmedo.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Qué pasa si tengo algún problema con el producto?
+          <span class="faq-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+        </summary>
+        <div class="faq-body">Si tu pelador llega en mal estado o no funciona correctamente, contáctanos y buscamos la mejor solución. Trabajamos con transportadoras confiables (Forza / Cargo Expreso) para garantizar la entrega en buen estado.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<div class="sticky" id="pelador-sticky">
+  <div class="in">
+    <div class="pr">
+      <span class="n js-price-now">$119.900</span>
+      <span class="w js-price-was">$239.900</span>
+    </div>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir ahora</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  var root=document.getElementById('pelador-lp');
+  if(!root) return;
+  root.className+=' js';
+
+  var LP_CONFIG={
+    priceNow:"$119.900",
+    priceWas:"$239.900",
+    off:"50% OFF",
+    save:"Ahorras $120.000 hoy — 50% OFF",
+    rating:"4.9",
+    ratingCount:"+2.100 clientes"
+  };
+
+  function lpApply(){
+    var m={
+      'js-price-now':LP_CONFIG.priceNow,
+      'js-price-was':LP_CONFIG.priceWas,
+      'js-off':LP_CONFIG.off,
+      'js-save':LP_CONFIG.save,
+      'js-rating':LP_CONFIG.rating,
+      'js-rating-count':LP_CONFIG.ratingCount
+    };
+    Object.keys(m).forEach(function(k){
+      root.querySelectorAll('.'+k).forEach(function(el){
+        if(m[k]===''){el.style.display='none';}
+        else{el.textContent=m[k];}
+      });
+    });
+  }
+  lpApply();
+
+  var s=document.getElementById('pelador-sticky');
+  var heroBtn=root.querySelector('#pelador-hero .btn');
+  function onScroll(){
+    var past=heroBtn?heroBtn.getBoundingClientRect().bottom<0:window.scrollY>520;
+    if(past){s.classList.add('show');}
+    else{s.classList.remove('show');}
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  onScroll();
+
+  var els=root.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window && els.length>0){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+      });
+    },{threshold:.07});
+    els.forEach(function(el){io.observe(el);});
+  } else {
+    els.forEach(function(el){el.classList.add('in');});
+  }
+
+  var slider=document.getElementById('pelador-slider');
+  var qtyEl=document.getElementById('pelador-qty');
+  var manualEl=document.getElementById('calc-manual');
+  var autoEl=document.getElementById('calc-auto');
+  var saveEl=document.getElementById('pelador-save-min');
+  function calcUpdate(){
+    var qty=parseInt(slider.value,10);
+    var manual=qty*9;
+    var auto=Math.round(qty*5.4);
+    var saved=manual-auto;
+    qtyEl.textContent=qty;
+    manualEl.textContent=manual;
+    autoEl.textContent=auto;
+    saveEl.textContent=saved;
+  }
+  if(slider){slider.addEventListener('input',calcUpdate);calcUpdate();}
+
+  function fixEasySellColors(){
+    var c=getComputedStyle(document.documentElement).getPropertyValue('--cor-principal-lp').trim()||'#1A4FBF';
+    var btns=document.querySelectorAll('button,input[type="submit"]');
+    for(var i=0;i<btns.length;i++){
+      var el=btns[i];
+      var txt=el.textContent?el.textContent.toUpperCase():'';
+      if(txt.indexOf('CONFIRMA')!==-1||txt.indexOf('COMPLETAR')!==-1||el.classList.contains('es-submit-form-button')){
+        el.style.setProperty('background-color',c,'important');
+        el.style.setProperty('background',c,'important');
+        el.style.setProperty('border-color',c,'important');
+        el.style.setProperty('color','#ffffff','important');
+      } else if(txt.indexOf('NO QUIERO')!==-1){
+        el.style.setProperty('background-color','#f1f3f5','important');
+        el.style.setProperty('border','1px solid #ced4da','important');
+        el.style.setProperty('color','#6c757d','important');
+      }
+    }
+  }
+  if('MutationObserver' in window){
+    var obs=new MutationObserver(function(mutations){
+      for(var i=0;i<mutations.length;i++){
+        if(mutations[i].addedNodes.length>0){fixEasySellColors();break;}
+      }
+    });
+    obs.observe(document.body,{childList:true,subtree:true});
+  }
+})();
+</script>
+</div>
