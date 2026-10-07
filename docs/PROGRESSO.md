@@ -3096,6 +3096,31 @@ Prova (Chromium, original × editada, rede externa cortada, 412 px e 1280 px):
 
 Não provado: a nota do PageSpeed. Só se mede depois de colar a LP e publicar.
 
+**Publicada e medida (07/10, 12:23 BRT)**: 62, com FCP 4,0 s, LCP 8,7 s, TBT 90 ms e CLS 0.
+A página no ar (`ofertascolombianas.shop/products/camara-endoscopica`) foi lida por `curl`:
+a LP nova está lá, no layout leve, com o preload do herói no byte 442.
+
+- **O HTML tem 623 KB (86 KB comprimido), e 497 KB disso são um único `<script>` inline
+  do EasySell no `<head>`**, antes de qualquer byte nosso.
+  - `EASYSELL_QUANTITY_OFFERS` sozinho tem 407 KB: são as **276 ofertas de quantidade da
+    loja inteira**, impressas em toda página.
+  - **174 delas (288 KB) são de produtos que não estão publicados** na loja online, de 527
+    publicados. Para a câmera existe 1 oferta.
+  - O navegador baixa e executa isso tudo antes de chegar no corpo da página. A Mini Plancha
+    deu 95 com 134 KB de HTML.
+  - Isso não é do D&VFly nem do tema: é configuração do app. O conserto é do lojista
+    (EasySell → Ofertas de quantidade → apagar as de produtos que não vendem mais).
+- **Do nosso lado, o tamanho da foto do herói.** Sem `sizes`, o compilador usa
+  `(min-width: 800px) 800px, 100vw`, e o celular do teste (412 px, DPR 1,75) baixava o
+  arquivo de 800 px para mostrar a foto com 292 px.
+  - Agora a LP declara `sizes="(min-width: 840px) 480px, min(80vw, 34vh)"`, e as outras 9
+    fotos também têm `sizes`.
+  - Medido no Chromium: o celular do teste pega o arquivo de 540 px (45 KB em webp, era
+    800). Um celular 3× vai de 1080 para 800 px, e o computador de 800 para 540 px (a foto
+    mede 474 px).
+  - O compilador leva o mesmo `sizes` para o preload do `<head>`, então não há download
+    duplo. Layout idêntico ao pixel.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
