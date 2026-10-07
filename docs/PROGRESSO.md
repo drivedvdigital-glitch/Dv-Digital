@@ -3180,9 +3180,9 @@ mudança visual".
   câmera passou de 316 para 345 px por card no computador.
 - Ficou um teste que impede a volta.
 
-Testes: compilador 101, Shopify 93, app 61; typecheck limpo. A última repetição da prova dos 797 px,
-já com o runtime final, foi interrompida para entregar mais rápido. A lógica do clique não mudou desde
-a prova que passou.
+Testes: compilador 101, Shopify 93, app 61; typecheck limpo. A prova dos 797 px foi repetida com o
+runtime final: sem a otimização, a oferta para em −12 px; com a otimização sem a proteção, em 797 px;
+com a proteção, em −12 px (3 de 3 corridas).
 
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
