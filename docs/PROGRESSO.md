@@ -3121,6 +3121,25 @@ a LP nova está lá, no layout leve, com o preload do herói no byte 442.
   - O compilador leva o mesmo `sizes` para o preload do `<head>`, então não há download
     duplo. Layout idêntico ao pixel.
 
+**O relatório completo, lido em seguida (07/10)**:
+- **As fotos dos 3 passos ainda baixavam 720 px para 573 px exibidos** (47 KiB a mais
+  somando as fotos). O `90vw` não descontava o padding do cartão, e entre 540 e 720 não
+  havia arquivo intermediário.
+  - Agora cada uma tem `srcset` próprio (360/480/580/720/900/1080) e
+    `sizes="(min-width: 640px) 300px, calc(100vw - 84px)"`.
+  - No Chromium o celular do teste mede 571 px e pega o de 580. Um celular 3× pega 900, e o
+    computador pega 360.
+- **"Reflow forçado" de 180 ms no `pagefly-helper.js`.** O app do PageFly continua instalado
+  na loja, e o app embed dele entra em toda página, inclusive na nossa: **27 arquivos do
+  PageFly** (helper 9 KB, general-helper 22 KB, product 22 KB…) numa página que não usa
+  nenhum. Conserto do lojista: desligar o embed do PageFly no tema (ou desinstalar o app),
+  se nenhuma página dele estiver mais no ar.
+- **`dropify.dropi.co/js/checkout.js`, 138 KiB sem cache**: script de app (Dropi), não é
+  nosso; provavelmente necessário para a integração de pedidos, então fica.
+- **"Mais de quatro preconnect"**: 2 são da LP (fontes do Google), 3 a Shopify põe no
+  cabeçalho e no `<head>`. Tirar os das fontes só faria a fonte chegar mais tarde para
+  quem visita, então ficam.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
