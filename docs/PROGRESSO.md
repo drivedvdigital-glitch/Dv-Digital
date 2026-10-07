@@ -3068,6 +3068,34 @@ Pedido do Miguel: programar o teste para começar tal dia, tal hora.
   URL já sorteando, cancelar, e início impossível (versão em rascunho) que não entra no ar e
   diz o motivo. `migrate diff` vazio num Postgres novo.
 
+### LP da Cámara Endoscópica com o mesmo tratamento da LP do pelador (07/10)
+
+O Miguel colou as duas LPs: a do pelador (já tratada) e a da câmera endoscópica, para
+receber o mesmo tratamento. A da câmera já tinha fontes assíncronas com `display=optional`,
+herói com `fetchpriority` e tamanhos, lazy com `width`/`height` e o bloco "HERO COMPACTO".
+O que faltava, feito em `docs/lps/camara-endoscopica-lp.html`:
+
+- **`container-type:inline-size` saiu da raiz da LP**, e os 11 `@container` viraram `@media`
+  com as mesmas larguras, como na do pelador (a LP ocupa a largura toda, então a medida é a
+  mesma). A contenção na raiz obrigava a recalcular a página inteira como contêiner.
+- **`content-visibility:auto` nas seções abaixo da dobra** (`.sec`, menos o herói), a mudança
+  medida e adotada em 22/09. O herói perdeu a classe `sec` e o `style` inline (o fundo já vem
+  de `.hero`) e ganhou o id `endo-hero`.
+- **Barra fixa como a do pelador**: aparece quando o botão do herói sai da tela, e não mais em
+  `scrollY > 520`. A leitura é feita uma vez por quadro, e a primeira só dois quadros depois do
+  carregamento. Antes eram duas leituras de layout dentro do script no carregamento.
+- **Cor do EasySell**: no máximo uma vez por quadro, com a cor fixa e sem o
+  `getComputedStyle` a cada mudança no DOM. Saíram duas regras repetidas (a do
+  `.hero-photo` em ≥ 840 px e um `@keyframes` dentro do `prefers-reduced-motion`).
+
+Prova (Chromium, original × editada, rede externa cortada, 412 px e 1280 px):
+- herói com as mesmas posições e tamanhos ao pixel (h1, foto, preço, botão), a mesma altura
+  de página (13.127 px) e as mesmas colunas em todas as grades;
+- **layout forçado dentro de script no carregamento: 2 → 0** (trace CDP);
+- barra fixa aparece e some, abas trocam, 12/12 reveals no fim, botões do popup pintados.
+
+Não provado: a nota do PageSpeed. Só se mede depois de colar a LP e publicar.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
