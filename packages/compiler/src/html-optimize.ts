@@ -59,7 +59,21 @@ export interface OptimizeOptions {
    * theme's root (`themeRootPx`), or the browser's 16px. See `authorRootPx`.
    */
   rootPx?: number;
+  /**
+   * The block is a top-level node of the page, so its own sections can wait
+   * to be rendered until they are scrolled to (see `markBelowFold`). Off for
+   * a block nested in something else, which does not own the page's layout.
+   */
+  lazySections?: boolean;
 }
+
+/**
+ * Marks a section of pasted HTML whose layout and paint can wait until it
+ * scrolls near the screen (`content-visibility:auto`, see BELOW_FOLD_CSS in
+ * blocks.ts). An attribute, not a class: landing-page scripts overwrite
+ * `className` wholesale (`root.className += ' js'` is the gentle kind).
+ */
+export const BELOW_FOLD_ATTRIBUTE = 'data-dvf-below';
 
 export interface OptimizeResult {
   html: string;
@@ -97,6 +111,15 @@ export interface OptimizeResult {
      * page.
      */
     interactiveElements: number;
+    /** Sections of the author's page marked to render when scrolled to. */
+    sectionsDeferred: number;
+    /**
+     * The markup scrolls the page from script (`scrollIntoView`, `scrollTo`…).
+     * A scripted scroll to a section not rendered yet measures it at its
+     * placeholder height and stops short, so the page runtime then lays
+     * everything out on the first click, before the author's handler runs.
+     */
+    scriptedScroll: boolean;
   };
 }
 
@@ -551,6 +574,174 @@ export function auditMotion(rawCss: string): Finding[] {
   return findings;
 }
 
+// --- Sections of a pasted page that can render later -----------------------
+
+/** Elements that take no room on the page: never a section, never a wrapper. */
+const RENDERLESS = new Set(['style', 'script', 'link', 'meta', 'noscript', 'template', 'title', 'base']);
+
+const renderedChildren = (element: ParsedElement): ParsedElement[] =>
+  element.childNodes.filter(
+    (child): child is ParsedElement =>
+      child.nodeType === 1 && !RENDERLESS.has(((child as ParsedElement).rawTagName ?? '').toLowerCase()),
+  );
+
+/** The page scrolls from script; see `stats.scriptedScroll`. */
+const SCRIPTED_SCROLL = /\bscroll(?:IntoView|To|By)?\s*\(|\.scrollTop\s*=(?!=)/;
+
+/** Pseudo-elements and state pseudo-classes: a static match of the host element is what counts. */
+const DYNAMIC_PSEUDO =
+  /::?(?:before|after|first-line|first-letter|marker|placeholder|selection|backdrop|file-selector-button)\b|:(?:hover|focus-visible|focus-within|focus|active|visited|link|target|checked|disabled|enabled|placeholder-shown)\b/gi;
+
+/**
+ * A selector from the author's CSS turned into one that can be matched against
+ * the markup as published, before any script has run: pseudo-elements become
+ * their host, state pseudo-classes go, and classes the markup never carries
+ * (`.js`, `.show`, `.in` — added by script later) are dropped, so the rule is
+ * matched against everything it can ever apply to. Over-matching is the safe
+ * direction here: a match only ever keeps a section out. Null when that cannot
+ * be done: a script-added class inside parentheses (`:is(.show)`) cannot be
+ * dropped without changing what the rest means.
+ */
+function staticSelector(selector: string, classes: Set<string>): string | null {
+  const plain = selector.replace(DYNAMIC_PSEUDO, '').replace(/^\s*(?::root|html|body)\b/i, '');
+  let out = '';
+  let depth = 0;
+  for (let i = 0; i < plain.length; ) {
+    const char = plain[i];
+    if (char === '(') depth++;
+    else if (char === ')') depth--;
+    const cls = char === '.' ? /^\.(-?[_a-zA-Z][\w-]*)/.exec(plain.slice(i)) : null;
+    if (cls) {
+      if (classes.has(cls[1])) out += cls[0];
+      else if (depth > 0) return null;
+      i += cls[0].length;
+      continue;
+    }
+    out += char;
+    i++;
+  }
+  // A compound left empty (`.show` alone) matches anything.
+  return out
+    .trim()
+    .split(/(\s*[>+~]\s*|\s+)/)
+    .map((part, index) => (index % 2 === 0 && part === '' ? '*' : part))
+    .join('');
+}
+
+/**
+ * Lets the sections of a whole landing page pasted in one block wait to be
+ * rendered until they scroll near the screen — what the compiler already does
+ * for top-level section blocks, and what was added by hand to every pasted
+ * LP until now (docs/PROGRESSO.md, 22/09 and 07/10).
+ *
+ * `content-visibility:auto` keeps layout, paint and style containment on the
+ * element at all times, and containment changes what some markup looks like:
+ * a `position:fixed` bar inside a contained section is fixed to the section,
+ * not to the screen. So the choice is conservative and measured on the real
+ * LPs (07/10):
+ *
+ *   - the section level is found by descending through single-child
+ *     wrappers (`<div id="lp">` around everything);
+ *   - the first section never waits, nor anything up to the one holding the
+ *     hero image or an image before it: that is the first screen;
+ *   - only sections with a heading: dividers and marquee bands are short,
+ *     and a 600px placeholder for a 24px divider is a wrong scrollbar for
+ *     no gain (bytes do not tell a short band from a tall one);
+ *   - never a section that is, or holds, something the author's CSS or inline
+ *     style pins (`position:fixed`/`sticky`). A rule whose selector cannot be
+ *     matched statically, or an author already handling `content-visibility`
+ *     himself, and nothing is marked at all;
+ *   - at least three sections, or nothing: below that it is not a long page.
+ */
+function markBelowFold(
+  root: ParsedElement,
+  authorCss: string,
+  aboveFold: Set<ParsedElement>,
+): number {
+  if (/content-visibility|contain-intrinsic-size/i.test(authorCss)) return 0;
+  if (root.querySelectorAll('[style]').some((el) => /content-visibility/i.test(el.getAttribute('style') ?? ''))) return 0;
+  // A script that pins something itself (a bar made fixed on scroll) is out
+  // of reach of the CSS read below: nothing waits.
+  const code = root.querySelectorAll('script').map((script) => script.innerHTML).join('\n');
+  if (/position['"]?\s*[:=,]\s*['"]?\s*(?:-webkit-)?(?:fixed|sticky)/i.test(code)) return 0;
+
+  let level = root;
+  let sections = renderedChildren(level);
+  for (let depth = 0; sections.length === 1 && depth < 6; depth++) {
+    level = sections[0];
+    sections = renderedChildren(level);
+  }
+  if (sections.length < 4) return 0;
+
+  // The first screen: the first section, and every section up to the one
+  // holding the hero or an image before it.
+  let fold = 0;
+  for (const image of aboveFold) {
+    for (let node: ParsedElement | null = image; node; node = node.parentNode as ParsedElement | null) {
+      const index = sections.indexOf(node);
+      if (index !== -1) {
+        fold = Math.max(fold, index);
+        break;
+      }
+    }
+  }
+
+  // Everything the author pins to the screen.
+  const classes = new Set<string>();
+  for (const element of root.querySelectorAll('[class]')) {
+    for (const name of (element.getAttribute('class') ?? '').split(/\s+/)) if (name) classes.add(name);
+  }
+  const pinned = new Set<ParsedElement>(
+    root
+      .querySelectorAll('[style]')
+      .filter((el) => /(?:^|;)\s*position\s*:\s*(?:-webkit-)?(?:fixed|sticky)/i.test(el.getAttribute('style') ?? '')),
+  );
+  const css = authorCss.replace(/\/\*[\s\S]*?\*\//g, '').replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+  let unreadable = false;
+  const scan = (sheet: string): void => {
+    for (const { prelude, body } of cssBlocks(sheet)) {
+      if (prelude.startsWith('@')) {
+        const kind = prelude.slice(1).split(/[\s(]/)[0].toLowerCase();
+        if (kind === 'media' || kind === 'supports' || kind === 'container' || kind === 'layer') scan(body);
+        continue;
+      }
+      const pins = declarations(body).some(
+        ([prop, value]) => prop === 'position' && /^(?:-webkit-)?(?:fixed|sticky)$/.test(value),
+      );
+      if (!pins) continue;
+      for (const selector of splitTop(prelude)) {
+        const matchable = staticSelector(selector, classes);
+        if (matchable === null) {
+          unreadable = true;
+          continue;
+        }
+        try {
+          for (const element of root.querySelectorAll(matchable)) pinned.add(element);
+        } catch {
+          unreadable = true;
+        }
+      }
+    }
+  };
+  scan(css);
+  if (unreadable) return 0;
+
+  const holdsPinned = (section: ParsedElement): boolean => {
+    for (const element of pinned) {
+      for (let node: ParsedElement | null = element; node; node = node.parentNode as ParsedElement | null) {
+        if (node === section) return true;
+      }
+    }
+    return false;
+  };
+  const chosen = sections
+    .slice(fold + 1)
+    .filter((section) => section.querySelector('h1,h2,h3,h4,h5,h6') && !holdsPinned(section));
+  if (chosen.length < 3) return 0;
+  for (const section of chosen) section.setAttribute(BELOW_FOLD_ATTRIBUTE, '');
+  return chosen.length;
+}
+
 export function optimizeHtml(source: string, options: OptimizeOptions): OptimizeResult {
   const { scope, eagerAttribute = 'data-dvf-eager' } = options;
   const findings: Finding[] = [];
@@ -565,6 +756,8 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     remRebased: 0,
     headingLevels: [] as number[],
     interactiveElements: 0,
+    sectionsDeferred: 0,
+    scriptedScroll: SCRIPTED_SCROLL.test(source),
   };
 
   const root = parse(source, {
@@ -627,6 +820,8 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
       localHero = true;
       return { role: 'hero' };
     });
+  /** The hero and what comes before it: the first screen of the page. */
+  const aboveFold = new Set<ParsedElement>();
   images.forEach((img) => {
     let touched = false;
     const src = img.getAttribute('src') ?? '';
@@ -655,6 +850,7 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
       width: declared,
     });
     const hero = role === 'hero';
+    if (role !== 'after-hero') aboveFold.add(img);
 
     if (!img.hasAttribute('loading')) {
       // The author marks above-the-fold images explicitly; absent that, the
@@ -709,7 +905,12 @@ export function optimizeHtml(source: string, options: OptimizeOptions): Optimize
     }
   });
 
-  // --- 4. Report, never rewrite: things the author must decide on ----------
+  // --- 4. Sections past the first screen render when scrolled to ----------
+  if (options.lazySections) {
+    stats.sectionsDeferred = markBelowFold(root, authorCss.join('\n'), aboveFold);
+  }
+
+  // --- 5. Report, never rewrite: things the author must decide on ----------
   const scripts = root.querySelectorAll('script');
   stats.scriptsFound = scripts.length;
   if (scripts.length > 0) {

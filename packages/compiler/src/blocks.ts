@@ -37,6 +37,12 @@ export interface RenderContext {
    * the ones whose rendering can wait until they are scrolled to.
    */
   belowFold: (node: Node) => boolean;
+  /**
+   * True for a visible node at the top of the document — the page's own
+   * layout. An html block there may let its sections render later; one
+   * nested in something else does not own the page.
+   */
+  topLevel: (node: Node) => boolean;
   /** Declares that this block needs a runtime module. */
   requireRuntime: (name: RuntimeModule) => void;
   /**
@@ -46,7 +52,7 @@ export interface RenderContext {
    */
   hint: (node: Node, route: string) => string;
   /** Runs author-written markup through the optimization pass. */
-  optimizeHtml: (source: string) => string;
+  optimizeHtml: (source: string, options?: { lazySections?: boolean }) => string;
   /**
    * Registers an image in page order and says what it is to the page: the
    * hero (the LCP candidate, fetched before anything else), something before
@@ -57,7 +63,7 @@ export interface RenderContext {
   claimImage: (image: ImageClaim) => { role: ImageRole };
 }
 
-export type RuntimeModule = 'countdown' | 'reveal' | 'tabs' | 'contact';
+export type RuntimeModule = 'countdown' | 'reveal' | 'tabs' | 'contact' | 'below';
 
 /** Contact form structure. Field visuals inherit the page/theme typography. */
 export const FORM_CSS = `.dvf-form{display:flex;flex-direction:column;gap:12px;max-width:560px;text-align:left}
@@ -92,9 +98,60 @@ export const TABS_CSS = `.dvf-tabs-list{display:flex;gap:6px;flex-wrap:wrap;marg
  * paint or the first tap. The placeholder height keeps the scrollbar sane
  * before a section is rendered; `auto` remembers the real size after it is.
  * Emitted only when a page has such a section. (web.dev, "content-visibility".)
+ *
+ * Sections of pasted HTML carry the attribute instead (`markBelowFold` in
+ * html-optimize.ts). Their rule has two classes of specificity on purpose: the
+ * reset of pasted HTML (`all:revert`, one class) must not undo it, and the
+ * author's own CSS (scoped behind `.dvf-page`, an id or a class more) still
+ * wins if it says anything about it.
+ *
+ * `.dvf-laid` (set by the `below` runtime) renders everything: a scroll to a
+ * section further down measures the sections in between, and one not rendered
+ * yet measures 600px — a smooth scroll to the offer stopped 1067px short on
+ * 22/09. Laying out the page once, on that click, costs ~100ms on a slow
+ * phone and only then.
  */
 export const BELOW_FOLD_CLASS = 'dvf-below';
-export const BELOW_FOLD_CSS = `.${BELOW_FOLD_CLASS}{content-visibility:auto;contain-intrinsic-size:auto 600px}`;
+export const BELOW_FOLD_CSS =
+  `.${BELOW_FOLD_CLASS},.dvf-page [data-dvf-below]{content-visibility:auto;contain-intrinsic-size:auto 600px}\n` +
+  `.dvf-laid .${BELOW_FOLD_CLASS},.dvf-laid [data-dvf-below]{content-visibility:visible}`;
+
+/**
+ * Lays the whole page out (`.dvf-laid`) before anything scrolls to a point
+ * further down: a click on an in-page link, landing with `#section` in the
+ * address, coming back to a scrolled page — and, when the page's own script
+ * scrolls (`anyClick`), any click on the page, captured before that script's
+ * handler measures where to go.
+ *
+ * A bare `href="#"` is not a jump: it is how buy buttons that open a popup
+ * are written, and the first tap on the buy button must not pay for laying
+ * out the whole page.
+ *
+ * And gives a section back its normal rendering the moment it is about to be
+ * seen, if anything in it sticks out of it. Containment cuts what sticks out,
+ * and sideways overflow no longer widens the page — where, without it, a
+ * phone zooms out and shows all of it. Measured 07/10: the peeler LP's
+ * feature cards are 10px wider than a 360px phone with Android's own font.
+ * What the author already clips (`overflow` other than visible on the way
+ * up) and the answers of a closed `<details>` do not count. Read one screen
+ * before the section scrolls in, once, so it costs nothing at load.
+ */
+export function belowRuntime(anyClick: boolean): string {
+  const jump = 'a[href*=\\"#\\"]:not([href=\\"#\\"])';
+  const target = anyClick ? `${jump},.dvf-page` : jump;
+  return `(function(){var d=document.documentElement,n=performance.getEntriesByType&&performance.getEntriesByType("navigation")[0];
+function lay(){d.classList.add("dvf-laid")}
+if(location.hash||n&&n.type==="back_forward")lay();
+document.addEventListener("click",function(e){var t=e.target;if(t&&t.closest&&t.closest("${target}"))lay()},true);
+if(!("IntersectionObserver" in window))return;
+function clipped(e,s){for(var a=e.parentElement;a&&a!==s;a=a.parentElement)if(getComputedStyle(a).overflow!=="visible")return true;return false}
+function sticks(s){if(s.scrollWidth>s.clientWidth+1)return true;var r=s.getBoundingClientRect(),all=s.getElementsByTagName("*");
+for(var i=0;i<all.length;i++){var e=all[i],b=e.getBoundingClientRect();if(!b.width||!b.height)continue;
+if((b.top<r.top-1||b.bottom>r.bottom+1||b.left<r.left-1||b.right>r.right+1)&&!e.closest("details:not([open])>:not(summary)")&&!clipped(e,s))return true}return false}
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;var s=e.target;io.unobserve(s);
+if(sticks(s)){s.removeAttribute("data-dvf-below");s.classList.remove("dvf-below")}})},{rootMargin:"100% 0px"});
+document.querySelectorAll(".dvf-below,[data-dvf-below]").forEach(function(s){io.observe(s)});})();`;
+}
 
 // The pre-state is applied WITHOUT a transition and the entrance WITH one:
 // the pre-state lands by script on content that is off screen (often inside
@@ -451,11 +508,12 @@ const html: Renderer = (node, ctx) => {
   // Liquid in the markup runs on the store unless the block says otherwise
   // (`liquid: false`: show `{{ }}` as text) — see liquid.ts.
   const liquid = prop<boolean | undefined>(node, 'liquid', undefined) ?? hasLiquid(source);
+  const options = { lazySections: ctx.topLevel(node) };
   const body = liquid
-    ? LIQUID_OPEN + (raw ? source : withLiquidProtected(source, (markup) => ctx.optimizeHtml(markup))) + LIQUID_CLOSE
+    ? LIQUID_OPEN + (raw ? source : withLiquidProtected(source, (markup) => ctx.optimizeHtml(markup, options))) + LIQUID_CLOSE
     : raw
       ? source
-      : ctx.optimizeHtml(source);
+      : ctx.optimizeHtml(source, options);
   // `data-dvf-raw` marks the author's own territory: our reset steps back
   // inside it (see Sheet.toCss), so the pasted page renders as pasted.
   return tag('div', { ...ctx.baseAttrs(node), 'data-dvf-raw': '' }, body);
@@ -521,4 +579,5 @@ if(h)btns.forEach(function(b,i){if(b.getAttribute("data-dvf-anchor")===h)activat
   contact: `if(/(^|[?&])contact_posted=true/.test(location.search)){
 document.querySelectorAll("[data-dvf-form-success]").forEach(function(el){
 el.removeAttribute("hidden");el.scrollIntoView({block:"center"});});}`,
+  below: belowRuntime(false),
 };

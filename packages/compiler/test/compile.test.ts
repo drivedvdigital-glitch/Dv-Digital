@@ -266,7 +266,9 @@ test('top-level sections after the first block render lazily; the first one and 
     '<section class="dvf-below">',
     '<section>',
   ]);
-  assert.ok(out.css.includes('.dvf-below{content-visibility:auto;contain-intrinsic-size:auto 600px}'));
+  assert.ok(out.css.includes('.dvf-below,.dvf-page [data-dvf-below]{content-visibility:auto;contain-intrinsic-size:auto 600px}'));
+  assert.ok(out.css.includes('.dvf-laid .dvf-below,.dvf-laid [data-dvf-below]{content-visibility:visible}'));
+  assert.deepEqual(out.stats.runtimeModules, ['below'], 'what renders later ships the click that lays it out');
 
   // The first VISIBLE block is the fold, so a hidden one does not count.
   const hiddenFirst = compile({ version: 1, root: [{ ...section('s0', 'x'), hidden: true }, section('s1', 'y')] });

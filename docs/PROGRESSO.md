@@ -3140,6 +3140,50 @@ a LP nova está lá, no layout leve, com o preload do herói no byte 442.
   cabeçalho e no `<head>`. Tirar os das fontes só faria a fonte chegar mais tarde para
   quem visita, então ficam.
 
+### Seções do HTML colado montadas só ao rolar, sem mexer à mão (07/10)
+
+A LP inteira é UM bloco de HTML, então a regra das seções de baixo (`content-visibility:auto`) nunca chegava
+dentro dela. Isso era colocado à mão em cada LP. Agora o compilador faz sozinho (`markBelowFold`,
+`packages/compiler/src/html-optimize.ts`).
+
+**Quais seções ficam para depois.** Só nas LPs coladas como bloco do topo da página:
+- desce pelos invólucros de um filho só (`<div id="lp">`) até o nível das seções;
+- pula a 1ª seção e tudo até a que tem a foto principal;
+- só entra seção com título, então divisores e faixas ficam de fora;
+- seção que tem algo fixo na tela não entra. O fixo é reconhecido pelo CSS do autor (com as classes
+  que o script adiciona), pelo `style` direto no elemento e pelo script que fixa algo sozinho;
+- no mínimo 3 seções. Se o autor já usa `content-visibility`, nada muda.
+
+**Salvaguardas do runtime `below`, com cerca de 1 KB de script:**
+- **Clique em link para um ponto da página** (nunca um `href="#"` puro), página aberta com `#âncora`
+  ou volta pelo histórico: monta a página toda antes da rolagem.
+  - Sem isso, no Chromium, a rolagem suave até a oferta da LP da câmera parava **797 px antes**.
+    Com isso, para no mesmo lugar de antes.
+  - Se o script da LP rola a página sozinho, vale qualquer clique na página.
+- **Seção com algo saindo dela:** uma tela antes de ela aparecer, volta a ser montada como antes.
+  - Medido: com a fonte do Android, os cards da LP do pelador ficam 10 px mais largos que um celular
+    de 360 px. Contida, a sobra seria cortada e a página não daria o zoom-out que dá hoje.
+- **Conserto de um defeito antigo:** seção de blocos que contém HTML colado não fica mais contida.
+  - Com ela contida, a barra fixa da LP grudava na seção e não na tela.
+
+**Medido, sem a otimização × com ela, nas 5 LPs reais compiladas:**
+- Posição de todos os elementos (381, 318 e 406), em 412 e 1280 px, e em 360/375/390/412 com a fonte
+  real e com a do Android: **diferença 0,000 px**.
+- Mesma altura de página, CLS 0, barra fixa, abas, 12/12 e 10/10 animações, sem erro de script.
+- Nas capturas de tela, só o arredondamento de 1 pixel no desenho do texto.
+- Carregamento com CPU 4× mais lenta, mediana de 7 corridas: primeiro conteúdo **192 → 136 ms**
+  (câmera original) e **248 → 168 ms** (pelador); layout 165 → 97 ms e 108 → 79 ms.
+
+**Tentado e retirado:** `sizes="auto"` nas fotos preguiçosas, sugerido pela pesquisa como "sem
+mudança visual".
+- Não é verdade: o navegador dá a essas imagens tamanho interno de 300×150, e a grade dos 3 passos da
+  câmera passou de 316 para 345 px por card no computador.
+- Ficou um teste que impede a volta.
+
+Testes: compilador 101, Shopify 93, app 61; typecheck limpo. A última repetição da prova dos 797 px,
+já com o runtime final, foi interrompida para entregar mais rápido. A lógica do clique não mudou desde
+a prova que passou.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

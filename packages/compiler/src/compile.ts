@@ -17,6 +17,7 @@ import {
   ANIMATIONS,
   BELOW_FOLD_CLASS,
   BELOW_FOLD_CSS,
+  belowRuntime,
   BLOCKS,
   FORM_CSS,
   RUNTIME,
@@ -61,6 +62,8 @@ export interface CompileResult {
       imagesTouched: number;
       scriptsFound: number;
       remRebased: number;
+      /** Sections of pasted pages that render when scrolled to. */
+      sectionsDeferred: number;
     };
     /** Images across the whole page, blocks and pasted HTML alike. */
     images: {
@@ -118,7 +121,10 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     imagesTouched: 0,
     scriptsFound: 0,
     remRebased: 0,
+    sectionsDeferred: 0,
   };
+  /** Some pasted markup scrolls the page from script (see `belowRuntime`). */
+  let scriptedScroll = false;
   /** Contributions from author HTML, for the page-level checks below. */
   const htmlHeadings: number[] = [];
   let htmlInteractive = 0;
@@ -169,12 +175,13 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
         route,
       );
     },
-    optimizeHtml: (source) => {
+    optimizeHtml: (source, html) => {
       const result = optimizeHtml(source, {
         sheet,
         scope: `${CLASS_PREFIX}-page`,
         claimImage: ctx.claimImage,
         rootPx: options.rootPx,
+        lazySections: html?.lazySections,
       });
       findings.push(...result.findings);
       htmlOptimization.inlineStylesKept += result.stats.inlineStylesKept;
@@ -182,6 +189,9 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       htmlOptimization.imagesTouched += result.stats.imagesTouched;
       htmlOptimization.scriptsFound += result.stats.scriptsFound;
       htmlOptimization.remRebased += result.stats.remRebased;
+      htmlOptimization.sectionsDeferred += result.stats.sectionsDeferred;
+      if (result.stats.sectionsDeferred > 0) belowFoldUsed = true;
+      if (result.stats.scriptedScroll) scriptedScroll = true;
       htmlHeadings.push(...result.stats.headingLevels);
       htmlInteractive += result.stats.interactiveElements;
       return result.html;
@@ -199,13 +209,25 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
       return { role: 'hero' };
     },
     belowFold: (node) => belowFold.has(node),
+    topLevel: (node) => topLevel.has(node),
   };
 
   // Top-level sections after the first visible block: their layout and paint
   // wait until the visitor scrolls near them. The first block is the fold,
   // whatever it is — an `html` block holding a whole landing page included.
+  //
+  // Not a section that holds pasted HTML: containment makes the section the
+  // box a `position:fixed` element is fixed to, and a landing page's sticky
+  // buy bar inside it stopped following the screen (measured 07/10 with the
+  // camera, Mini Plancha and peeler LPs). Pasted HTML defers its own sections
+  // when it sits at the top of the page, where it knows what it pins.
   const visibleRoot = doc.root.filter((node) => !node.hidden);
-  const belowFold = new Set<Node>(visibleRoot.slice(1).filter((node) => node.type === 'section'));
+  const holdsHtml = (node: Node): boolean =>
+    !node.hidden && (node.type === 'html' || (node.children ?? []).some(holdsHtml));
+  const belowFold = new Set<Node>(
+    visibleRoot.slice(1).filter((node) => node.type === 'section' && !holdsHtml(node)),
+  );
+  const topLevel = new Set<Node>(visibleRoot);
   let belowFoldUsed = false;
 
   // What a hidden subtree still ships: the CODE of its HTML blocks (Liquid
@@ -314,8 +336,10 @@ export function compile(doc: Doc, options: CompileOptions = {}): CompileResult {
     (runtimes.has('tabs') ? '\n' + TABS_CSS : '') +
     (runtimes.has('contact') ? '\n' + FORM_CSS : '');
 
+  // Whatever renders later needs the page laid out before a scroll to it.
+  if (belowFoldUsed) runtimes.add('below');
   const modules = [...runtimes].sort();
-  const js = modules.map((name) => RUNTIME[name]).join('\n');
+  const js = modules.map((name) => (name === 'below' ? belowRuntime(scriptedScroll) : RUNTIME[name])).join('\n');
 
   const sheetStats = sheet.stats();
   const bytes = {
