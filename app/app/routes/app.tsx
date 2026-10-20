@@ -70,6 +70,7 @@ export default function AppFrame() {
         </a>
         <a href="/app">Páginas</a>
         <a href="/app/testes">Teste A | B</a>
+        <a href="/app/tema">Trocar de tema</a>
       </ui-nav-menu>
       <Outlet />
     </>

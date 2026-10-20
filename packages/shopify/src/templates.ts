@@ -30,9 +30,25 @@ import { SOLO_SUFFIX } from './constants.ts';
 
 export { SOLO_SUFFIX };
 
-const LAYOUT_FILE = 'layout/theme.dvfly.liquid';
-const SECTION_FILE = 'sections/dvfly-page.liquid';
-const TEMPLATE_FILE = `templates/page.${SOLO_SUFFIX}.json`;
+export const LAYOUT_FILE = 'layout/theme.dvfly.liquid';
+export const SECTION_FILE = 'sections/dvfly-page.liquid';
+export const TEMPLATE_FILE = `templates/page.${SOLO_SUFFIX}.json`;
+
+/**
+ * Which theme a write goes to. Absent, the store's MAIN theme — the one
+ * visitors see, where every publish writes. Preparing another theme before
+ * the merchant publishes it (theme-prep.ts) names that theme instead: the
+ * theme id is resolved once per operation and passed down, so no step can
+ * land in the old theme halfway through.
+ */
+export interface ThemeTarget {
+  themeId?: string;
+}
+
+/** The theme a write goes to: the one named, or MAIN. */
+export async function targetTheme(client: ShopifyClient, target?: ThemeTarget): Promise<string> {
+  return target?.themeId ?? (await mainThemeId(client));
+}
 
 /**
  * The minimal layout, with room for what one page's first paint needs
@@ -102,15 +118,16 @@ ${hints ? `  {% raw %}${hints}{% endraw %}\n` : ''}  {{ content_for_header }}
 `;
 }
 
-const LAYOUT = layoutLiquid();
+/** The minimal D&VFly layout (`layout/theme.dvfly.liquid`): the same text in every theme. */
+export const LAYOUT = layoutLiquid();
 
-const SECTION = `{{ page.content }}
+export const SECTION = `{{ page.content }}
 {% schema %}
 { "name": "Pagina DVFly", "settings": [] }
 {% endschema %}
 `;
 
-const TEMPLATE = JSON.stringify(
+export const TEMPLATE = JSON.stringify(
   {
     layout: 'theme.dvfly',
     sections: { main: { type: 'dvfly-page' } },
@@ -127,8 +144,8 @@ export const productSuffix = (pageId: string) => `dvfly-${pageId.toLowerCase()}`
 /** The section (file stem) that carries the page's compiled content. */
 export const productSectionType = (pageId: string) => `dvfly-p-${pageId.toLowerCase()}`;
 
-const productTemplateFile = (pageId: string) => `templates/product.${productSuffix(pageId)}.json`;
-const productSectionFile = (pageId: string) => `sections/${productSectionType(pageId)}.liquid`;
+export const productTemplateFile = (pageId: string) => `templates/product.${productSuffix(pageId)}.json`;
+export const productSectionFile = (pageId: string) => `sections/${productSectionType(pageId)}.liquid`;
 
 /**
  * Theme JSON is not strict JSON: the editor prepends a `/* … *\/` notice and,
@@ -160,28 +177,58 @@ export function stripJsonComments(text: string): string {
   return out;
 }
 
-/** Reads theme files as text, in the order asked; null where the theme lacks one. */
-export async function readThemeFiles(
+/** Theme files per request: Shopify's page size for `theme.files` and for `themeFilesUpsert`. */
+export const THEME_FILES_PER_CALL = 50;
+
+/** A theme file as text, with when it was last written (Shopify's own clock). */
+export interface ThemeFileText {
+  content: string;
+  /** ISO time; empty when the API did not say. */
+  updatedAt: string;
+}
+
+/** Reads theme files with their dates, in the order asked; null where the theme lacks one. */
+export async function readThemeFilesDated(
   client: ShopifyClient,
   themeId: string,
   filenames: string[],
-): Promise<Array<string | null>> {
+): Promise<Array<ThemeFileText | null>> {
+  if (filenames.length > THEME_FILES_PER_CALL) {
+    const out: Array<ThemeFileText | null> = [];
+    for (let i = 0; i < filenames.length; i += THEME_FILES_PER_CALL) {
+      out.push(...(await readThemeFilesDated(client, themeId, filenames.slice(i, i + THEME_FILES_PER_CALL))));
+    }
+    return out;
+  }
+  if (filenames.length === 0) return [];
   const data = await client.graphql<{
     theme: {
-      files: { nodes: Array<{ filename: string; body: { content?: string } }> };
+      files: { nodes: Array<{ filename: string; updatedAt?: string; body: { content?: string } }> };
     } | null;
   }>(
     `query DvflyThemeFiles($themeId: ID!, $filenames: [String!]!, $first: Int!) {
        theme(id: $themeId) {
          files(filenames: $filenames, first: $first) {
-           nodes { filename body { ... on OnlineStoreThemeFileBodyText { content } } }
+           nodes { filename updatedAt body { ... on OnlineStoreThemeFileBodyText { content } } }
          }
        }
      }`,
     { themeId, filenames, first: filenames.length },
   );
   const nodes = data.theme?.files.nodes ?? [];
-  return filenames.map((filename) => nodes.find((f) => f.filename === filename)?.body.content ?? null);
+  return filenames.map((filename) => {
+    const node = nodes.find((f) => f.filename === filename);
+    return node?.body.content === undefined ? null : { content: node.body.content, updatedAt: node.updatedAt ?? '' };
+  });
+}
+
+/** Reads theme files as text, in the order asked; null where the theme lacks one. */
+export async function readThemeFiles(
+  client: ShopifyClient,
+  themeId: string,
+  filenames: string[],
+): Promise<Array<string | null>> {
+  return (await readThemeFilesDated(client, themeId, filenames)).map((f) => f?.content ?? null);
 }
 
 /** Reads one theme file as text, or null when the theme does not have it. */
@@ -233,7 +280,7 @@ export const SOLO_LAYOUT = 'theme.dvfly';
 
 /** The per-page bare layout (`layout/theme.dvfly-<page>.liquid`), when the page has head hints. */
 export const pageBareLayout = (pageId: string) => `theme.dvfly-${pageId.toLowerCase()}`;
-const pageBareLayoutFile = (pageId: string) => `layout/${pageBareLayout(pageId)}.liquid`;
+export const pageBareLayoutFile = (pageId: string) => `layout/${pageBareLayout(pageId)}.liquid`;
 
 /** Which layout a bare page binds to: its own when it has something to put in the head. */
 function bareLayoutFor(input: ProductTemplateInput): string {
@@ -254,7 +301,7 @@ export function pageBareLayoutLiquid(input: ProductTemplateInput): string {
 
 /** The layout a chrome-less product page binds to (`layout/theme.dvfly-product.liquid`). */
 export const PRODUCT_LAYOUT = 'theme.dvfly-product';
-const PRODUCT_LAYOUT_FILE = `layout/${PRODUCT_LAYOUT}.liquid`;
+export const PRODUCT_LAYOUT_FILE = `layout/${PRODUCT_LAYOUT}.liquid`;
 
 /** The tags OS 2.0 (and older) themes use to place header, footer and announcement bar. */
 const CHROME_TAGS = /\{%-?\s*sections?\s+['"](?:header-group|footer-group|header|footer|announcement-bar)['"]\s*-?%\}/g;
@@ -417,8 +464,9 @@ export function composeProductTemplate(
 export async function ensureProductTemplate(
   client: ShopifyClient,
   input: ProductTemplateInput,
+  target?: ThemeTarget,
 ): Promise<{ suffix: string; files: string[] }> {
-  const themeId = await mainThemeId(client);
+  const themeId = await targetTheme(client, target);
   const [themeProduct, existing, themeLayout] = await readThemeFiles(client, themeId, [
     'templates/product.json',
     productTemplateFile(input.pageId),
@@ -479,8 +527,8 @@ export async function ensureProductTemplate(
  */
 export const pageLiquidSuffix = (pageId: string) => `dvfly-pg-${pageId.toLowerCase()}`;
 const pageLiquidSectionType = (pageId: string) => `dvfly-pg-${pageId.toLowerCase()}`;
-const pageLiquidTemplateFile = (pageId: string) => `templates/page.${pageLiquidSuffix(pageId)}.json`;
-const pageLiquidSectionFile = (pageId: string) => `sections/${pageLiquidSectionType(pageId)}.liquid`;
+export const pageLiquidTemplateFile = (pageId: string) => `templates/page.${pageLiquidSuffix(pageId)}.json`;
+export const pageLiquidSectionFile = (pageId: string) => `sections/${pageLiquidSectionType(pageId)}.liquid`;
 
 export interface PageLiquidInput {
   pageId: string;
@@ -506,9 +554,13 @@ export function pageLiquidTemplate(input: PageLiquidInput): string {
 }
 
 /** Writes the page's template and section; returns the suffix the Page must point at. */
-export async function ensurePageLiquidTemplate(client: ShopifyClient, input: PageLiquidInput): Promise<string> {
+export async function ensurePageLiquidTemplate(
+  client: ShopifyClient,
+  input: PageLiquidInput,
+  target?: ThemeTarget,
+): Promise<string> {
   const section = pageSectionLiquid(input);
-  const themeId = await mainThemeId(client);
+  const themeId = await targetTheme(client, target);
   // The bare layout first, on its own: a template naming a layout the theme
   // does not have yet is refused (see ensureProductTemplate).
   if (!input.chrome) await upsertThemeFiles(client, themeId, [{ filename: LAYOUT_FILE, body: { type: 'TEXT', value: LAYOUT } }]);
@@ -580,6 +632,12 @@ export async function upsertThemeFiles(
   themeId: string,
   files: Array<{ filename: string; body: { type: string; value: string } }>,
 ): Promise<void> {
+  if (files.length > THEME_FILES_PER_CALL) {
+    for (let i = 0; i < files.length; i += THEME_FILES_PER_CALL) {
+      await upsertThemeFiles(client, themeId, files.slice(i, i + THEME_FILES_PER_CALL));
+    }
+    return;
+  }
   const data = await client.graphql<{
     themeFilesUpsert: {
       upsertedThemeFiles: Array<{ filename: string }> | null;
@@ -618,12 +676,37 @@ export async function mainThemeId(client: ShopifyClient): Promise<string> {
 /**
  * Writes (or rewrites) the chrome-less page template into the main theme.
  * Safe to call on every publish.
+ *
+ * The layout goes first, on its own, like everywhere else here: Shopify
+ * checks a template's `layout` against the files the theme already has. The
+ * three used to travel in one call, which only worked on themes that already
+ * had the layout — a theme that never saw D&VFly (07/10, the store moving to
+ * another theme) would refuse the template.
  */
-export async function ensureSoloTemplate(client: ShopifyClient): Promise<void> {
-  const themeId = await mainThemeId(client);
+export async function ensureSoloTemplate(client: ShopifyClient, target?: ThemeTarget): Promise<void> {
+  const themeId = await targetTheme(client, target);
+  await upsertThemeFiles(client, themeId, [{ filename: LAYOUT_FILE, body: { type: 'TEXT', value: LAYOUT } }]);
   await upsertThemeFiles(client, themeId, [
-    { filename: LAYOUT_FILE, body: { type: 'TEXT', value: LAYOUT } },
     { filename: SECTION_FILE, body: { type: 'TEXT', value: SECTION } },
     { filename: TEMPLATE_FILE, body: { type: 'TEXT', value: TEMPLATE } },
   ]);
+}
+
+export interface ThemeInfo {
+  id: string;
+  name: string;
+  /** MAIN (published), UNPUBLISHED, DEVELOPMENT, DEMO, ARCHIVED, LOCKED. */
+  role: string;
+  /** Shopify is still unpacking an uploaded theme: nothing can be written yet. */
+  processing: boolean;
+  processingFailed: boolean;
+  updatedAt: string;
+}
+
+/** The store's themes, published first. */
+export async function listThemes(client: ShopifyClient): Promise<ThemeInfo[]> {
+  const data = await client.graphql<{ themes: { nodes: ThemeInfo[] } }>(
+    `{ themes(first: 50) { nodes { id name role processing processingFailed updatedAt } } }`,
+  );
+  return [...data.themes.nodes].sort((a, b) => Number(b.role === 'MAIN') - Number(a.role === 'MAIN'));
 }

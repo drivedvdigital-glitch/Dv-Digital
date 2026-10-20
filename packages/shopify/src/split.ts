@@ -40,7 +40,9 @@ import {
   mainThemeId,
   readThemeFiles,
   stripJsonComments,
+  targetTheme,
   upsertThemeFiles,
+  type ThemeTarget,
 } from './templates.ts';
 
 export interface SplitVariant {
@@ -361,10 +363,11 @@ async function wrapEntry(
 export async function ensureSplitTemplate(
   client: ShopifyClient,
   plan: SplitPlan,
+  target?: ThemeTarget,
 ): Promise<{ suffix: string; mode: EntryMode | null; note: string | null }> {
   validateSplit(plan);
   const files = splitFiles(plan.testId);
-  const themeId = await mainThemeId(client);
+  const themeId = await targetTheme(client, target);
   let input: SplitInput = plan;
   let mode: EntryMode | null = null;
   let note: string | null = null;
@@ -373,7 +376,10 @@ export async function ensureSplitTemplate(
     if (wrap.ok) return { suffix: splitSuffix(plan.testId), mode: 'stay', note: wrap.note };
     // A's page through `?view=`: its template — never one that is gone, or
     // Shopify would render the split again — or a copy of the default.
-    const view = plan.entry.template && wrap.templateFound ? plan.entry.template : await ensureEntryCopy(client, plan.testId);
+    // The same theme as everything else in this call, never a fresh lookup
+    // of MAIN: while another theme is being prepared, the copy would land in
+    // the old theme and the redirect that names it in the new one.
+    const view = plan.entry.template && wrap.templateFound ? plan.entry.template : await ensureEntryCopy(client, plan.testId, { themeId });
     input = { ...plan, variants: plan.variants.map((v) => (v.id === plan.entry!.variantId ? { ...v, view } : v)) };
     mode = 'view';
     note = wrap.note;
@@ -422,8 +428,8 @@ export const entryCopySuffix = (testId: string) => `${splitSuffix(testId)}-a`;
  * name of ours, gives version A its page back. Rewritten on every go-live, so
  * an edit to the theme's product page reaches it then.
  */
-export async function ensureEntryCopy(client: ShopifyClient, testId: string): Promise<string> {
-  const themeId = await mainThemeId(client);
+export async function ensureEntryCopy(client: ShopifyClient, testId: string, target?: ThemeTarget): Promise<string> {
+  const themeId = await targetTheme(client, target);
   const [json, liquid] = await readThemeFiles(client, themeId, ['templates/product.json', 'templates/product.liquid']);
   const suffix = entryCopySuffix(testId);
   if (json !== null) {

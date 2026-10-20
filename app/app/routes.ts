@@ -8,6 +8,8 @@ export default [
     route('pages/:id', 'routes/app.pages.$id.tsx'),
     route('testes', 'routes/app.testes._index.tsx'),
     route('testes/:id', 'routes/app.testes.$id.tsx'),
+    // Antes de publicar outro tema: gravar nele o que as páginas e os testes precisam (theme-prep.ts).
+    route('tema', 'routes/app.tema.tsx'),
   ]),
   route('api/preview/:id', 'routes/api.preview.$id.tsx'),
   route('api/pages/:id/export', 'routes/api.pages.$id.export.tsx'),

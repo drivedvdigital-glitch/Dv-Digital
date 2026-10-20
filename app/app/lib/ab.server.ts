@@ -169,30 +169,43 @@ export interface GoLiveResult {
  * Handles renamed in the admin are followed — in memory first, and saved only
  * once the store runs them, so a failed write never hides the rename.
  */
-export async function goLive(test: TestWithVariants, store: StoreRow, origin: string): Promise<GoLiveResult> {
-  const client = clientFor(store);
+/**
+ * The split as the store should run it, from the products as Shopify has
+ * them now (handles renamed in the admin are followed). Shared by going live
+ * and by preparing another theme (theme-prep.server.ts), so both write the
+ * same thing.
+ */
+export function splitPlanFor(test: TestWithVariants, states: Map<string, ProductState | null>, origin: string) {
   const suffix = splitSuffix(test.id);
-  const states = await productStates(client, [test.entryProductGid, ...test.variants.map((v) => v.productGid)]);
   const handleNow = (gid: string, known: string) => states.get(gid)?.handle ?? known;
   const variants = ordered(test).map((v) => ({ ...v, handle: handleNow(v.productGid, v.handle) }));
   const entryHandle = handleNow(test.entryProductGid, test.entryHandle);
-  const pages = { entryProductGid: test.entryProductGid, entryHandle, variants };
-  const refusal = unreachable(pages, states) ?? (await conflictWith(store.id, test.id, pages));
-  if (refusal) throw new Error(refusal);
-  const others = variants.filter((v) => v.productGid !== test.entryProductGid);
-
-  const current = states.get(test.entryProductGid)!.templateSuffix;
+  const current = states.get(test.entryProductGid)?.templateSuffix ?? null;
   // Only a suffix that is not ours is worth remembering: re-applying a live
   // test must not overwrite the original with our own.
   const previousSuffix = current === suffix ? test.previousSuffix : current;
   const entryVariant = variants.find((v) => v.productGid === test.entryProductGid);
-  const split = await ensureSplitTemplate(client, {
+  const plan = {
     testId: test.id,
     name: test.name,
     hitUrl: new URL(HIT_PATH, origin).href,
     variants: variants.map((v) => ({ id: v.id, handle: v.handle, weight: v.weight })),
     ...(entryVariant ? { entry: { variantId: entryVariant.id, template: previousSuffix ?? null } } : {}),
-  });
+  };
+  return { plan, variants, entryHandle, previousSuffix };
+}
+
+export async function goLive(test: TestWithVariants, store: StoreRow, origin: string): Promise<GoLiveResult> {
+  const client = clientFor(store);
+  const suffix = splitSuffix(test.id);
+  const states = await productStates(client, [test.entryProductGid, ...test.variants.map((v) => v.productGid)]);
+  const { plan, variants, entryHandle, previousSuffix } = splitPlanFor(test, states, origin);
+  const pages = { entryProductGid: test.entryProductGid, entryHandle, variants };
+  const refusal = unreachable(pages, states) ?? (await conflictWith(store.id, test.id, pages));
+  if (refusal) throw new Error(refusal);
+  const others = variants.filter((v) => v.productGid !== test.entryProductGid);
+
+  const split = await ensureSplitTemplate(client, plan);
   await setProductTemplate(client, test.entryProductGid, suffix);
 
   // The store runs the test from here: recorded at once, so the clicks that

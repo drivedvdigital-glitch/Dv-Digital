@@ -3184,6 +3184,77 @@ Testes: compilador 101, Shopify 93, app 61; typecheck limpo. A prova dos 797 px 
 runtime final: sem a otimização, a oferta para em −12 px; com a otimização sem a proteção, em 797 px;
 com a proteção, em −12 px (3 de 3 corridas).
 
+### "Trocar de tema": preparar outro tema antes de publicar (20/10)
+
+O Miguel vai trocar a loja Colombia de uma cópia do Shrine PRO para o Shrine PRO 1.9.0 original (export
+`theme_export__ofertasscolomb-store-shrine-theme-pro-cod-v2`).
+
+**O risco, achado antes de construir:**
+- Todo arquivo do D&VFly vive no tema publicado (`mainThemeId`), e os produtos apontam para eles por
+  `templateSuffix`.
+- Publicar o tema novo como está deixaria esses produtos apontando para modelos que ele não tem. A
+  Shopify cairia na página padrão de produto no lugar das LPs, com o anúncio rodando.
+- O tema novo não tinha nenhum arquivo `dvfly`. Tinha o `gtm-roteador` e o embed do PageFly ligado.
+
+Mapeado por três agentes em paralelo: o que é gravado, o que dá para refazer a partir do banco, e uma
+auditoria do Shrine.
+
+**Feito:**
+- **`packages/shopify/src/theme-prep.ts`.** Para cada modelo que um produto ou página usa:
+  - copia byte a byte, do tema publicado, os arquivos próprios do D&VFly (seções, modelos leves,
+    layouts por página, passados pelo `canonicalAware`);
+  - refaz contra o tema novo o que depende do tema: o layout sem cabeçalho (do `theme.liquid` dele) e os
+    modelos que mantêm seções do tema;
+  - quando uma seção usada não existe no tema novo, compõe sobre o `product.json` dele e avisa;
+  - Teste A | B no ar: o mesmo `ensureSplitTemplate`, apontado para o tema novo;
+  - o layout vai sempre antes, sozinho;
+  - nada toca produtos, páginas, metafields nem o tema publicado.
+- **Conferir** lê tudo de volta e marca cada item como Pronto, Falta no tema ou Desatualizado. JSON é
+  comparado como dado, porque o editor reformata.
+- **Completar, com o tema novo já publicado:** grava o que falta ou o que está mais antigo lá do que no
+  tema que saiu, pela `updatedAt` da Shopify.
+  - Cobre a LP publicada entre preparar e publicar.
+  - Nunca sobrescreve um arquivo mais novo no publicado.
+- **Desligar o embed de um app num tema** (`config/settings_data.json`): oferecido para o PageFly, que
+  carrega uns 27 arquivos em toda página e não tem nenhum modelo no Shrine original.
+- **Defeito antigo corrigido:** `ensureSoloTemplate` mandava layout, seção e modelo numa chamada só.
+  Num tema que nunca viu o D&VFly, a Shopify recusa o modelo cujo layout ainda não existe. Agora o
+  layout vai primeiro.
+- **`{ themeId }` opcional** em `ensureSoloTemplate`, `ensurePageLiquidTemplate`, `ensureProductTemplate`
+  e `ensureSplitTemplate`/`ensureEntryCopy`.
+  - O id do tema é resolvido uma vez por operação.
+  - A cópia da versão A não pode mais cair no tema antigo enquanto o redirecionamento que a nomeia cai
+    no novo.
+- **Leitura e gravação em lotes de 50.** O plano do Teste A | B saiu do `goLive` para `splitPlanFor`:
+  preparar e colocar no ar montam o mesmo plano.
+- **Tela `/app/tema` ("Trocar de tema", no menu):**
+  - tema publicado, tema a preparar e resumo contado dos dados;
+  - "Antes de publicar, confira": modelos de outros apps que o tema novo não tem, apps ligados no
+    publicado e desligados no novo, e o PageFly;
+  - um item por pedido e a situação por linha;
+  - o banner final diz onde publicar e para voltar e Completar.
+
+**Prova:**
+- Testes: Shopify 107 (+14). A Shopify falsa dos testes aplica as regras de verdade (layout antes do
+  modelo, seção inexistente recusada, 50 por chamada).
+- Compilador 101, app 61, typecheck limpo.
+- Dirigido no Playwright contra o app rodando e uma Shopify falsa com dois temas: **33/33**.
+  - O tema publicado foi montado pelo próprio código de publicação: LPs da câmera, do pelador e da Mini
+    Plancha, uma página desligada, página sem tema, página com `{% include 'gtm-roteador' %}` e um
+    Teste A | B no ar com a versão A na própria URL.
+  - O tema novo é o Shrine do zip, lido como dado.
+  - Sequência: Conferir (tudo falta) → Preparar (tudo pronto, tema publicado intocado, nenhuma busca
+    pelo MAIN) → desligar o PageFly (EasySell continua) → LP publicada no meio tempo vira Desatualizado
+    → troca do tema publicado → Completar.
+  - No final, as do meio tempo chegaram e a publicada depois da troca não foi sobrescrita.
+
+**Não provado:** contra a loja real. Comportamentos da API assumidos e ainda não medidos lá:
+- arquivo legível logo depois do `themeFilesUpsert`;
+- `updatedAt` no arquivo do tema;
+- gravação do `settings_data.json` pela API.
+
+A primeira vez na loja vai ser com o tema novo **despublicado**, onde errar não aparece para ninguém.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
