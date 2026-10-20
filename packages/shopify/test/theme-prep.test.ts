@@ -70,7 +70,8 @@ function sourceTheme(): FakeTheme {
       'layout/theme.dvfly.liquid': LAYOUT,
       'sections/dvfly-page.liquid': SECTION,
       'templates/page.dvfly-solo.json': TEMPLATE,
-      'sections/dvfly-pg-jkl.liquid': "{% include 'gtm-roteador' %}{% raw %}<p>rodapé</p>{% endraw %}",
+      'sections/dvfly-pg-jkl.liquid': "{% include 'gtm-roteador' %}{% raw %}<p>rodapé {% render 'nao-e-liquid' %}</p>{% endraw %}",
+      'snippets/gtm-roteador.liquid': "{% assign nome_loja = 'Ofertas' %}",
       'templates/page.dvfly-pg-jkl.json': json({ layout: 'theme.dvfly', sections: { dvfly: { type: 'dvfly-pg-jkl' } }, order: ['dvfly'] }),
     },
   };
@@ -173,6 +174,53 @@ describe('preparing an unpublished theme', () => {
     const target = store.theme(DST).files;
     assert.equal(target['sections/dvfly-pg-jkl.liquid'], store.theme(SRC).files['sections/dvfly-pg-jkl.liquid']);
     assert.equal(target['layout/theme.dvfly.liquid'], LAYOUT);
+    // The snippet the page's Liquid includes came along (the new theme lacked it);
+    // a render inside the page's raw HTML is text, not a dependency.
+    assert.equal(target['snippets/gtm-roteador.liquid'], store.theme(SRC).files['snippets/gtm-roteador.liquid']);
+    assert.ok(!('snippets/nao-e-liquid.liquid' in target));
+  });
+
+  it("a snippet the page's Liquid needs and neither theme has: refused, never 'pronto'", async () => {
+    const source = sourceTheme();
+    delete source.files['snippets/gtm-roteador.liquid'];
+    const store = fakeThemesStore({ themes: [source, targetTheme()] });
+    const { outcome } = await carry(store, 'page', 'dvfly-pg-jkl');
+    assert.equal(outcome.status, 'falhou');
+    assert.match(outcome.problem!, /snippets\/gtm-roteador\.liquid/);
+  });
+
+  it("re-preparing keeps the arrangement the merchant made in the new theme's editor", async () => {
+    const store = fakeThemesStore({ themes: [sourceTheme(), targetTheme()] });
+    await carry(store, 'product', 'dvfly-ghi');
+    const name = 'templates/product.dvfly-ghi.json';
+    const arranged = JSON.parse(store.theme(DST).files[name]);
+    arranged.order = ['main', 'dvfly', 'reviews'];
+    arranged.sections.reviews.disabled = true;
+    store.touch(DST, name, JSON.stringify(arranged));
+    store.touch(SRC, 'templates/product.dvfly-ghi.json'); // republished in the old theme meanwhile
+    await carry(store, 'product', 'dvfly-ghi');
+    assert.deepEqual(JSON.parse(store.theme(DST).files[name]).order, ['main', 'dvfly', 'reviews']);
+    assert.equal(JSON.parse(store.theme(DST).files[name]).sections.reviews.disabled, true);
+    const check = await checkPlan(store.client, DST, await planTemplate(store.client, SRC, DST, 'product', 'dvfly-ghi'));
+    assert.equal(check.status, 'pronto', check.detail ?? '');
+  });
+
+  it('when Shopify refuses the arrangement carried over, falls back to the new theme\'s product page', async () => {
+    const store = fakeThemesStore({ themes: [sourceTheme(), targetTheme()] });
+    // The new theme's main-product does not define a block the old arrangement uses.
+    const graphql = store.client.graphql.bind(store.client);
+    (store.client as unknown as { graphql: typeof graphql }).graphql = (async (q: string, v: Record<string, unknown> = {}) => {
+      const files = (v.files ?? []) as Array<{ filename: string; body: { value: string } }>;
+      if (/themeFilesUpsert/.test(q) && files.some((f) => f.filename === 'templates/product.dvfly-def.json' && f.body.value.includes('azul'))) {
+        return { themeFilesUpsert: { upsertedThemeFiles: null, userErrors: [{ field: ['files'], message: 'Invalid block type' }] } };
+      }
+      return graphql(q, v);
+    }) as typeof graphql;
+    const { outcome } = await carry(store, 'product', 'dvfly-def');
+    assert.equal(outcome.status, 'pronto', outcome.problem ?? '');
+    assert.match(outcome.notes.join(' '), /recusou o arranjo/);
+    const template = JSON.parse(store.theme(DST).files['templates/product.dvfly-def.json']);
+    assert.deepEqual(template.order, ['main', 'reviews', 'dvfly']);
   });
 
   it('says why when the page is already broken in the published theme, and writes nothing', async () => {
@@ -180,7 +228,7 @@ describe('preparing an unpublished theme', () => {
     const before = { ...store.theme(DST).files };
     const { outcome } = await carry(store, 'product', 'dvfly-zzz');
     assert.equal(outcome.status, 'falhou');
-    assert.match(outcome.problem!, /não existe nem no tema publicado/);
+    assert.match(outcome.problem!, /não existe em nenhum dos dois temas/);
     assert.deepEqual(store.theme(DST).files, before);
   });
 
@@ -221,6 +269,20 @@ describe('preparing an unpublished theme', () => {
     assert.equal((await checkPlan(store.client, DST, await planTemplate(store.client, SRC, DST, 'product', 'dvfly-abc'), { completing: true })).status, 'pronto');
   });
 
+  it('completing the published theme: a page published only there is fine, not a failure', async () => {
+    const source = sourceTheme();
+    source.role = 'UNPUBLISHED';
+    const target = targetTheme();
+    target.role = 'MAIN';
+    target.files['sections/dvfly-p-new.liquid'] = 'nova';
+    target.files['templates/product.dvfly-new.json'] = json({ layout: 'theme.dvfly', sections: { dvfly: { type: 'dvfly-p-new' } }, order: ['dvfly'] });
+    const store = fakeThemesStore({ themes: [source, target] });
+    const { outcome } = await carry(store, 'product', 'dvfly-new', true);
+    assert.equal(outcome.status, 'pronto', outcome.problem ?? '');
+    const plan = await planTemplate(store.client, SRC, DST, 'product', 'dvfly-new');
+    assert.equal((await checkPlan(store.client, DST, plan, { completing: true })).status, 'pronto');
+  });
+
   it('completing the published theme: a page republished in the old one between preparing and publishing comes along', async () => {
     const store = fakeThemesStore({ themes: [sourceTheme(), targetTheme()] });
     await carry(store, 'product', 'dvfly-abc'); // prepared
@@ -258,6 +320,52 @@ describe('preparing an unpublished theme', () => {
     // The same call without a theme still goes to MAIN, as every publish does.
     await ensureSplitTemplate(store.client, { ...plan, entry: undefined });
     assert.ok(store.calls.includes('mainTheme'));
+  });
+
+  it("refuses a live test whose version A uses a template the new theme lacks (it would show the default page)", async () => {
+    const store = fakeThemesStore({ themes: [sourceTheme(), targetTheme()] });
+    const plan = (template: string) => ({
+      testId: 'T2',
+      name: 'Teste',
+      hitUrl: 'https://app.exemplo/ab/hit',
+      variants: [
+        { id: 'va', handle: 'entrada', weight: 50 },
+        { id: 'vb', handle: 'versao-b', weight: 50 },
+      ],
+      entry: { variantId: 'va', template },
+    });
+    const foreign = await prepareSplit(store.client, DST, plan('pf-123'));
+    assert.equal(foreign.status, 'falhou');
+    assert.match(foreign.problem!, /pf-123.*não é do D&VFly/);
+    const ours = await prepareSplit(store.client, DST, plan('dvfly-abc'));
+    assert.equal(ours.status, 'falhou', 'its page has not been carried yet');
+    await carry(store, 'product', 'dvfly-abc');
+    const after = await prepareSplit(store.client, DST, plan('dvfly-abc'));
+    assert.equal(after.status, 'pronto', after.problem ?? '');
+    assert.equal(after.mode, 'stay');
+    assert.equal((await checkSplit(store.client, DST, 'T2', 'dvfly-abc')).status, 'pronto');
+  });
+
+  it('a product still on a test that is not live: its layout and the version A copy it redirects to both come', async () => {
+    // A layout that branches on the template name: version A cannot open on the entry URL, so it goes through ?view=.
+    const source = sourceTheme();
+    source.files['layout/theme.liquid'] = OLD_LAYOUT.replace('<main>', "{% if template.suffix == 'x' %}<i></i>{% endif %}<main>");
+    const store = fakeThemesStore({ themes: [source, targetTheme()] });
+    await ensureSplitTemplate(store.client, {
+      testId: 'T3',
+      name: 'Velho',
+      hitUrl: 'https://app.exemplo/ab/hit',
+      variants: [
+        { id: 'va', handle: 'entrada', weight: 50 },
+        { id: 'vb', handle: 'versao-b', weight: 50 },
+      ],
+      entry: { variantId: 'va', template: null },
+    });
+    assert.ok('templates/product.dvfly-ab-t3-a.json' in store.theme(SRC).files);
+    const { outcome } = await carry(store, 'product', 'dvfly-ab-t3');
+    assert.equal(outcome.status, 'pronto', outcome.problem ?? '');
+    assert.ok('templates/product.dvfly-ab-t3-a.json' in store.theme(DST).files);
+    assert.equal((await checkSplit(store.client, DST, 'T3')).status, 'pronto');
   });
 
   it('finds every alternate template in use, across pages of products, and which ones the new theme lacks', async () => {

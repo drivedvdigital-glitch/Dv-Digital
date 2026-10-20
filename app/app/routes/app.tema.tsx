@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useFetcher, useLoaderData, useLocation, useNavigate } from 'react-router';
-import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
+import { Link, useFetcher, useLoaderData, useLocation, useNavigate, useRevalidator } from 'react-router';
+import type { ActionFunctionArgs, LoaderFunctionArgs, ShouldRevalidateFunctionArgs } from 'react-router';
 
 import { requireShop } from '../lib/auth.server.ts';
 import { db } from '../lib/db.server.ts';
@@ -10,6 +10,7 @@ import {
   appEmbeds,
   checkItem,
   disableAppEmbeds,
+  likelySource,
   listThemes,
   missingTemplates,
   prepareItem,
@@ -62,6 +63,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch (error) {
     return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
   }
+  try {
+    return await screenData(request, store, client);
+  } catch (error) {
+    return { ok: false as const, error: `Não foi possível ler os temas da loja agora: ${error instanceof Error ? error.message : String(error)}. Recarregue em instantes.` };
+  }
+}
+
+async function screenData(request: Request, store: NonNullable<Awaited<ReturnType<typeof db.store.findUnique>>>, client: ReturnType<typeof clientFor>) {
   const themes = await listThemes(client);
   const main = themes.find((t) => t.role === 'MAIN') ?? null;
   const url = new URL(request.url);
@@ -70,25 +79,33 @@ export async function loader({ request }: LoaderFunctionArgs) {
     url.searchParams.get('alvo') ?? unpublished.find((t) => !t.processing && !t.processingFailed)?.id ?? unpublished[0]?.id ?? null;
   const target = themes.find((t) => t.id === targetId) ?? null;
   const repair = target?.role === 'MAIN';
-  // Normally the source is the published theme; completing a theme already
-  // published takes the one it replaced.
-  const sourceId = repair ? (url.searchParams.get('origem') ?? unpublished[0]?.id ?? null) : (main?.id ?? null);
-  const source = themes.find((t) => t.id === sourceId) ?? null;
-
   const inventory = await prepInventory(store, client);
+  // Normally the source is the published theme; completing a theme already
+  // published takes the one it replaced (the one holding this store's pages).
+  const sourceId = repair
+    ? (url.searchParams.get('origem') ?? (await likelySource(client, unpublished, inventory.items))?.id ?? null)
+    : (main?.id ?? null);
+  const source = themes.find((t) => t.id === sourceId) ?? null;
   let foreignMissing: Array<{ suffix: string; resource: string; titles: string[] }> = [];
   let embedsOffInTarget: string[] = [];
   let pageflyOn = false;
+  let checksError: string | null = null;
+  // Templates of the store that look like PageFly's: switching its embed off would break them.
+  const pageflyInUse = inventory.foreign.filter((u) => /^pf-|pagefly/i.test(u.suffix)).flatMap((u) => u.titles);
   if (target && source && !target.processing && !target.processingFailed) {
-    foreignMissing = (await missingTemplates(client, target.id, inventory.foreign)).map((u) => ({
-      suffix: u.suffix,
-      resource: u.resource,
-      titles: u.titles,
-    }));
-    const [fromEmbeds, toEmbeds] = await Promise.all([appEmbeds(client, source.id), appEmbeds(client, target.id)]);
-    const on = (list: AppEmbed[], app: string) => list.some((e) => e.app === app && e.enabled);
-    embedsOffInTarget = [...new Set(fromEmbeds.filter((e) => e.enabled && !on(toEmbeds, e.app) && e.app !== PAGEFLY).map((e) => e.app))];
-    pageflyOn = on(toEmbeds, PAGEFLY);
+    try {
+      foreignMissing = (await missingTemplates(client, target.id, inventory.foreign)).map((u) => ({
+        suffix: u.suffix,
+        resource: u.resource,
+        titles: u.titles,
+      }));
+      const [fromEmbeds, toEmbeds] = await Promise.all([appEmbeds(client, source.id), appEmbeds(client, target.id)]);
+      const on = (list: AppEmbed[], app: string) => list.some((e) => e.app === app && e.enabled);
+      embedsOffInTarget = [...new Set(fromEmbeds.filter((e) => e.enabled && !on(toEmbeds, e.app) && e.app !== PAGEFLY).map((e) => e.app))];
+      pageflyOn = on(toEmbeds, PAGEFLY);
+    } catch (error) {
+      checksError = error instanceof Error ? error.message : String(error);
+    }
   }
   return {
     ok: true as const,
@@ -102,7 +119,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     foreignMissing,
     embedsOffInTarget: embedsOffInTarget.map(appName),
     pageflyOn,
+    pageflyInUse,
+    checksError,
   };
+}
+
+/**
+ * Each item answers on its own row; reloading the whole screen after every
+ * one would scan every product and page of the store again each time.
+ * Switching an embed off does change what the screen shows.
+ */
+export function shouldRevalidate({ formData, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) {
+  const intent = formData?.get('intent');
+  if (intent === 'preparar' || intent === 'conferir') return false;
+  return defaultShouldRevalidate;
 }
 
 type ActionResult =
@@ -117,9 +147,29 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionRes
   if (!store) return { error: 'Loja não instalada.' };
   const form = await request.formData();
   const intent = String(form.get('intent') ?? '');
+  const key = String(form.get('key') ?? '');
+  const phase = intent === 'conferir' ? 'conferir' : 'preparar';
+  // A failure from Shopify (an outage, throttling) answers on its own row:
+  // the run goes on and the screen stays.
+  try {
+    return await act(request, store, form, intent, key, phase);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return intent === 'desligar-embed' ? { error: message } : { error: message, key, phase };
+  }
+}
+
+async function act(
+  request: Request,
+  store: NonNullable<Awaited<ReturnType<typeof db.store.findUnique>>>,
+  form: FormData,
+  intent: string,
+  key: string,
+  phase: 'preparar' | 'conferir',
+): Promise<ActionResult> {
   const client = clientFor(store);
   const pair = await themePair(client, String(form.get('origem') ?? ''), String(form.get('alvo') ?? ''));
-  if (typeof pair === 'string') return { error: pair };
+  if (typeof pair === 'string') return intent === 'desligar-embed' ? { error: pair } : { error: pair, key, phase };
 
   if (intent === 'desligar-embed') {
     const embeds = await disableAppEmbeds(client, pair.target.id, PAGEFLY);
@@ -127,8 +177,6 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionRes
   }
 
   // The item, re-validated: only our own suffixes, only this store's live tests.
-  const key = String(form.get('key') ?? '');
-  const phase = intent === 'conferir' ? 'conferir' : 'preparar';
   let item: PrepItem;
   const template = /^(product|page):(dvfly-[a-z0-9-]+)$/i.exec(key);
   const split = /^ab:([a-z0-9]+)$/i.exec(key);
@@ -139,12 +187,13 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionRes
   } else {
     return { error: 'Item desconhecido. Recarregue a página.', key, phase };
   }
+  const origin = new URL(request.url).origin;
   if (intent === 'conferir') {
-    const check = await checkItem(client, pair, item);
+    const check = await checkItem(store, client, pair, item, origin);
     return { key, phase, status: check.status, detail: check.detail, notes: [] };
   }
   if (intent !== 'preparar') return { error: 'Ação desconhecida.' };
-  const outcome = await prepareItem(store, client, pair, item, new URL(request.url).origin);
+  const outcome = await prepareItem(store, client, pair, item, origin);
   return { key, phase, status: outcome.status, detail: outcome.problem, notes: outcome.notes };
 }
 
@@ -171,23 +220,39 @@ export default function ThemeSwitch() {
   const fetcher = useFetcher<ActionResult>();
   const embedFetcher = useFetcher<ActionResult>();
   const [rows, setRows] = useState<Record<string, Row>>({});
-  const [run, setRun] = useState<{ phase: 'preparar' | 'conferir'; index: number } | null>(null);
+  // A run keeps the list and the pair of themes it started with: the screen
+  // changing under it (another pair picked, a reload) stops it, never
+  // re-aims it.
+  const [run, setRun] = useState<{
+    phase: 'preparar' | 'conferir';
+    index: number;
+    items: PrepItem[];
+    pair: string;
+    sourceId: string;
+    targetId: string;
+  } | null>(null);
   const sent = useRef<string | null>(null);
+  const revalidator = useRevalidator();
 
   const items = data.ok ? data.items : [];
   const target = data.ok ? data.target : null;
   const source = data.ok ? data.source : null;
   const themeKey = `${source?.id}>${target?.id}`;
 
-  // A different pair of themes starts a clean table.
+  // A different pair of themes starts a clean table and stops a run.
   useEffect(() => {
     setRows({});
     setRun(null);
+    sent.current = null;
   }, [themeKey]);
 
   // Sends the next item when the previous answer is in.
   useEffect(() => {
-    if (!run || !target || !source) return;
+    if (!run) return;
+    if (run.pair !== themeKey) {
+      setRun(null);
+      return;
+    }
     if (fetcher.state !== 'idle') return;
     const answer = fetcher.data;
     if (answer && 'key' in answer && answer.key && sent.current === `${run.phase}:${answer.key}`) {
@@ -202,24 +267,26 @@ export default function ThemeSwitch() {
       return;
     }
     if (sent.current) return;
-    const item = items[run.index];
+    const item = run.items[run.index];
     if (!item) {
       setRun(null);
+      // Once, at the end: the warnings may have changed (a snippet copied, a template written).
+      revalidator.revalidate();
       return;
     }
     sent.current = `${run.phase}:${item.key}`;
     const form = new FormData();
     form.set('intent', run.phase);
     form.set('key', item.key);
-    form.set('origem', source.id);
-    form.set('alvo', target.id);
+    form.set('origem', run.sourceId);
+    form.set('alvo', run.targetId);
     fetcher.submit(form, { method: 'post' });
-  }, [run, fetcher.state, fetcher.data, items, source, target]);
+  }, [run, fetcher.state, fetcher.data, themeKey, revalidator]);
 
   const counts = useMemo(() => {
     const c = { produto: 0, pagina: 0, teste: 0 };
     for (const i of items) {
-      if (i.kind === 'split' || i.type === 'Teste A | B') c.teste++;
+      if (i.kind === 'split') c.teste++;
       else if (i.resource === 'page') c.pagina++;
       else c.produto++;
     }
@@ -240,10 +307,10 @@ export default function ThemeSwitch() {
     );
   }
 
+  const busy = run !== null;
   const done = items.filter((i) => rows[i.key]);
   const failed = done.filter((i) => rows[i.key].status !== 'pronto');
-  const allReady = items.length > 0 && done.length === items.length && failed.length === 0;
-  const busy = run !== null;
+  const allReady = !busy && items.length > 0 && done.length === items.length && failed.length === 0;
   const blocked = !target || !source || target.processing || target.processingFailed;
   const blockedReason = !target
     ? 'Envie o tema novo em Loja virtual → Temas → Adicionar tema; depois volte aqui.'
@@ -255,9 +322,10 @@ export default function ThemeSwitch() {
           ? 'Escolha de qual tema vêm os arquivos.'
           : null;
   const start = (phase: 'preparar' | 'conferir') => {
+    if (!source || !target) return;
     sent.current = null;
-    if (phase === 'preparar') setRows({});
-    setRun({ phase, index: 0 });
+    setRows({});
+    setRun({ phase, index: 0, items, pair: themeKey, sourceId: source.id, targetId: target.id });
   };
   const pickTarget = (id: string) => {
     const params = new URLSearchParams(search);
@@ -271,9 +339,12 @@ export default function ThemeSwitch() {
     navigate(`?${params.toString()}`);
   };
   const candidates = data.themes.filter((t) => t.role === 'UNPUBLISHED' || t.role === 'MAIN');
-  const progress = run ? `${Math.min(run.index + 1, items.length)} de ${items.length}` : null;
+  const progress = run ? `${Math.min(run.index + 1, run.items.length)} de ${run.items.length}` : null;
   const embedsOff = embedFetcher.data && 'embeds' in embedFetcher.data ? embedFetcher.data.embeds : null;
   const pageflyOn = data.pageflyOn && embedsOff === null;
+  // The confirmation stays on screen after the reload that follows switching it off.
+  const showPagefly = data.pageflyOn || embedsOff !== null;
+  const sourceName = source?.name ?? 'o tema de origem';
 
   return (
     <div className="dv-ui" data-theme={uiTheme} style={shell}>
@@ -348,8 +419,9 @@ export default function ThemeSwitch() {
                         ))}
                     </select>
                     <div style={hint}>
-                      «{target?.name}» já está publicado: o D&amp;VFly só grava nele o que estiver faltando, sem trocar nenhum arquivo
-                      que já esteja lá.
+                      «{target?.name}» já está publicado: o D&amp;VFly grava nele o que falta e o que lá está mais antigo do que em «
+                      {sourceName}» (uma página publicada antes da troca). Um arquivo mais novo em «{target?.name}» fica como está, e
+                      os testes A | B no ar são regravados nele.
                     </div>
                   </div>
                 </>
@@ -398,7 +470,13 @@ export default function ThemeSwitch() {
           </div>
         </section>
 
-        {target && (data.foreignMissing.length > 0 || data.embedsOffInTarget.length > 0 || data.pageflyOn) ? (
+        {data.checksError ? (
+          <div style={{ ...bannerErr, marginTop: 14 }} data-avisos-falharam>
+            Não deu para conferir os avisos de antes de publicar agora ({data.checksError}). Recarregue a página antes de publicar.
+          </div>
+        ) : null}
+
+        {target && (data.foreignMissing.length > 0 || data.embedsOffInTarget.length > 0 || showPagefly) ? (
           <section style={{ ...card, marginTop: 14 }} data-confira>
             <div style={cardBody}>
               <h2 style={h2}>Antes de publicar, confira</h2>
@@ -413,16 +491,27 @@ export default function ThemeSwitch() {
                 ))}
                 {data.embedsOffInTarget.map((app) => (
                   <li key={app} data-embed-desligado>
-                    O app <strong>{app}</strong> está ligado no tema publicado e desligado em «{target.name}». Ligue em Loja virtual →
-                    Temas → «{target.name}» → Personalizar → Incorporações de aplicativo antes de publicar.
+                    O app <strong>{app}</strong> está ligado em «{sourceName}» e desligado em «{target.name}». Ligue em Loja virtual →
+                    Temas → «{target.name}» → Personalizar → Incorporações de aplicativo
+                    {data.repair ? '.' : ' antes de publicar.'}
                   </li>
                 ))}
-                {data.pageflyOn ? (
+                {showPagefly ? (
                   <li data-pagefly>
                     {pageflyOn ? (
                       <>
-                        O <strong>PageFly</strong> está ligado em «{target.name}»: carrega uns 27 arquivos em toda página, inclusive nas
-                        do D&amp;VFly, e este tema não tem páginas do PageFly.{' '}
+                        O <strong>PageFly</strong> está ligado em «{target.name}» e carrega os arquivos dele em toda página, inclusive
+                        nas do D&amp;VFly (nas LPs desta loja, em 07/10, eram 27).{' '}
+                        {data.pageflyInUse.length > 0 ? (
+                          <span data-pagefly-em-uso>
+                            Atenção: {data.pageflyInUse.slice(0, 3).join(', ')}
+                            {data.pageflyInUse.length > 3 ? ` e mais ${data.pageflyInUse.length - 3}` : ''} ainda{' '}
+                            {data.pageflyInUse.length === 1 ? 'usa' : 'usam'} modelo do PageFly; sem o embed, essas páginas deixam de
+                            funcionar.
+                          </span>
+                        ) : (
+                          'Nenhum produto ou página da loja usa modelo do PageFly.'
+                        )}{' '}
                         <button
                           type="button"
                           className="dv-btn dv-secondary"

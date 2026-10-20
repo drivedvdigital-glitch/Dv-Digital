@@ -10,7 +10,7 @@ import type { Store as StoreRow } from '@prisma/client';
 import type { ShopifyClient } from '../../../packages/shopify/src/client.ts';
 import { productStates } from '../../../packages/shopify/src/products.ts';
 import { splitSuffix } from '../../../packages/shopify/src/split.ts';
-import { listThemes, productSuffix, SOLO_SUFFIX, type ThemeInfo } from '../../../packages/shopify/src/templates.ts';
+import { listThemes, productSuffix, readThemeFiles, SOLO_SUFFIX, type ThemeInfo } from '../../../packages/shopify/src/templates.ts';
 import {
   checkPlan,
   checkSplit,
@@ -68,7 +68,10 @@ export async function prepInventory(store: StoreRow, client: ShopifyClient): Pro
     where: { storeId: store.id },
     include: { page: { select: { id: true, title: true, pageType: true } } },
   });
-  const live = await db.abTest.findMany({ where: { storeId: store.id, status: 'live' }, select: { id: true, name: true, entryTitle: true, entryHandle: true } });
+  const live = await db.abTest.findMany({
+    where: { storeId: store.id, status: 'live' },
+    select: { id: true, name: true, entryTitle: true, entryHandle: true, previousSuffix: true },
+  });
   const titleOf = (pageId: string) => deployments.find((d) => d.page.id.toLowerCase() === pageId.toLowerCase())?.page.title ?? null;
 
   const items: PrepItem[] = [];
@@ -99,7 +102,7 @@ export async function prepInventory(store: StoreRow, client: ShopifyClient): Pro
         resource: 'product',
         suffix: use.suffix,
         label: `Teste A | B que não está no ar (${use.suffix})`,
-        type: 'Teste A | B',
+        type: 'Teste A | B (fora do ar)',
         usedBy: use.titles,
         note: 'o produto ainda aponta para um teste que o D&VFly não tem no ar: copiado como está',
       });
@@ -121,8 +124,10 @@ export async function prepInventory(store: StoreRow, client: ShopifyClient): Pro
   // the list re-points the products without writing files, so the files
   // must be in the new theme too.
   for (const d of deployments) {
-    if (d.page.pageType !== 'product') continue;
-    const suffix = productSuffix(d.page.id);
+    // What was deployed, not what the page is now: a page switched from
+    // product to regular keeps its product deployment until republished.
+    if (!d.shopifyGid.startsWith('template:product.')) continue;
+    const suffix = d.shopifyGid.slice('template:product.'.length) || productSuffix(d.page.id);
     add({
       key: `product:${suffix}`,
       kind: 'template',
@@ -133,6 +138,31 @@ export async function prepInventory(store: StoreRow, client: ShopifyClient): Pro
       usedBy: [],
       note: 'nenhum produto usa esta página agora; ela fica pronta para quando for ligada de novo',
     });
+  }
+
+  // Version A's own template, for each live test: one of ours must be
+  // carried before the test (it is, by the order below); someone else's is
+  // a warning the new theme must answer.
+  const foreign = uses.filter((u) => !isOurSuffix(u.suffix));
+  for (const t of live) {
+    const a = t.previousSuffix;
+    if (!a) continue;
+    if (/^dvfly-(?!ab-)/i.test(a)) {
+      add({
+        key: `product:${a}`,
+        kind: 'template',
+        resource: 'product',
+        suffix: a,
+        label: titleOf(a.replace(/^dvfly-/i, '')) ?? a,
+        type: 'Página de produto',
+        usedBy: [`versão A de «${t.name}»`],
+        note: null,
+      });
+    } else if (!isOurSuffix(a)) {
+      const use = foreign.find((u) => u.resource === 'product' && u.suffix === a);
+      if (use) use.titles.push(`versão A de «${t.name}»`);
+      else foreign.push({ resource: 'product', suffix: a, titles: [`versão A de «${t.name}»`] });
+    }
   }
 
   for (const t of live) {
@@ -149,7 +179,7 @@ export async function prepInventory(store: StoreRow, client: ShopifyClient): Pro
 
   const order = (i: PrepItem) => (i.kind === 'split' ? 2 : i.resource === 'page' ? 0 : 1);
   items.sort((a, b) => order(a) - order(b));
-  return { items, foreign: uses.filter((u) => !isOurSuffix(u.suffix)) };
+  return { items, foreign };
 }
 
 export interface ThemePair {
@@ -183,6 +213,25 @@ async function splitPlan(client: ShopifyClient, storeId: string, testId: string,
   return splitPlanFor(test, states, test.trackerOrigin ?? origin).plan;
 }
 
+/**
+ * Which unpublished theme a "complete" run should take files from when the
+ * screen does not say: the one holding most of the templates this store
+ * uses — the theme that was just replaced — not whichever Shopify lists
+ * first. Ties go to the most recently updated.
+ */
+export async function likelySource(client: ShopifyClient, candidates: ThemeInfo[], items: PrepItem[]): Promise<ThemeInfo | null> {
+  const names = items
+    .filter((i) => i.kind === 'template')
+    .slice(0, 50)
+    .map((i) => `templates/${i.resource}.${i.suffix}.json`);
+  let best: { theme: ThemeInfo; found: number } | null = null;
+  for (const theme of candidates.slice(0, 20)) {
+    const found = names.length > 0 ? (await readThemeFiles(client, theme.id, names)).filter((t) => t !== null).length : 0;
+    if (!best || found > best.found || (found === best.found && theme.updatedAt > best.theme.updatedAt)) best = { theme, found };
+  }
+  return best?.theme ?? null;
+}
+
 /** Carries one item into the target theme. */
 export async function prepareItem(
   store: StoreRow,
@@ -194,15 +243,25 @@ export async function prepareItem(
   if (item.kind === 'split') {
     const plan = await splitPlan(client, store.id, item.testId!, origin);
     if (!plan) return { status: 'falhou', written: [], problem: 'o teste não está mais no ar', notes: [] };
-    return prepareSplit(client, pair.target.id, plan);
+    const outcome = await prepareSplit(client, pair.target.id, plan);
+    // The published theme now runs the test this way: the test screen
+    // describes it from these two fields, as after going live.
+    if (pair.repair && outcome.status === 'pronto') {
+      await db.abTest.update({ where: { id: item.testId! }, data: { entryMode: outcome.mode, entryModeNote: outcome.note } });
+    }
+    return outcome;
   }
   const plan = await planTemplate(client, pair.source.id, pair.target.id, item.resource!, item.suffix!);
   return writePlan(client, pair.target.id, plan, { completing: pair.repair });
 }
 
 /** Reads one item back from the target theme, writing nothing. */
-export async function checkItem(client: ShopifyClient, pair: ThemePair, item: PrepItem): Promise<ItemCheck> {
-  if (item.kind === 'split') return checkSplit(client, pair.target.id, item.testId!);
+export async function checkItem(store: StoreRow, client: ShopifyClient, pair: ThemePair, item: PrepItem, origin: string): Promise<ItemCheck> {
+  if (item.kind === 'split') {
+    const plan = await splitPlan(client, store.id, item.testId!, origin);
+    if (!plan) return { status: 'falhou', detail: 'o teste não está mais no ar' };
+    return checkSplit(client, pair.target.id, item.testId!, plan.entry?.template ?? null);
+  }
   const plan = await planTemplate(client, pair.source.id, pair.target.id, item.resource!, item.suffix!);
   return checkPlan(client, pair.target.id, plan, { completing: pair.repair });
 }

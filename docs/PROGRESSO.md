@@ -3255,6 +3255,49 @@ auditoria do Shrine.
 
 A primeira vez na loja vai ser com o tema novo **despublicado**, onde errar não aparece para ninguém.
 
+**Revisão adversarial (mesmo dia).** 4 revisores com olhares diferentes (correção, API da Shopify, tela e
+segurança, regressões), cada achado julgado por um cético. Saldo: 29 confirmados (muitos repetidos) e 2
+derrubados. Corrigido:
+- **Snippet que o Liquid da página usa** (`{% include 'gtm-roteador' %}`): não era conferido, e a linha
+  dizia Pronto com a página quebrada.
+  - Agora `liquidDependencies` lê só as regiões Liquid da seção.
+  - Se o tema de destino não tem o snippet, ele é copiado do de origem, com aviso.
+  - Se nenhum dos dois tem, a linha falha.
+- **Teste A | B com a versão A num modelo que o tema de destino não tem** (ex.: `pf-*` do PageFly):
+  marcava Pronto, e a versão A cairia na página padrão.
+  - Agora a linha falha com o motivo.
+  - O modelo entra na lista "Antes de publicar, confira".
+  - Se o modelo for do D&VFly, a página dele entra na lista antes do teste.
+- **Completar e Preparar de novo sobrescreviam o arranjo feito no editor do tema novo.**
+  - Arquivos derivados do tema de destino (modelo com seções do tema, layout sem cabeçalho) agora usam a
+    cópia que o destino já tem.
+  - Só são gravados quando faltam e nunca são comparados byte a byte.
+- **Arranjo que a Shopify recusa** (blocos que o tema de destino não define): nova tentativa sobre a
+  página de produto do destino, com aviso.
+- **Completar com página que só existe no tema publicado**: dava falha falsa. Agora conta como Pronto.
+- **Tema de origem do Completar**: era o primeiro da lista da Shopify. Agora é o que tem mais modelos
+  desta loja (`likelySource`).
+- **Teste A | B e o modo de entrada**: o modo pode mudar no tema novo. Completar grava `entryMode` e
+  `entryModeNote` no banco.
+- **Conferência do Teste A | B**: lia qualquer `view=` do layout. Agora lê os `"q"` da configuração do
+  script e o modelo da versão A.
+- **Produto preso num teste fora do ar**: a cópia `-a` para onde ele redireciona vem junto.
+- **Inventário** pelo que foi publicado (`shopifyGid`), não pelo tipo atual da página.
+- **Tela:**
+  - erro da Shopify fica na linha, sem derrubar a tela inteira;
+  - o carregamento da tela não roda mais a cada item (`shouldRevalidate`), o que seria uma varredura de
+    todos os produtos por item;
+  - a execução guarda a lista e o par de temas do início;
+  - Conferir limpa a tabela;
+  - o banner de pronto só aparece no fim;
+  - o texto do PageFly diz se algum produto ainda usa modelo dele;
+  - os textos do modo Completar dizem o que ele realmente faz.
+
+Prova depois das correções:
+- Shopify 113 (+6 casos da revisão), compilador 101, app 61, typecheck limpo.
+- Roteiro dirigido **35/35**, com duas checagens novas: o aviso de PageFly em uso e o `entryMode` gravado
+  ao Completar.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

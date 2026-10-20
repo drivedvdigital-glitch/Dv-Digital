@@ -114,11 +114,29 @@ export interface TemplatePlan {
   layout: ThemeFile | null;
   /** Sections, then the template, in one call. */
   files: ThemeFile[];
+  /**
+   * Files the page needs that the target lacks and that are not D&VFly's —
+   * the snippets its Liquid includes, a split's version-A copy — copied from
+   * the source because the page does not work without them. Written with
+   * `files`, only when missing.
+   */
+  extra: ThemeFile[];
+  /**
+   * Files built FROM the target (the no-header layout, a product template
+   * that keeps the theme's sections): the target's own copy is the truth once
+   * it exists — the merchant may have arranged it in that theme's editor — so
+   * they are written when missing and never compared byte for byte.
+   */
+  derived: string[];
+  /** The template composed on the target's own product page, tried when Shopify refuses the arrangement carried over. */
+  fallback: ThemeFile | null;
+  /** Nothing to carry: only the target has this template (a page published there after the switch). */
+  done: boolean;
   /** Why it cannot be carried; nothing is written when there is one. */
   problem: string | null;
   /** What the merchant should know (written anyway). */
   notes: string[];
-  /** Files the target must have that are not ours to write (the theme's own layout, its sections). */
+  /** Files the target must have that are not ours to write (the theme's own layout). */
   requires: string[];
 }
 
@@ -137,6 +155,25 @@ function parseJson(text: string): Record<string, unknown> | null {
 }
 
 /**
+ * The theme files a section's own Liquid needs: snippets it includes or
+ * renders, sections it renders. Only the Liquid regions count — everything
+ * between `{% raw %}` and `{% endraw %}` is the page's HTML, printed as text.
+ */
+export function liquidDependencies(section: string): string[] {
+  const liquid = section.replace(/\{%-?\s*raw\s*-?%\}[\s\S]*?\{%-?\s*endraw\s*-?%\}/g, '');
+  const out = new Set<string>();
+  for (const m of liquid.matchAll(/\{%-?\s*(include|render|section)\s+['"]([\w.-]+)['"]/g)) {
+    out.add(m[1] === 'section' ? `sections/${m[2]}.liquid` : `snippets/${m[2]}.liquid`);
+  }
+  return [...out];
+}
+
+/** The templates a split's script sends version A (or any version) to by `?view=`, from its configuration. */
+export function splitViews(layout: string): string[] {
+  return [...new Set([...layout.matchAll(/"q":"([\w-]+)"/g)].map((m) => m[1]))];
+}
+
+/**
  * What the target theme needs for products or pages pointing at
  * `<resource>.<suffix>` to render as they do today. Reads the source (the
  * snapshot) and the target's own files it derives from; writes nothing.
@@ -148,16 +185,36 @@ export async function planTemplate(
   resource: TemplateResource,
   suffix: string,
 ): Promise<TemplatePlan> {
-  const plan: TemplatePlan = { sourceThemeId, layout: null, files: [], problem: null, notes: [], requires: [] };
+  const plan: TemplatePlan = {
+    sourceThemeId,
+    layout: null,
+    files: [],
+    extra: [],
+    derived: [],
+    fallback: null,
+    done: false,
+    problem: null,
+    notes: [],
+    requires: [],
+  };
   const name = templateFile(resource, suffix);
-  const [sourceText] = await readThemeFiles(client, sourceThemeId, [name]);
+  const [[sourceText], [targetText]] = await Promise.all([
+    readThemeFiles(client, sourceThemeId, [name]),
+    readThemeFiles(client, targetThemeId, [name]),
+  ]);
   if (sourceText === null) {
-    plan.problem = `o modelo ${name} não existe nem no tema publicado hoje — publique a página de novo no D&VFly`;
+    if (targetText !== null) {
+      // Published straight into the target (after the switch): nothing to carry.
+      plan.done = true;
+      plan.notes.push('só existe no tema de destino: nada a levar');
+      return plan;
+    }
+    plan.problem = `o modelo ${name} não existe em nenhum dos dois temas — publique a página de novo no D&VFly`;
     return plan;
   }
   const template = parseJson(sourceText);
   if (!template) {
-    plan.problem = `o modelo ${name} do tema publicado não pôde ser lido`;
+    plan.problem = `o modelo ${name} do tema de origem não pôde ser lido`;
     return plan;
   }
   const layout = template.layout;
@@ -166,14 +223,37 @@ export async function planTemplate(
   const ours = types.filter((t) => /^dvfly-/i.test(t));
   const theirs = types.filter((t) => !/^dvfly-/i.test(t) && !t.startsWith('shopify://'));
 
-  // Our sections: copied as they are.
-  const ourTexts = await readThemeFiles(client, sourceThemeId, ours.map((t) => `sections/${t}.liquid`));
-  const lost = ours.filter((_, i) => ourTexts[i] === null);
+  // Our sections: copied as they are (one the target already has and the
+  // source lost is the target's — nothing to copy).
+  const ourNames = ours.map((t) => `sections/${t}.liquid`);
+  const [ourTexts, ourThere] = await Promise.all([
+    readThemeFiles(client, sourceThemeId, ourNames),
+    readThemeFiles(client, targetThemeId, ourNames),
+  ]);
+  const lost = ourNames.filter((_, i) => ourTexts[i] === null && ourThere[i] === null);
   if (lost.length > 0) {
-    plan.problem = `a seção ${lost.map((t) => `sections/${t}.liquid`).join(', ')} não existe no tema publicado — publique a página de novo no D&VFly`;
+    plan.problem = `a seção ${lost.join(', ')} não existe em nenhum dos dois temas — publique a página de novo no D&VFly`;
     return plan;
   }
-  plan.files.push(...ours.map((t, i) => file(`sections/${t}.liquid`, ourTexts[i]!)));
+  ourNames.forEach((n, i) => {
+    if (ourTexts[i] !== null) plan.files.push(file(n, ourTexts[i]!));
+  });
+
+  // What our sections' Liquid needs from the theme (`{% include 'gtm-roteador' %}`).
+  const deps = [...new Set(ourTexts.flatMap((t) => (t ? liquidDependencies(t) : [])))];
+  if (deps.length > 0) {
+    const [there, from] = await Promise.all([readThemeFiles(client, targetThemeId, deps), readThemeFiles(client, sourceThemeId, deps)]);
+    deps.forEach((dep, i) => {
+      if (there[i] !== null) return;
+      if (from[i] === null) {
+        plan.problem = `o Liquid da página usa ${dep}, que não existe em nenhum dos dois temas`;
+        return;
+      }
+      plan.extra.push(file(dep, from[i]!));
+      plan.notes.push(`${dep} não existia no tema de destino: copiado do tema de origem, porque a página usa`);
+    });
+    if (plan.problem) return plan;
+  }
 
   // The theme's sections the template uses, in the target.
   const [targetProduct, targetLayout, ...theirTexts] = await readThemeFiles(client, targetThemeId, [
@@ -190,13 +270,33 @@ export async function planTemplate(
     } else if (layout === PRODUCT_LAYOUT) {
       // Derived from the theme: the TARGET's layout without header and footer.
       plan.layout = file(PRODUCT_LAYOUT_FILE, chromelessLayout(targetLayout));
+      plan.derived.push(PRODUCT_LAYOUT_FILE);
     } else if (/^theme\.dvfly-/i.test(layout)) {
-      const [own] = await readThemeFiles(client, sourceThemeId, [`layout/${layout}.liquid`]);
-      if (own === null) {
-        plan.problem = `o layout layout/${layout}.liquid não existe no tema publicado — publique a página de novo no D&VFly`;
+      const layoutName = `layout/${layout}.liquid`;
+      const [[own], [ownThere]] = await Promise.all([
+        readThemeFiles(client, sourceThemeId, [layoutName]),
+        readThemeFiles(client, targetThemeId, [layoutName]),
+      ]);
+      if (own === null && ownThere === null) {
+        plan.problem = `o layout ${layoutName} não existe em nenhum dos dois temas — publique a página de novo no D&VFly`;
         return plan;
       }
-      plan.layout = file(`layout/${layout}.liquid`, canonicalAware(own).text);
+      if (own !== null) plan.layout = file(layoutName, canonicalAware(own).text);
+      // A split's layout sends visitors to `?view=<template>`: those must come too.
+      const views = splitViews(own ?? ownThere ?? '').map((v) => [`templates/product.${v}.json`, `templates/product.${v}.liquid`]);
+      for (const [json, liquid] of views) {
+        const [[jThere, lThere], [jFrom, lFrom]] = await Promise.all([
+          readThemeFiles(client, targetThemeId, [json, liquid]),
+          readThemeFiles(client, sourceThemeId, [json, liquid]),
+        ]);
+        if (jThere !== null || lThere !== null) continue;
+        if (jFrom !== null) plan.extra.push(file(json, jFrom));
+        else if (lFrom !== null) plan.extra.push(file(liquid, lFrom));
+        else {
+          plan.problem = `o teste manda visitantes para ${json}, que não existe em nenhum dos dois temas — regrave ou pause o teste`;
+          return plan;
+        }
+      }
     } else {
       plan.requires.push(`layout/${layout}.liquid`);
     }
@@ -207,9 +307,10 @@ export async function planTemplate(
   const keepsThemeSections = theirs.length > 0;
   if (ownProductPage && keepsThemeSections) {
     // A product page that keeps the theme's product sections: composed on
-    // the target. The merchant's arrangement (from the theme editor) comes
-    // along when every section it uses exists in the target theme; when one
-    // does not, the target's own product page is the base.
+    // the target, like publishing does. The base is the target's own copy
+    // when it has one (arranged in that theme's editor), else the source's
+    // arrangement when every section it uses exists in the target, else the
+    // target's product page.
     const pageId = ours[0].replace(/^dvfly-p-/i, '');
     const order = Array.isArray(template.order) ? (template.order as string[]) : [];
     const input = {
@@ -220,14 +321,17 @@ export async function planTemplate(
       chrome: layout !== PRODUCT_LAYOUT,
       contentAbove: order[0] === 'dvfly',
     };
-    if (absent.length > 0) {
+    const base = targetText ?? (absent.length > 0 ? null : sourceText);
+    if (absent.length > 0 && targetText === null) {
       const what = absent.length === 1 ? `a seção ${absent[0]} não existe` : `as seções ${absent.join(', ')} não existem`;
       plan.notes.push(
-        `${what} no tema novo: a página usa a página de produto do tema novo em volta do conteúdo do D&VFly, e o que foi ajustado no editor de tema para ela não veio`,
+        `${what} no tema de destino: a página usa a página de produto dele em volta do conteúdo do D&VFly, e o que foi ajustado no editor de tema para ela não veio`,
       );
     }
     try {
-      plan.files.push(file(name, composeProductTemplate(targetProduct, input, absent.length > 0 ? null : sourceText)));
+      plan.files.push(file(name, composeProductTemplate(targetProduct, input, base)));
+      if (base !== null) plan.fallback = file(name, composeProductTemplate(targetProduct, input, null));
+      plan.derived.push(name);
     } catch (error) {
       plan.problem = error instanceof ShopifyError ? error.message : String(error);
       return plan;
@@ -236,8 +340,8 @@ export async function planTemplate(
     if (absent.length > 0) {
       plan.problem =
         absent.length === 1
-          ? `a seção ${absent[0]} que o modelo usa não existe no tema novo`
-          : `as seções ${absent.join(', ')} que o modelo usa não existem no tema novo`;
+          ? `a seção ${absent[0]} que o modelo usa não existe no tema de destino`
+          : `as seções ${absent.join(', ')} que o modelo usa não existem no tema de destino`;
       return plan;
     }
     plan.files.push(file(name, sourceText));
@@ -247,7 +351,7 @@ export async function planTemplate(
 
 export interface ItemOutcome {
   status: 'pronto' | 'falhou';
-  /** Files written (or, in "only missing" mode, found already there). */
+  /** Files written. */
   written: string[];
   problem: string | null;
   notes: string[];
@@ -258,8 +362,9 @@ export interface ItemOutcome {
  * needs: missing there, or older there than in the source. The second case
  * is a page republished in D&VFly between preparing the theme and publishing
  * it — that publish went to the theme that was live then. A file written in
- * the published theme after that is newer and stays. Without dates from
- * Shopify, an existing file is never overwritten.
+ * the published theme after that is newer and stays; a file DERIVED from the
+ * target is the target's once it exists. Without dates from Shopify, an
+ * existing file is never overwritten.
  */
 async function behind(client: ShopifyClient, targetThemeId: string, plan: TemplatePlan, names: string[]): Promise<Set<string>> {
   const [there, source] = await Promise.all([
@@ -271,16 +376,18 @@ async function behind(client: ShopifyClient, targetThemeId: string, plan: Templa
     const target = there[i];
     const from = source[i];
     if (!target) out.add(name);
+    else if (plan.derived.includes(name)) return;
     else if (from?.updatedAt && target.updatedAt && Date.parse(from.updatedAt) > Date.parse(target.updatedAt)) out.add(name);
   });
   return out;
 }
 
 /**
- * Writes a plan into the target. `completing`: the target is the theme
+ * Writes a plan into the target. Preparing a theme nobody sees yet, the
+ * source is the truth: its copies overwrite (what is derived from the target
+ * is written only when missing). `completing`: the target is the theme
  * already published — only what is missing there or older there than in the
- * source is written (see `behind`); everything else is overwritten as a copy
- * (the target is not live, and the source is the truth).
+ * source is written (see `behind`).
  */
 export async function writePlan(
   client: ShopifyClient,
@@ -289,32 +396,52 @@ export async function writePlan(
   options: { completing?: boolean } = {},
 ): Promise<ItemOutcome> {
   if (plan.problem) return { status: 'falhou', written: [], problem: plan.problem, notes: plan.notes };
+  if (plan.done) return { status: 'pronto', written: [], problem: null, notes: plan.notes };
   if (plan.requires.length > 0) {
     const present = await readThemeFiles(client, targetThemeId, plan.requires);
     const missing = plan.requires.filter((_, i) => present[i] === null);
     if (missing.length > 0) {
-      return { status: 'falhou', written: [], problem: `o tema novo não tem ${missing.join(', ')}`, notes: plan.notes };
+      return { status: 'falhou', written: [], problem: `o tema de destino não tem ${missing.join(', ')}`, notes: plan.notes };
     }
   }
-  let layout = plan.layout;
-  let files = plan.files;
-  if (options.completing) {
-    const all = [...(layout ? [layout] : []), ...files];
-    const needed = await behind(client, targetThemeId, plan, all.map((f) => f.filename));
-    layout = layout && needed.has(layout.filename) ? layout : null;
-    files = files.filter((f) => needed.has(f.filename));
-  }
+  const all = [...(plan.layout ? [plan.layout] : []), ...plan.files];
+  const needed = options.completing
+    ? await behind(client, targetThemeId, plan, all.map((f) => f.filename))
+    : await (async () => {
+        // Preparing: copies always; derived files only where the target has none yet.
+        const derived = all.filter((f) => plan.derived.includes(f.filename)).map((f) => f.filename);
+        const present = await readThemeFiles(client, targetThemeId, derived);
+        const keep = new Set(derived.filter((_, i) => present[i] !== null));
+        return new Set(all.map((f) => f.filename).filter((n) => !keep.has(n)));
+      })();
+  const layout = plan.layout && needed.has(plan.layout.filename) ? plan.layout : null;
+  let files = [...plan.extra, ...plan.files.filter((f) => needed.has(f.filename))];
+  const notes = [...plan.notes];
   try {
     if (layout) await upsertThemeFiles(client, targetThemeId, [layout]);
-    if (files.length > 0) await upsertThemeFiles(client, targetThemeId, files);
+    if (files.length > 0) {
+      try {
+        await upsertThemeFiles(client, targetThemeId, files);
+      } catch (error) {
+        // The arrangement carried over uses blocks or settings the target's
+        // sections do not define: the target's own product page instead.
+        const fallback = plan.fallback;
+        if (!fallback || !files.some((f) => f.filename === fallback.filename)) throw error;
+        files = files.map((f) => (f.filename === fallback.filename ? fallback : f));
+        await upsertThemeFiles(client, targetThemeId, files);
+        notes.push(
+          'a Shopify recusou o arranjo de seções que veio do tema de origem (blocos que o tema de destino não tem): a página usa a página de produto dele em volta do conteúdo do D&VFly',
+        );
+      }
+    }
   } catch (error) {
-    return { status: 'falhou', written: [], problem: errorText(error), notes: plan.notes };
+    return { status: 'falhou', written: [], problem: errorText(error), notes };
   }
   return {
     status: 'pronto',
-    written: [...(plan.layout ? [plan.layout.filename] : []), ...plan.files.map((f) => f.filename)],
+    written: [...(layout ? [layout.filename] : []), ...files.map((f) => f.filename)],
     problem: null,
-    notes: plan.notes,
+    notes,
   };
 }
 
@@ -344,47 +471,87 @@ export async function checkPlan(
   options: { completing?: boolean } = {},
 ): Promise<ItemCheck> {
   if (plan.problem) return { status: 'falhou', detail: plan.problem };
+  if (plan.done) return { status: 'pronto', detail: null };
   const all = [...(plan.layout ? [plan.layout] : []), ...plan.files];
-  const names = [...all.map((f) => f.filename), ...plan.requires];
+  const names = [...all.map((f) => f.filename), ...plan.extra.map((f) => f.filename), ...plan.requires];
   const texts = await readThemeFiles(client, targetThemeId, names);
   const missing = names.filter((_, i) => texts[i] === null);
   if (missing.length > 0) return { status: 'falta', detail: `falta no tema: ${missing.join(', ')}` };
   if (options.completing) {
     const older = [...(await behind(client, targetThemeId, plan, all.map((f) => f.filename)))];
     if (older.length > 0) {
-      return { status: 'desatualizado', detail: `mais antigo aqui do que em «origem»: ${older.join(', ')} — clique em Completar` };
+      return { status: 'desatualizado', detail: `mais antigo aqui do que no tema de origem: ${older.join(', ')} — clique em Completar` };
     }
     return { status: 'pronto', detail: null };
   }
-  const stale = all.filter((f, i) => !sameContent(f.filename, f.body.value, texts[i]!)).map((f) => f.filename);
+  const stale = all
+    .filter((f, i) => !plan.derived.includes(f.filename) && !sameContent(f.filename, f.body.value, texts[i]!))
+    .map((f) => f.filename);
   if (stale.length > 0) {
-    return { status: 'desatualizado', detail: `diferente do tema publicado hoje: ${stale.join(', ')} — prepare de novo` };
+    return { status: 'desatualizado', detail: `diferente do tema de origem: ${stale.join(', ')} — prepare de novo` };
   }
   return { status: 'pronto', detail: null };
 }
 
 // ---- A | B tests -----------------------------------------------------------------
 
-/** Writes a live test's split into the target theme, as going live does. */
+/** Version A's own template, when it has one, is in the theme (`.json` or `.liquid`). */
+async function hasProductTemplate(client: ShopifyClient, themeId: string, suffix: string): Promise<boolean> {
+  const [json, liquid] = await readThemeFiles(client, themeId, [`templates/product.${suffix}.json`, `templates/product.${suffix}.liquid`]);
+  return json !== null || liquid !== null;
+}
+
+/**
+ * Writes a live test's split into the target theme, as going live does. A
+ * version A whose own template the target lacks is refused: the split would
+ * quietly fall back to the theme's default product page, and half the ad's
+ * visitors would see it.
+ */
 export async function prepareSplit(
   client: ShopifyClient,
   targetThemeId: string,
   plan: SplitPlan,
-): Promise<ItemOutcome & { mode: string | null }> {
+): Promise<ItemOutcome & { mode: string | null; note: string | null }> {
+  const a = plan.entry?.template ?? null;
+  if (a && !(await hasProductTemplate(client, targetThemeId, a))) {
+    const why = isOurSuffix(a)
+      ? 'a página dela está nesta lista: prepare de novo depois que ela ficar pronta'
+      : 'esse modelo não é do D&VFly — crie-o no tema de destino ou troque a versão A antes de publicar';
+    return {
+      status: 'falhou',
+      written: [],
+      problem: `a versão A usa o modelo «${a}», que o tema de destino não tem: ela mostraria a página padrão de produto (${why})`,
+      notes: [],
+      mode: null,
+      note: null,
+    };
+  }
   try {
     const result = await ensureSplitTemplate(client, plan, { themeId: targetThemeId });
     const notes = result.note ? [result.note] : [];
     if (result.mode === 'view' && plan.entry) {
-      notes.push('a versão A abre pela URL ?view= neste tema (não dá para mostrá-la direto na URL de entrada)');
+      notes.push('neste tema a versão A abre pela URL ?view= (não dá para mostrá-la direto na URL de entrada)');
     }
-    return { status: 'pronto', written: [`templates/product.${result.suffix}.json`], problem: null, notes, mode: result.mode };
+    return {
+      status: 'pronto',
+      written: [`templates/product.${result.suffix}.json`],
+      problem: null,
+      notes,
+      mode: result.mode,
+      note: result.note,
+    };
   } catch (error) {
-    return { status: 'falhou', written: [], problem: errorText(error), notes: [], mode: null };
+    return { status: 'falhou', written: [], problem: errorText(error), notes: [], mode: null, note: null };
   }
 }
 
-/** The split's template, its layout and its sections exist in the target. */
-export async function checkSplit(client: ShopifyClient, targetThemeId: string, testId: string): Promise<ItemCheck> {
+/** The split's template, its layout, its sections, and every template its script sends visitors to exist in the target. */
+export async function checkSplit(
+  client: ShopifyClient,
+  targetThemeId: string,
+  testId: string,
+  entryTemplate: string | null = null,
+): Promise<ItemCheck> {
   const name = `templates/product.${splitSuffix(testId)}.json`;
   const [text] = await readThemeFiles(client, targetThemeId, [name]);
   if (text === null) return { status: 'falta', detail: `falta no tema: ${name}` };
@@ -398,11 +565,10 @@ export async function checkSplit(client: ShopifyClient, targetThemeId: string, t
   }
   const texts = await readThemeFiles(client, targetThemeId, needs);
   const missing = needs.filter((_, i) => texts[i] === null);
-  // Version A through `?view=`: the template that name points at must exist too.
-  const layoutText = typeof template.layout === 'string' ? (texts[0] ?? '') : '';
-  for (const view of new Set([...layoutText.matchAll(/view=([\w-]+)/g)].map((m) => m[1]))) {
-    const [json, liquid] = await readThemeFiles(client, targetThemeId, [`templates/product.${view}.json`, `templates/product.${view}.liquid`]);
-    if (json === null && liquid === null) missing.push(`templates/product.${view}.json`);
+  const views = new Set(typeof template.layout === 'string' ? splitViews(texts[0] ?? '') : []);
+  if (entryTemplate) views.add(entryTemplate);
+  for (const view of views) {
+    if (!(await hasProductTemplate(client, targetThemeId, view))) missing.push(`templates/product.${view}.json`);
   }
   if (missing.length > 0) return { status: 'falta', detail: `falta no tema: ${missing.join(', ')}` };
   return { status: 'pronto', detail: null };
