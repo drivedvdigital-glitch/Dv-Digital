@@ -3298,6 +3298,62 @@ Prova depois das correções:
 - Roteiro dirigido **35/35**, com duas checagens novas: o aviso de PageFly em uso e o `entryMode` gravado
   ao Completar.
 
+### LP da PureColor no formato padrão (27/10)
+
+O Miguel colou a LP do PureColor Peinador (Colômbia, Playfair Display + DM Sans, mesmo gerador da
+Mini Plancha) e pediu "aquele formato padrão nosso". Feito em `docs/lps/purecolor-lp.html`, com o
+tratamento das LPs da câmera e do pelador:
+
+- **Herói compacto em px** (o bloco "HERO COMPACTO" das outras duas): nota, título, foto, preço, botão e
+  selos cabem na primeira tela de 360×640 a 1920×947. Na original o botão ficava em 1.018 px no
+  celular do PageSpeed (412×823) e em 1.148 px no computador, fora da tela em todos os tamanhos.
+  A foto segue a largura e é limitada pela altura da tela (`34svh`; `40svh` a partir de 820 px).
+- **`@container` → `@media`** (4 regras) e `container-type` fora da raiz; **`content-visibility:auto`**
+  nas seções `.sec` abaixo do herói (com as fotos de exemplo, o compilador não aplicaria sozinho: ele
+  procura a foto principal, e as 8 fotos são placeholders).
+- **Barra fixa** aparece quando o botão do herói sai da tela, uma leitura por quadro, a primeira dois
+  quadros depois do carregamento. **EasySell** uma vez por quadro, com a cor fixa.
+- **`sizes` nas 8 imagens**, pela conta do CSS. Medido com fotos falsas do CDN: no celular do
+  PageSpeed o herói baixa o arquivo de 540 px (a original baixaria 800), num celular 3× de 360 px
+  800 em vez de 1080, e nenhuma foto baixa menor do que é desenhada.
+
+**A troca de fonte no F5, com número.** Com `display=optional`, a primeira visita vê a fonte reserva e
+o F5 vê a Playfair. A Noto Serif Bold (a serifada do Android) é 9,8% mais larga que a Playfair Bold
+no título, e a Georgia 11,8%; o título passava de 3 para 4 linhas e empurrava foto, preço e botão
+31 px para baixo. Conserto: duas `@font-face` com `local()` + `size-adjust` (a mesma técnica do
+`next/font`), postas logo depois da Playfair na pilha:
+- `pc-titulo-reserva`: `local("Noto Serif Bold")`, `size-adjust:90%`, `ascent/descent-override`
+  para a linha ficar na mesma altura da Playfair;
+- `pc-titulo-reserva-2`: Times New Roman Bold (iPhone, Mac, Windows; Liberation Serif no Linux) a 107%.
+
+Medido no Chromium com a Noto Serif Bold instalada como fonte do sistema (o caminho do `local()` no
+Android): 3 linhas como a Playfair, foto e botão no mesmo lugar (0 a 3 px), caixa da linha idêntica.
+Sem a Noto, cai na Times ajustada, também 3 linhas. Se um aparelho não achar nenhuma das duas, a
+pilha segue para a serifada do sistema sem ajuste, que é o comportamento de antes.
+
+**Defeitos da original, corrigidos:**
+- o preço antigo do kit tinha dois atributos `class`; o navegador ignora o segundo, e o `LP_CONFIG`
+  nunca atualizava esse preço;
+- os "pontos" da faixa dourada herdavam o `padding:0 26px` dos itens e apareciam como tracinhos de
+  57 px;
+- a pintura do ícone laranja do EasySell nunca funcionava: a cor calculada vem com espaços
+  (`rgb(234, 88, 12)`) e o teste procurava `234,88`;
+- "los fios" (português) virou "el cabello";
+- a FAQ de entrega trazia um recado do gerador para o lojista ("Valida la cobertura y los plazos
+  exactos con tu operador logístico antes de publicar."): removido.
+
+**Prova** (Chromium, rede externa cortada, original × editada, as duas pelo compilador e no esqueleto
+da página leve):
+- abaixo do herói, 229 elementos com posição e tamanho iguais ao pixel em 320, 360, 412, 768, 1280 e
+  1920 px, fora as duas correções de texto/atributo; sem rolagem horizontal em 320 px;
+- layout forçado dentro do script no carregamento: **2 (57–69 ms) → 0**, em 3 corridas;
+- barra fixa, 17/17 animações, CLS 0, botão do herói chega na oferta (`#pc-oferta` no topo), FAQ, e o
+  popup simulado do EasySell com as cores certas, sem tocar no cadeado do nosso botão.
+
+Não provado: a nota do PageSpeed (só depois de colar e publicar) e o `local()` num Android de verdade
+(o Chrome do Android procura fontes do sistema pelo nome; o teste aqui foi com a mesma fonte instalada
+no Linux). As 8 fotos continuam de exemplo (`data-placeholder`).
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

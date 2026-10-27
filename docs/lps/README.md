@@ -11,6 +11,7 @@ resto na publicação (srcset, preload da primeira imagem, lazy nas outras).
 | `mini-plancha-lp.html` | `snevy.co/products/mini-plancha` | 21/09/2026 — ver `docs/PROGRESSO.md`, "A LP da Mini Plancha, lida inteira" |
 | `camara-endoscopica-lp.html` | Cámara Endoscópica HD | 07/10/2026 — ver `docs/PROGRESSO.md`, "LP da Cámara Endoscópica" |
 | `pelador-lp.html` | Pelador automático | 07/10/2026 — fonte de reserva estreita nos títulos |
+| `purecolor-lp.html` | PureColor Peinador y Cubridor de Canas | 27/10/2026 — ver `docs/PROGRESSO.md`, "LP da PureColor no formato padrão" |
 
 Como usar: abrir o arquivo no GitHub → botão **Raw** → selecionar tudo (Ctrl+A) → copiar → no
 editor, selecionar o bloco de HTML → apagar o conteúdo → colar → Publicar.
