@@ -1,0 +1,684 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Work+Sans:wght@400;600&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Work+Sans:wght@400;600&display=optional"></noscript>
+
+<div id="ppb-lp">
+<style>
+@font-face{font-family:"ppb-t1";src:local("Roboto Condensed Bold"),local("RobotoCondensed-Bold");font-weight:700 900;size-adjust:85%}
+@font-face{font-family:"ppb-t2";src:local("Roboto Bold"),local("Roboto-Bold");font-weight:700 900;size-adjust:75%}
+@font-face{font-family:"ppb-t3";src:local("Arial Bold"),local("Arial-BoldMT"),local("Liberation Sans Bold"),local("LiberationSans-Bold");font-weight:700 900;size-adjust:68%}
+
+#ppb-lp{
+  --fs:1;--fs-ui:1;
+  --bg:#FFFFFF;--bg2:#F4F6F9;--card:#FFFFFF;--ink:#14171F;--ink-2:#4A4F5C;--muted:#9AA1AE;
+  --brand:#1858F3;--brand-dark:#0E3FC2;--line:#E2E6EC;--star:#F4B400;--r:10px;--r-lg:16px;
+  --cor-principal-lp:#1858F3;
+  --band-yellow:#F4C430;--band-red:#E8363B;--band-green:#2BAF7A;--band-blue:#1858F3;--band-black:#4A4F5C;
+  --display:"Big Shoulders Display","ppb-t1","ppb-t2","ppb-t3","Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,-apple-system,sans-serif;
+  --sans:"Work Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --es-primary-color:var(--cor-principal-lp)!important;--es-color:var(--cor-principal-lp)!important;
+  font-family:var(--sans);color:var(--ink);background:var(--bg)!important;
+}
+#ppb-lp *{box-sizing:border-box}
+#ppb-lp img{display:block!important;max-width:100%!important;height:auto;margin:0!important;border:0!important}
+#ppb-lp h1,#ppb-lp h2,#ppb-lp h3{font-family:var(--display)!important;margin:0!important;color:var(--ink)!important;line-height:1.02!important;letter-spacing:-.01em;text-transform:uppercase}
+#ppb-lp p{margin:0;color:var(--ink-2);line-height:1.6}
+#ppb-lp .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+#ppb-lp .hl{color:var(--brand)}
+#ppb-lp a{text-decoration:none}
+#ppb-lp .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--display)!important;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#fff!important;background:linear-gradient(160deg,#3E78FF,var(--brand) 55%,var(--brand-dark));border:0;border-radius:var(--r);cursor:pointer;min-height:56px;padding:16px 28px;font-size:calc(23px*var(--fs-ui));width:100%;text-decoration:none!important;box-shadow:0 10px 24px rgba(24,88,243,.22)}
+#ppb-lp svg{flex-shrink:0}
+
+/* ===== HERO ===== */
+#ppb-lp .hero{padding:8px 0 24px;background:var(--bg)!important;text-align:center;position:relative;overflow:hidden}
+#ppb-lp .hero-copy{display:flex;flex-direction:column;align-items:center;max-width:620px;margin:0 auto;position:relative;z-index:1}
+#ppb-lp .hero-rating{display:inline-flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:100px;padding:4px 12px;margin-bottom:6px}
+#ppb-lp .hero-rating .st{color:var(--star);font-size:calc(14px*var(--fs-ui));letter-spacing:1px}
+#ppb-lp .hero-rating .rn{font-family:var(--display);font-weight:800;font-size:calc(15px*var(--fs-ui));color:var(--ink)}
+#ppb-lp .hero-rating .rc{color:var(--ink-2);font-size:calc(12px*var(--fs-ui))}
+#ppb-lp .hero h1{font-size:clamp(24px,calc((100vw - 40px) / 9.46 * var(--fs)),50px)!important;line-height:1!important;text-align:center!important}
+#ppb-lp .hero-sub{font-size:clamp(14px,calc(3.8vw*var(--fs)),17px);line-height:1.35;margin-top:6px;max-width:40ch;text-align:center!important}
+#ppb-lp .hero-media{margin:10px auto;width:min(100%,480px)}
+#ppb-lp .hero-media .photo{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);aspect-ratio:1/1;background:var(--bg2)}
+#ppb-lp .hero-media .photo img{width:100%!important;height:100%!important;object-fit:cover}
+#ppb-lp .hero-price-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+#ppb-lp .hero-price-row .now{font-family:var(--display);font-weight:800;font-size:clamp(38px,calc(10vw*var(--fs)),54px);color:var(--brand);line-height:1}
+#ppb-lp .hero-price-row .was{color:var(--muted);text-decoration:line-through;font-size:calc(15px*var(--fs-ui))}
+#ppb-lp .hero-price-row .off{background:var(--brand);color:#fff;font-family:var(--display);font-weight:800;font-size:calc(13px*var(--fs-ui));padding:4px 10px;border-radius:6px}
+#ppb-lp .hero-save{font-size:calc(13px*var(--fs-ui));color:#B8860B;font-weight:600;margin-bottom:8px;text-align:center!important}
+#ppb-lp .hero .btn{min-height:52px;padding:11px 22px;font-size:calc(19px*var(--fs-ui));max-width:480px}
+#ppb-lp .hero-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin-top:10px;font-size:calc(12px*var(--fs-ui));color:var(--ink-2);font-weight:600}
+#ppb-lp .hero-trust span{display:flex;align-items:center;gap:5px}
+@media (min-width:820px){#ppb-lp .hero-media{width:min(100%,480px,38vh);width:min(100%,480px,38svh)}}
+
+/* ===== TICKER ===== */
+#ppb-lp .ticker-wrap{overflow:hidden;background:var(--brand);padding:12px 0;white-space:nowrap}
+#ppb-lp .ticker-track{display:inline-flex;gap:32px;animation:ppbTicker 24s linear infinite}
+#ppb-lp .ticker-item{font-family:var(--display);font-size:calc(18px*var(--fs-ui));font-weight:800;text-transform:uppercase;color:#fff;display:flex;align-items:center;gap:28px}
+@keyframes ppbTicker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){#ppb-lp .ticker-track{animation:none}}
+
+/* ===== SEÇÕES GERAIS ===== */
+#ppb-lp .sec{background:var(--bg)!important;padding:52px 0;border-bottom:1px solid var(--line);position:relative}
+#ppb-lp .sec.alt{background:var(--bg2)!important}
+#ppb-lp .sec:not(.hero){content-visibility:auto;contain-intrinsic-size:auto 700px}
+#ppb-lp .eyebrow{display:inline-block;color:var(--brand);font-family:var(--display);font-weight:800;letter-spacing:.08em;font-size:calc(13px*var(--fs-ui));text-transform:uppercase;margin-bottom:8px}
+#ppb-lp .head{text-align:center!important;max-width:620px;margin:0 auto 32px!important}
+#ppb-lp .head h2{font-size:clamp(26px,calc(6.4vw*var(--fs)),40px)!important;text-align:center!important}
+#ppb-lp .head p{text-align:center!important;margin-top:10px}
+#ppb-lp .stripes{position:absolute;inset:0;opacity:.04;pointer-events:none;background:repeating-linear-gradient(-24deg,var(--ink) 0 2px,transparent 2px 26px)}
+
+#ppb-lp .reveal{opacity:1;transform:none}
+#ppb-lp.js-ready .reveal{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s ease}
+#ppb-lp.js-ready .reveal.in{opacity:1;transform:translateY(0)}
+@media (prefers-reduced-motion:reduce){#ppb-lp.js-ready .reveal{opacity:1!important;transform:none!important;transition:none!important}}
+
+/* ===== DOLOR ===== */
+#ppb-lp .pain-grid{display:grid;grid-template-columns:1fr;gap:24px;align-items:center}
+#ppb-lp .pain-photo{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);aspect-ratio:4/3;background:var(--bg2)}
+#ppb-lp .pain-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#ppb-lp .pain-list{display:flex;flex-direction:column;gap:12px}
+#ppb-lp .pain-item{display:flex;align-items:flex-start;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+#ppb-lp .pain-item p{color:var(--ink);font-weight:600;text-align:left!important}
+#ppb-lp .pain-icon{color:var(--brand);flex-shrink:0;margin-top:2px}
+#ppb-lp .pain-turn{margin-top:6px;padding:16px;background:rgba(24,88,243,.07);border-left:4px solid var(--brand);border-radius:4px}
+#ppb-lp .pain-turn p{text-align:left!important;color:var(--ink);font-weight:600}
+@media (min-width:860px){#ppb-lp .pain-grid{grid-template-columns:1fr 1.1fr}}
+
+/* ===== SELETOR DE RESISTENCIA ===== */
+#ppb-lp .ppb-rb{max-width:720px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;box-shadow:0 6px 24px rgba(20,23,31,.06)}
+#ppb-lp .ppb-rb input{position:absolute;opacity:0;width:1px;height:1px}
+#ppb-lp .ppb-rb-tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px}
+#ppb-lp .ppb-rb-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:56px;border-radius:var(--r);border:2px solid var(--line);cursor:pointer;background:var(--bg2);font-family:var(--display);font-weight:800;color:var(--ink-2);font-size:calc(13px*var(--fs-ui));transition:transform .15s ease}
+#ppb-lp .ppb-rb-tab span{display:block;font-size:calc(9px*var(--fs-ui));font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+#ppb-lp .ppb-rb-tab .dot{width:14px;height:14px;border-radius:50%;margin-bottom:2px}
+#ppb-lp #ppb-rb1:checked ~ .ppb-rb-tabs label[for="ppb-rb1"]{border-color:var(--band-yellow);color:#15161A;background:var(--band-yellow);transform:translateY(-2px)}
+#ppb-lp #ppb-rb2:checked ~ .ppb-rb-tabs label[for="ppb-rb2"]{border-color:var(--band-red);color:#fff;background:var(--band-red);transform:translateY(-2px)}
+#ppb-lp #ppb-rb3:checked ~ .ppb-rb-tabs label[for="ppb-rb3"]{border-color:var(--band-green);color:#fff;background:var(--band-green);transform:translateY(-2px)}
+#ppb-lp #ppb-rb4:checked ~ .ppb-rb-tabs label[for="ppb-rb4"]{border-color:var(--band-blue);color:#fff;background:var(--band-blue);transform:translateY(-2px)}
+#ppb-lp #ppb-rb5:checked ~ .ppb-rb-tabs label[for="ppb-rb5"]{border-color:var(--band-black);color:#fff;background:var(--band-black);transform:translateY(-2px)}
+#ppb-lp .ppb-rb-panel{display:none;flex-direction:column;gap:12px}
+#ppb-lp #ppb-rb1:checked ~ .ppb-rb-panels #ppb-panel1{display:flex}
+#ppb-lp #ppb-rb2:checked ~ .ppb-rb-panels #ppb-panel2{display:flex}
+#ppb-lp #ppb-rb3:checked ~ .ppb-rb-panels #ppb-panel3{display:flex}
+#ppb-lp #ppb-rb4:checked ~ .ppb-rb-panels #ppb-panel4{display:flex}
+#ppb-lp #ppb-rb5:checked ~ .ppb-rb-panels #ppb-panel5{display:flex}
+#ppb-lp .ppb-rb-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#ppb-lp .ppb-rb-weight{font-family:var(--display);font-weight:800;font-size:calc(26px*var(--fs-ui));color:var(--ink)}
+#ppb-lp .ppb-rb-bar-bg{width:100%;height:14px;border-radius:100px;background:var(--bg2);border:1px solid var(--line);overflow:hidden}
+#ppb-lp .ppb-rb-bar{display:block;height:100%;border-radius:100px}
+#ppb-lp .ppb-rb-ex{text-align:left!important;color:var(--ink-2);font-size:calc(14px*var(--fs))}
+#ppb-lp .ppb-rb-ex b{color:var(--ink)}
+
+/* ===== STEPS ===== */
+#ppb-lp .steps-grid{display:grid;grid-template-columns:1fr;gap:20px}
+#ppb-lp .step-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;text-align:center;box-shadow:0 4px 16px rgba(20,23,31,.04)}
+#ppb-lp .step-num{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--brand);color:#fff;font-family:var(--display);font-weight:800;border-radius:50%;margin-bottom:12px;font-size:calc(15px*var(--fs-ui))}
+#ppb-lp .step-photo{border-radius:var(--r);overflow:hidden;margin-bottom:14px;aspect-ratio:1/1;background:var(--bg2)}
+#ppb-lp .step-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#ppb-lp .step-card h3{font-size:calc(19px*var(--fs))!important;margin-bottom:6px!important}
+#ppb-lp .step-card p{text-align:center!important}
+@media (min-width:720px){#ppb-lp .steps-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* ===== BENEFICIOS ===== */
+#ppb-lp .ben-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:28px}
+#ppb-lp .ben-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;align-items:flex-start;gap:14px}
+#ppb-lp .ben-icon{color:var(--brand);flex-shrink:0;width:38px;height:38px;border-radius:10px;background:rgba(24,88,243,.09);display:flex;align-items:center;justify-content:center}
+#ppb-lp .ben-card h3{font-size:calc(17px*var(--fs))!important;margin-bottom:4px!important;text-align:left!important}
+#ppb-lp .ben-card p{text-align:left!important;font-size:calc(14px*var(--fs))}
+@media (min-width:720px){#ppb-lp .ben-grid{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:1000px){#ppb-lp .ben-grid{grid-template-columns:repeat(3,1fr)}}
+
+#ppb-lp .mini-gal{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:620px;margin:0 auto}
+#ppb-lp .mini-gal .mg-item{border-radius:var(--r);overflow:hidden;aspect-ratio:1/1;border:1px solid var(--line);background:var(--bg2)}
+#ppb-lp .mini-gal .mg-item img{width:100%!important;height:100%!important;object-fit:cover}
+
+/* ===== OBJEÇÕES ===== */
+#ppb-lp .obj-grid{display:grid;grid-template-columns:1fr;gap:18px}
+#ppb-lp .obj-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;box-shadow:0 4px 16px rgba(20,23,31,.04)}
+#ppb-lp .obj-photo{aspect-ratio:4/3;overflow:hidden;background:var(--bg2)}
+#ppb-lp .obj-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#ppb-lp .obj-body{padding:18px}
+#ppb-lp .obj-body .tag{display:inline-block;color:var(--brand);font-weight:800;font-size:calc(12px*var(--fs-ui));text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+#ppb-lp .obj-body h3{font-size:calc(18px*var(--fs))!important;text-align:left!important;margin-bottom:6px!important}
+#ppb-lp .obj-body p{text-align:left!important}
+@media (min-width:860px){#ppb-lp .obj-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* ===== STATEMENT (split com foto) ===== */
+#ppb-lp .statement{background:var(--bg2)!important;padding:52px 0;position:relative;overflow:hidden}
+#ppb-lp .statement-grid{display:grid;grid-template-columns:1fr;gap:26px;align-items:center}
+#ppb-lp .statement-photo{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);aspect-ratio:4/3;background:var(--card)}
+#ppb-lp .statement-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#ppb-lp .statement-copy{text-align:center}
+#ppb-lp .statement h2{font-size:clamp(26px,calc(6.6vw*var(--fs)),42px)!important;text-align:center!important;margin-bottom:14px!important}
+#ppb-lp .statement p{text-align:center!important;max-width:42ch;margin:0 auto 20px}
+#ppb-lp .statement .btn{max-width:360px;margin:0 auto}
+@media (min-width:860px){#ppb-lp .statement-grid{grid-template-columns:1fr 1fr;text-align:left}#ppb-lp .statement-copy{text-align:left}#ppb-lp .statement h2,#ppb-lp .statement p{text-align:left!important;margin-left:0;margin-right:0}#ppb-lp .statement .btn{margin-left:0}}
+
+/* ===== OFERTA ===== */
+#ppb-lp .offer-box{background:var(--card);border:2px solid var(--brand);border-radius:var(--r-lg);padding:28px 20px;max-width:720px;margin:0 auto;text-align:center;position:relative;box-shadow:0 10px 30px rgba(20,23,31,.08)}
+#ppb-lp .offer-kit-photo{border-radius:var(--r);overflow:hidden;margin:16px 0;aspect-ratio:16/10;background:var(--bg2)}
+#ppb-lp .offer-kit-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#ppb-lp .offer-list{list-style:none;padding:0;margin:14px 0 20px;display:grid;grid-template-columns:1fr;gap:8px;text-align:left}
+#ppb-lp .offer-list li{display:flex;align-items:center;gap:10px;color:var(--ink);font-weight:600;font-size:calc(14.5px*var(--fs))}
+#ppb-lp .offer-list li svg{color:var(--brand);flex-shrink:0}
+@media (min-width:600px){#ppb-lp .offer-list{grid-template-columns:1fr 1fr}}
+
+#ppb-lp .bundles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+#ppb-lp .bundle{position:relative;border:2px solid var(--line);background:var(--bg2);border-radius:var(--r);padding:16px 12px;cursor:pointer;text-align:center}
+#ppb-lp .bundle input{position:absolute;opacity:0;width:1px;height:1px}
+#ppb-lp .bundle .badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--star);color:#15161A;font-family:var(--display);font-weight:800;font-size:calc(11px*var(--fs-ui));padding:3px 10px;border-radius:100px;white-space:nowrap}
+#ppb-lp .bundle .qty{font-weight:700;color:var(--ink);font-size:calc(14px*var(--fs-ui));margin-bottom:4px}
+#ppb-lp .bundle .now{font-family:var(--display);font-weight:800;font-size:calc(24px*var(--fs-ui));color:var(--brand)}
+#ppb-lp .bundle .was{color:var(--muted);text-decoration:line-through;font-size:calc(12px*var(--fs-ui))}
+#ppb-lp .bundle.active{border-color:var(--brand);background:rgba(24,88,243,.06)}
+#ppb-lp .offer-summary{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px;flex-wrap:wrap}
+#ppb-lp .offer-summary .now{font-family:var(--display);font-weight:800;font-size:clamp(32px,calc(8vw*var(--fs)),46px);color:var(--brand)}
+#ppb-lp .offer-summary .was{color:var(--muted);text-decoration:line-through;font-size:calc(15px*var(--fs-ui))}
+#ppb-lp .offer-save{font-size:calc(13px*var(--fs-ui));color:#B8860B;font-weight:600;margin-bottom:16px}
+#ppb-lp .offer-micro{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin-top:14px;font-size:calc(12px*var(--fs-ui));color:var(--ink-2);font-weight:600}
+#ppb-lp .offer-micro span{display:flex;align-items:center;gap:5px}
+
+/* ===== GARANTIA ===== */
+#ppb-lp .guar{background:var(--bg2)!important;padding:48px 0}
+#ppb-lp .guar-box{max-width:680px;margin:0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+#ppb-lp .guar-icon{width:60px;height:60px;border-radius:50%;background:rgba(24,88,243,.09);display:flex;align-items:center;justify-content:center;color:var(--brand)}
+#ppb-lp .guar-box p{text-align:center!important}
+
+/* ===== FAQ ===== */
+#ppb-lp .faq-list{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+#ppb-lp .faq-item{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+#ppb-lp .faq-item summary{padding:16px 46px 16px 20px;font-weight:600;cursor:pointer;list-style:none;position:relative;color:var(--ink);font-size:calc(15.5px*var(--fs));min-height:44px;display:flex;align-items:center}
+#ppb-lp .faq-item summary::-webkit-details-marker{display:none}
+#ppb-lp .faq-item summary::after{content:"+";position:absolute;right:18px;top:50%;transform:translateY(-50%);font-family:var(--display);font-size:22px;color:var(--brand)}
+#ppb-lp .faq-item[open] summary::after{content:"–"}
+#ppb-lp .faq-a{padding:0 20px 18px;color:var(--ink-2);font-size:calc(14.5px*var(--fs));line-height:1.6;text-align:left!important}
+
+/* ===== CTA FINAL / LEGAL ===== */
+#ppb-lp .cta-final{text-align:center}
+#ppb-lp .cta-final .btn{max-width:420px;margin:18px auto 0}
+#ppb-lp .legal{font-size:calc(11.5px*var(--fs-ui));color:var(--muted);text-align:center!important;max-width:680px;margin:0 auto;line-height:1.6}
+
+/* ===== STICKY ===== */
+#ppb-lp .sticky-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.97);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));z-index:2147483000;transform:translateY(110%);transition:transform .3s ease;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 -4px 16px rgba(20,23,31,.06)}
+#ppb-lp .sticky-bar.is-visible{transform:translateY(0)}
+#ppb-lp .sticky-bar .sb-price{display:flex;flex-direction:column}
+#ppb-lp .sticky-bar .sb-now{font-family:var(--display);font-weight:800;font-size:calc(22px*var(--fs-ui));color:var(--brand);line-height:1}
+#ppb-lp .sticky-bar .sb-was{font-size:calc(11px*var(--fs-ui));color:var(--muted);text-decoration:line-through}
+#ppb-lp .sticky-bar .btn{max-width:220px;min-height:46px;padding:8px 16px;font-size:calc(15px*var(--fs-ui))}
+@media (prefers-reduced-motion:reduce){#ppb-lp .sticky-bar{transition:none}}
+</style>
+
+<section class="hero" id="ppb-hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <div class="hero-rating">
+        <span class="st">★★★★☆</span>
+        <span class="rn js-rating">4.8</span>
+        <span class="rc js-rating-count">+500 clientes en Colombia</span>
+      </div>
+      <h1>ENTRENA FUERTE EN CASA<br><span class="hl">SIN PAGAR GIMNASIO</span></h1>
+      <p class="hero-sub">Kit de 11 piezas con 5 niveles de resistencia. Tonifica brazos, piernas y abdomen sin salir de tu sala.</p>
+      <div class="hero-media">
+        <div class="photo">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/03-entrena-en-casa-remo.png?v=1793129304" alt="Persona entrenando en casa con PowerBand Pro, ejercicio de remo con banda de resistencia" width="800" height="800" sizes="(min-width: 820px) min(480px, 38vh), min(calc(100vw - 40px), 480px)">
+        </div>
+      </div>
+      <div class="hero-price-row">
+        <span class="now js-price-now">$99.900</span>
+        <span class="was js-price-was">$199.900</span>
+        <span class="off js-off">50% OFF</span>
+      </div>
+      <p class="hero-save js-save">Ahorras $100.000 en esta oferta</p>
+      <a href="#ppb-offer" class="btn ppb-goto">Quiero mi kit ahora</a>
+      <div class="hero-trust">
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Pago contra entrega</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Envío gratis</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Entrega en 2–3 días</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="ticker-wrap">
+  <div class="ticker-track">
+    <div class="ticker-item"><span>⚡ 5 niveles de resistencia</span><span>✓ Pago contra entrega</span><span>✓ Envío gratis</span><span>✓ Garantía de 30 días</span><span>✓ Cabe en cualquier bolso</span></div>
+    <div class="ticker-item"><span>⚡ 5 niveles de resistencia</span><span>✓ Pago contra entrega</span><span>✓ Envío gratis</span><span>✓ Garantía de 30 días</span><span>✓ Cabe en cualquier bolso</span></div>
+  </div>
+</div>
+
+<section class="sec" id="ppb-dolor">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">¿Te pasa esto?</span>
+      <h2>La excusa del gimnasio ya te costó meses</h2>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-photo">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/01-sin-tiempo-para-gimnasio.png?v=1793129305" alt="Persona frustrada frente al computador por no tener tiempo ni dinero para ir al gimnasio" width="1200" height="900" sizes="(min-width: 1040px) 465px, (min-width: 860px) calc((100vw - 64px) / 2.1), calc(100vw - 40px)">
+      </div>
+      <div class="pain-list">
+        <div class="pain-item">
+          <svg class="pain-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          <p>"No tengo tiempo para ir y volver del gimnasio."</p>
+        </div>
+        <div class="pain-item">
+          <svg class="pain-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>
+          <p>"La mensualidad del gym ya no me alcanza."</p>
+        </div>
+        <div class="pain-item">
+          <svg class="pain-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v6M12 16v6M4 12H2M22 12h-2M19 5l-1.5 1.5M6.5 17.5 5 19M19 19l-1.5-1.5M6.5 6.5 5 5"/></svg>
+          <p>"Las rutinas en video aburren a la tercera semana."</p>
+        </div>
+        <div class="pain-turn">
+          <p>Con PowerBand Pro armas tu rutina completa en tu sala, en 10 minutos, sin salir de casa.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="ppb-rb-sec">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Progresión real</span>
+      <h2>Elige tu nivel de resistencia</h2>
+      <p>Las 5 bandas vienen codificadas por color y peso. Empiezas suave y subes de nivel sin comprar nada más.</p>
+    </div>
+    <div class="ppb-rb">
+      <input type="radio" name="ppb-rbl" id="ppb-rb1" checked>
+      <input type="radio" name="ppb-rbl" id="ppb-rb2">
+      <input type="radio" name="ppb-rbl" id="ppb-rb3">
+      <input type="radio" name="ppb-rbl" id="ppb-rb4">
+      <input type="radio" name="ppb-rbl" id="ppb-rb5">
+      <div class="ppb-rb-tabs">
+        <label for="ppb-rb1" class="ppb-rb-tab"><span class="dot" style="background:#F4C430"></span>10<span>LBS</span></label>
+        <label for="ppb-rb2" class="ppb-rb-tab"><span class="dot" style="background:#E8363B"></span>20<span>LBS</span></label>
+        <label for="ppb-rb3" class="ppb-rb-tab"><span class="dot" style="background:#2BAF7A"></span>30<span>LBS</span></label>
+        <label for="ppb-rb4" class="ppb-rb-tab"><span class="dot" style="background:#1858F3"></span>40<span>LBS</span></label>
+        <label for="ppb-rb5" class="ppb-rb-tab"><span class="dot" style="background:#4A4F5C"></span>50<span>LBS</span></label>
+      </div>
+      <div class="ppb-rb-panels">
+        <div class="ppb-rb-panel" id="ppb-panel1">
+          <div class="ppb-rb-row"><span class="ppb-rb-weight">Banda amarilla · 10 LBS</span></div>
+          <div class="ppb-rb-bar-bg"><span class="ppb-rb-bar" style="width:20%;background:#F4C430"></span></div>
+          <p class="ppb-rb-ex"><b>Ideal para:</b> iniciar, calentamiento y ejercicios de brazos y hombros.</p>
+        </div>
+        <div class="ppb-rb-panel" id="ppb-panel2">
+          <div class="ppb-rb-row"><span class="ppb-rb-weight">Banda roja · 20 LBS</span></div>
+          <div class="ppb-rb-bar-bg"><span class="ppb-rb-bar" style="width:40%;background:#E8363B"></span></div>
+          <p class="ppb-rb-ex"><b>Ideal para:</b> remo, bíceps y rutinas de tonificación general.</p>
+        </div>
+        <div class="ppb-rb-panel" id="ppb-panel3">
+          <div class="ppb-rb-row"><span class="ppb-rb-weight">Banda verde · 30 LBS</span></div>
+          <div class="ppb-rb-bar-bg"><span class="ppb-rb-bar" style="width:60%;background:#2BAF7A"></span></div>
+          <p class="ppb-rb-ex"><b>Ideal para:</b> sentadillas, zancadas y trabajo de piernas.</p>
+        </div>
+        <div class="ppb-rb-panel" id="ppb-panel4">
+          <div class="ppb-rb-row"><span class="ppb-rb-weight">Banda azul · 40 LBS</span></div>
+          <div class="ppb-rb-bar-bg"><span class="ppb-rb-bar" style="width:80%;background:#1858F3"></span></div>
+          <p class="ppb-rb-ex"><b>Ideal para:</b> peso muerto, espalda y niveles intermedios-avanzados.</p>
+        </div>
+        <div class="ppb-rb-panel" id="ppb-panel5">
+          <div class="ppb-rb-row"><span class="ppb-rb-weight">Banda negra · 50 LBS</span></div>
+          <div class="ppb-rb-bar-bg"><span class="ppb-rb-bar" style="width:100%;background:#4A4F5C"></span></div>
+          <p class="ppb-rb-ex"><b>Ideal para:</b> máxima resistencia, fuerza avanzada y combinaciones.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="ppb-steps">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Fácil de empezar</span>
+      <h2>Arma tu rutina en 3 pasos</h2>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <span class="step-num">1</span>
+        <div class="step-photo">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/02-elige-tu-banda.png?v=1793129304" alt="Persona eligiendo la banda de resistencia según su color y nivel" width="800" height="800" sizes="(min-width: 1040px) 282px, (min-width: 720px) calc((100vw - 80px) / 3 - 38px), calc(100vw - 78px)">
+        </div>
+        <h3>Elige tu banda</h3>
+        <p>Según tu nivel y el músculo que vas a trabajar.</p>
+      </div>
+      <div class="step-card reveal">
+        <span class="step-num">2</span>
+        <div class="step-photo">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-anclaje-en-la-puerta.png?v=1793129305" alt="Persona anclando la banda de resistencia a la puerta y ajustando las manijas" width="1200" height="900" sizes="(min-width: 1040px) 376px, (min-width: 720px) calc(((100vw - 80px) / 3 - 38px) * 1.34), calc((100vw - 78px) * 1.34)">
+        </div>
+        <h3>Ancla y ajusta</h3>
+        <p>En la puerta, el piso o donde quieras entrenar.</p>
+      </div>
+      <div class="step-card reveal">
+        <span class="step-num">3</span>
+        <div class="step-photo">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/07a-cuerpo-completo-sentadillas.png?v=1793129306" alt="Persona entrenando sentadillas con las bandas de resistencia y avanzando de nivel" width="1200" height="900" sizes="(min-width: 1040px) 376px, (min-width: 720px) calc(((100vw - 80px) / 3 - 38px) * 1.34), calc((100vw - 78px) * 1.34)">
+        </div>
+        <h3>Entrena y sube</h3>
+        <p>Cuando ya no sientas reto, cambia de color.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="ppb-ben">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Por qué funciona</span>
+      <h2>Todo lo que ganas con tu kit</h2>
+    </div>
+    <div class="ben-grid">
+      <div class="ben-card reveal"><span class="ben-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg></span><div><h3>Ahorra en mensualidad</h3><p>Olvídate de la cuota fija del gimnasio: inviertes una sola vez.</p></div></div>
+      <div class="ben-card reveal"><span class="ben-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg></span><div><h3>Entrena en cualquier lugar</h3><p>Sala, terraza, parque o cuarto de hotel: la bolsa va contigo.</p></div></div>
+      <div class="ben-card reveal"><span class="ben-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12c2-4 5-6 8-6s6 2 8 6c-2 4-5 6-8 6s-6-2-8-6z"/><circle cx="12" cy="12" r="2"/></svg></span><div><h3>5 niveles de resistencia</h3><p>De 10 a 50 LBS: progresas sin comprar equipo nuevo.</p></div></div>
+      <div class="ben-card reveal"><span class="ben-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v6M7 13l5 8 5-8M7 10h10"/></svg></span><div><h3>Trabajas cuerpo completo</h3><p>Brazos, espalda, piernas y glúteos con el mismo kit.</p></div></div>
+      <div class="ben-card reveal"><span class="ben-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></span><div><h3>Mosquetones reforzados</h3><p>Acero resistente para entrenos de alta tensión sin romperse.</p></div></div>
+      <div class="ben-card reveal"><span class="ben-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-9 9-5-5"/></svg></span><div><h3>Incluye todo lo necesario</h3><p>Manijas, correas de tobillo, anclaje de puerta y bolsa de viaje.</p></div></div>
+    </div>
+    <div class="mini-gal reveal">
+      <div class="mg-item"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/07b-cuerpo-completo-biceps.png?v=1793129306" alt="Persona trabajando bíceps con banda de resistencia" width="1200" height="900" sizes="(min-width: 660px) 408px, calc((100vw - 52px) / 2 * 1.34)"></div>
+      <div class="mg-item"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/07c-cuerpo-completo-gluteos.png?v=1793129305" alt="Persona trabajando glúteos con banda de resistencia" width="1200" height="900" sizes="(min-width: 660px) 408px, calc((100vw - 52px) / 2 * 1.34)"></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="ppb-obj">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Sin excusas</span>
+      <h2>Lo que probablemente te preguntas</h2>
+    </div>
+    <div class="obj-grid">
+      <div class="obj-card reveal">
+        <div class="obj-photo"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/04-pago-contra-entrega.png?v=1793129306" alt="Cliente pagando en efectivo al recibir su pedido en la puerta de su casa" width="1200" height="900" sizes="(min-width: 1040px) 319px, (min-width: 860px) calc((100vw - 76px) / 3 - 2px), calc(100vw - 42px)"></div>
+        <div class="obj-body">
+          <span class="tag">¿Y si no confío en pagar antes?</span>
+          <h3>Pagas cuando lo recibes</h3>
+          <p>Pago 100% contra entrega: revisas el kit en la puerta de tu casa y pagas solo si estás conforme.</p>
+        </div>
+      </div>
+      <div class="obj-card reveal">
+        <div class="obj-photo"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-cabe-en-un-cajon.png?v=1793129306" alt="Bolsa del kit de bandas de resistencia guardada ordenadamente en un cajón del closet" width="1200" height="900" sizes="(min-width: 1040px) 319px, (min-width: 860px) calc((100vw - 76px) / 3 - 2px), calc(100vw - 42px)"></div>
+        <div class="obj-body">
+          <span class="tag">¿Ocupa mucho espacio?</span>
+          <h3>Cabe en un cajón</h3>
+          <p>Todo el kit se guarda en su bolsa de 30×25 cm. No necesitas un cuarto para tu gimnasio.</p>
+        </div>
+      </div>
+      <div class="obj-card reveal">
+        <div class="obj-photo"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/08-entrena-de-viaje.png?v=1793129306" alt="Persona llevando la bolsa del kit de bandas de resistencia en un viaje" width="1200" height="900" sizes="(min-width: 1040px) 319px, (min-width: 860px) calc((100vw - 76px) / 3 - 2px), calc(100vw - 42px)"></div>
+        <div class="obj-body">
+          <span class="tag">¿Puedo llevarlo de viaje?</span>
+          <h3>Cabe en tu maleta</h3>
+          <p>Pesa poco y no ocupa espacio: sigue tu rutina en el hotel, la finca o donde estés.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="statement" id="ppb-statement">
+  <div class="stripes" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="statement-grid">
+      <div class="statement-photo reveal">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/09-entrenar-en-pareja.png?v=1793129306" alt="Pareja entrenando juntos en casa con las bandas de resistencia PowerBand Pro" width="1200" height="900" sizes="(min-width: 1040px) 487px, (min-width: 860px) calc((100vw - 66px) / 2), calc(100vw - 40px)">
+      </div>
+      <div class="statement-copy reveal">
+        <h2>Solo o en <span class="hl">pareja</span>, el resultado es el mismo: menos excusas</h2>
+        <p>Dos personas pueden entrenar con el mismo kit al mismo tiempo. Más motivación, el mismo precio.</p>
+        <a href="#ppb-offer" class="btn ppb-goto">Ver la oferta</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt" id="ppb-offer">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Oferta de hoy</span>
+      <h2>Elige tu plan y empieza ya</h2>
+    </div>
+    <div class="offer-box">
+      <div class="offer-kit-photo">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/Imagem_do_ChatGPT_27_de_out._de_2026_16_42_06.png?v=1793130145" alt="Kit completo PowerBand Pro con 5 bandas de resistencia, manijas, correas de tobillo, anclaje y bolsa" width="1586" height="992" sizes="(min-width: 760px) 676px, calc(100vw - 84px)">
+      </div>
+      <ul class="offer-list">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>5 bandas de resistencia (10–50 LBS)</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>2 manijas antideslizantes</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>2 correas ajustables de tobillo</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Anclaje de puerta reforzado</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Mosquetones de acero</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Bolsa portátil de viaje</li>
+      </ul>
+
+      <!-- BUNDLES: data-units = quantidade da oferta do EasySell que abre no popup -->
+      <div class="bundles" id="ppb-bundles">
+        <label class="bundle" data-units="1" data-now="$99.900" data-was="$199.900" data-save="Ahorras $100.000 hoy">
+          <input type="radio" name="ppb-bundle">
+          <div class="qty">1 KIT</div>
+          <div class="now">$99.900</div>
+          <div class="was">$199.900</div>
+        </label>
+        <label class="bundle active" data-units="2" data-now="$139.900" data-was="" data-save="Ahorra entrenando acompañado">
+          <input type="radio" name="ppb-bundle" checked>
+          <span class="badge">Más popular</span>
+          <div class="qty">2 KIT</div>
+          <div class="now">$139.900</div>
+        </label>
+      </div>
+
+      <div class="offer-summary">
+        <span class="now" id="ppb-offer-now">$139.900</span>
+        <span class="was" id="ppb-offer-was" style="display:none"></span>
+      </div>
+      <p class="offer-save" id="ppb-offer-save">Ahorra entrenando acompañado</p>
+
+      <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Confirmar pedido — Pago al recibir</a>
+      <div class="offer-micro">
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Pagas al recibir</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Envío gratis</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Garantía de 30 días</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="guar" id="ppb-guar">
+  <div class="wrap">
+    <div class="guar-box">
+      <div class="guar-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      </div>
+      <h2 style="font-size:calc(28px*var(--fs))">Pagas solo cuando el kit llega a tu puerta</h2>
+      <p>Revisas el producto frente al repartidor. Si algo no está bien, no pagas. Así de simple, así de justo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="ppb-faq">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Preguntas frecuentes</span>
+      <h2>Todo lo que necesitas saber</h2>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item"><summary>¿Cómo pago mi pedido?</summary><p class="faq-a">Pagas en efectivo al repartidor cuando el kit llega a tu casa (pago contra entrega). No necesitas tarjeta ni pagar nada por adelantado.</p></details>
+      <details class="faq-item"><summary>¿Cuánto tarda en llegar?</summary><p class="faq-a">Entre 2 y 3 días hábiles en ciudades principales. En otras zonas puede tomar un par de días adicionales según la transportadora.</p></details>
+      <details class="faq-item"><summary>¿Qué incluye exactamente el kit?</summary><p class="faq-a">5 bandas de resistencia de 10 a 50 LBS, 2 manijas, 2 correas de tobillo, anclaje de puerta, mosquetones de acero y una bolsa de transporte.</p></details>
+      <details class="faq-item"><summary>¿Sirve si nunca he hecho ejercicio con bandas?</summary><p class="faq-a">Sí. Empiezas con la banda amarilla (10 LBS), la más suave, y subes de nivel a tu ritmo con las siguientes bandas.</p></details>
+      <details class="faq-item"><summary>¿Las bandas se rompen fácil?</summary><p class="faq-a">Están hechas en látex reforzado con mosquetones de acero. Con un uso normal y sin exceder el nivel de resistencia, tienen buena durabilidad.</p></details>
+      <details class="faq-item"><summary>¿El anclaje de puerta daña la puerta?</summary><p class="faq-a">No. Es una correa de tela que se coloca sobre el marco de la puerta, sin tornillos ni perforaciones.</p></details>
+      <details class="faq-item"><summary>¿Puedo pedir 2 unidades para entrenar en pareja?</summary><p class="faq-a">Sí, en la oferta de hoy puedes elegir el plan de 2 unidades y entrenar junto a otra persona con el mismo pedido.</p></details>
+      <details class="faq-item"><summary>¿Qué pasa si el producto llega con algún problema?</summary><p class="faq-a">Cuentas con garantía de 30 días. Si algo no está bien, nos escribes y buscamos la solución.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="sec alt cta-final" id="ppb-cta-final">
+  <div class="wrap">
+    <h2 style="font-size:calc(30px*var(--fs))">Tu rutina en casa empieza hoy</h2>
+    <p style="margin-top:10px">Pago contra entrega, envío gratis y garantía de 30 días.</p>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir mi PowerBand Pro</a>
+  </div>
+</section>
+
+<section class="sec" id="ppb-legal" style="padding:28px 0">
+  <div class="wrap">
+    <p class="legal">PowerBand Pro es un producto de uso doméstico para entrenamiento de resistencia. Los resultados de tonificación pueden variar según la frecuencia y la intensidad de uso. Si tienes una condición médica o lesión preexistente, consulta a un profesional antes de iniciar cualquier rutina. Tiempos de entrega estimados de 2–3 días hábiles en ciudades principales; pueden variar según la zona.</p>
+  </div>
+</section>
+
+<div class="sticky-bar" id="ppb-sticky">
+  <div class="sb-price">
+    <span class="sb-now js-price-now">$99.900</span>
+    <span class="sb-was js-price-was">$199.900</span>
+  </div>
+  <a href="#ppb-offer" class="btn ppb-goto">Ver oferta</a>
+</div>
+
+<script>
+(function(){
+  var root=document.getElementById('ppb-lp');
+  if(!root) return;
+
+  /* ╔══════ CONFIG · EDITE AQUI ══════╗ */
+  var LP_CONFIG={
+    priceNow:"$99.900",
+    priceWas:"$199.900",
+    off:"50% OFF",
+    save:"Ahorras $100.000 en esta oferta",
+    rating:"4.8",
+    ratingCount:"+500 clientes en Colombia"
+  };
+  /* ╚═════════════════════════════════╝ */
+
+  function lpApply(){
+    var m={'js-price-now':LP_CONFIG.priceNow,'js-price-was':LP_CONFIG.priceWas,'js-off':LP_CONFIG.off,'js-save':LP_CONFIG.save,'js-rating':LP_CONFIG.rating,'js-rating-count':LP_CONFIG.ratingCount};
+    Object.keys(m).forEach(function(k){
+      root.querySelectorAll('.'+k).forEach(function(el){
+        if(m[k]===''){el.style.display='none';}else{el.textContent=m[k];}
+      });
+    });
+  }
+  lpApply();
+
+  /* Buttons that go to the offer: lay out the whole page first (the
+     sections below are content-visibility:auto), then scroll. */
+  root.querySelectorAll('.ppb-goto').forEach(function(a){
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var target=document.getElementById('ppb-offer');
+      if(!target) return;
+      root.querySelectorAll('.sec').forEach(function(s){s.style.contentVisibility='visible';});
+      var top=target.getBoundingClientRect().top+window.pageYOffset-18;
+      window.scrollTo({top:top,behavior:'smooth'});
+    });
+  });
+
+  /* Bundles: summary on the page + which EasySell offer the popup opens on */
+  var units=2;
+  var bundles=root.querySelectorAll('#ppb-bundles .bundle');
+  var offerNow=document.getElementById('ppb-offer-now');
+  var offerWas=document.getElementById('ppb-offer-was');
+  var offerSave=document.getElementById('ppb-offer-save');
+  function pick(b){
+    bundles.forEach(function(x){x.classList.remove('active');});
+    b.classList.add('active');
+    units=parseInt(b.getAttribute('data-units'),10)||1;
+    offerNow.textContent=b.getAttribute('data-now')||'';
+    var was=b.getAttribute('data-was')||'';
+    offerWas.textContent=was;
+    offerWas.style.display=was?'':'none';
+    offerSave.textContent=b.getAttribute('data-save')||'';
+  }
+  bundles.forEach(function(b){
+    var input=b.querySelector('input');
+    if(input) input.addEventListener('change',function(){ if(input.checked) pick(b); });
+    if(b.classList.contains('active')) units=parseInt(b.getAttribute('data-units'),10)||1;
+  });
+
+  /* When the EasySell popup opens, select its quantity offer with the same
+     number of units ("1 Unidad" / "2 Unidades"). Only right after a buy
+     button is clicked, so the visitor can still change it inside the popup. */
+  var syncUntil=0;
+  root.querySelectorAll('.es-popup-button-overwrite').forEach(function(btn){
+    btn.addEventListener('click',function(){ syncUntil=Date.now()+5000; queueFix(); });
+  });
+  function syncOffer(){
+    if(!syncUntil) return;
+    if(Date.now()>syncUntil){ syncUntil=0; return; }
+    var boxes=document.querySelectorAll('.es-qo-container');
+    var visible=[];
+    for(var i=0;i<boxes.length;i++){ if(boxes[i].offsetParent!==null) visible.push(boxes[i]); }
+    if(!visible.length){ requestAnimationFrame(syncOffer); return; }
+    for(var j=0;j<visible.length;j++){
+      var m=/(\d+)\s*unidad/i.exec(visible[j].textContent||'');
+      if(m && parseInt(m[1],10)===units){
+        if(visible[j].getAttribute('offer-selected')!=='true') visible[j].click();
+        break;
+      }
+    }
+    syncUntil=0;
+  }
+
+  /* Reveal below the fold */
+  if('IntersectionObserver' in window){
+    root.classList.add('js-ready');
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);}
+      });
+    },{threshold:0.12});
+    root.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+  }
+
+  /* Sticky bar: shown once the hero button is off screen, read once per frame */
+  var heroBtn=document.querySelector('#ppb-hero .btn');
+  var stickyBar=document.getElementById('ppb-sticky');
+  var ticking=false;
+  function checkSticky(){
+    ticking=false;
+    if(!heroBtn||!stickyBar) return;
+    stickyBar.classList.toggle('is-visible',heroBtn.getBoundingClientRect().bottom<0);
+  }
+  window.addEventListener('scroll',function(){
+    if(!ticking){ticking=true;window.requestAnimationFrame(checkSticky);}
+  },{passive:true});
+  window.requestAnimationFrame(function(){window.requestAnimationFrame(checkSticky);});
+
+  /* EasySell: button colours, at most once per frame */
+  var COR='#1858F3';
+  function fixEasySellColors(){
+    document.querySelectorAll('button, input[type="submit"]').forEach(function(el){
+      var txt=el.textContent?el.textContent.toUpperCase():'';
+      if(txt.indexOf('CONFIRMA TU COMPRA')!==-1||txt.indexOf('CONFIRMAR COMPRA')!==-1||txt.indexOf('COMPLETAR PEDIDO')!==-1||el.classList.contains('es-submit-form-button')){
+        el.style.setProperty('background-color',COR,'important');
+        el.style.setProperty('background',COR,'important');
+        el.style.setProperty('border-color',COR,'important');
+        el.style.setProperty('color','#ffffff','important');
+      }else if(txt.indexOf('NO QUIERO')!==-1){
+        el.style.setProperty('background-color','#f1f3f5','important');
+        el.style.setProperty('border','1px solid #ced4da','important');
+        el.style.setProperty('color','#6c757d','important');
+      }
+    });
+  }
+  var pending=false;
+  function queueFix(){
+    if(pending) return;
+    pending=true;
+    requestAnimationFrame(function(){ pending=false; fixEasySellColors(); syncOffer(); });
+  }
+  if('MutationObserver' in window){
+    new MutationObserver(function(muts){
+      for(var i=0;i<muts.length;i++){ if(muts[i].addedNodes.length>0){queueFix();break;} }
+    }).observe(document.body,{childList:true,subtree:true});
+  }
+})();
+</script>
+</div>

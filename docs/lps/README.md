@@ -14,6 +14,7 @@ resto na publicação (srcset, preload da primeira imagem, lazy nas outras).
 | `camara-endoscopica-lp.html` | Cámara Endoscópica HD | 07/10/2026 — ver `docs/PROGRESSO.md`, "LP da Cámara Endoscópica" |
 | `pelador-lp.html` | Pelador automático | 07/10/2026 — fonte de reserva estreita nos títulos |
 | `purecolor-lp.html` | PureColor Peinador y Cubridor de Canas | 27/10/2026 — ver `docs/PROGRESSO.md`, "LP da PureColor no formato padrão" |
+| `powerband-lp.html` | PowerBand Pro (bandas de resistencia) | 27/10/2026 — kit escolhido na LP (1 ou 2) abre o popup do EasySell na mesma oferta |
 
 Como usar: abrir o arquivo no GitHub → botão **Raw** → selecionar tudo (Ctrl+A) → copiar → no
 editor, selecionar o bloco de HTML → apagar o conteúdo → colar → Publicar.
