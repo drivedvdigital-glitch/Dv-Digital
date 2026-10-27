@@ -1,7 +1,9 @@
 # LPs prontas para colar
 
-Para pedir uma LP nova a um gerador de HTML, comece pelo texto de `PROMPT_GERADOR_LP.md`: ele
-faz a LP nascer dentro das regras que o D&VFly publica melhor.
+Para pedir uma LP nova a um gerador de HTML, use `skill-criador-lp/SKILL.md` (formato padrão:
+primeira dobra, seções que convertem, texto, imagens e regras técnicas). Serve como skill do
+Claude ou colado no início do pedido em qualquer gerador. `PROMPT_GERADOR_LP.md` é a versão
+anterior, só com as regras técnicas.
 
 HTML de landing pages já otimizadas para colar no bloco de HTML do editor. O compilador faz o
 resto na publicação (srcset, preload da primeira imagem, lazy nas outras).
