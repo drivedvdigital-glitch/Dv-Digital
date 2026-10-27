@@ -1,578 +1,490 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;600&display=optional" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;600&display=optional"></noscript>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:wght@400;600&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=DM+Sans:wght@400;600&display=optional"></noscript>
 
 <div id="pc-lp" style="background:#0D0D0D;color:#F5F0E8">
 <style>
 :root{--cor-principal-lp:#B8944A}
-:root,html,body,#es-popup-container,.es-popup-wrapper{
-  --es-primary-color:var(--cor-principal-lp)!important;
-  --es-color:var(--cor-principal-lp)!important;
-  --primary-color:var(--cor-principal-lp)!important;
-}
-button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
-#es-popup-container button[type="submit"],button.es-accept-offer,#es-popup-button{
-  background-color:var(--cor-principal-lp,#B8944A)!important;
-  background:var(--cor-principal-lp,#B8944A)!important;
-  border-color:var(--cor-principal-lp,#B8944A)!important;
-  color:#ffffff!important;
-}
-.es-offer-modal button:nth-of-type(2),.es-discount-modal button:nth-of-type(2){
-  background-color:#f1f3f5!important;
-  border:1px solid #ced4da!important;
-  color:#6c757d!important;
-  opacity:.85!important;
-}
-.es-button-title{color:#fff!important;}
-
-@font-face{font-family:"pc-titulo-reserva";src:local("Noto Serif Bold"),local("NotoSerif-Bold");font-weight:700 900;size-adjust:90%;ascent-override:120%;descent-override:28%;line-gap-override:0%;}
-@font-face{font-family:"pc-titulo-reserva-2";src:local("Times New Roman Bold"),local("TimesNewRomanPS-BoldMT"),local("Liberation Serif Bold"),local("LiberationSerif-Bold");font-weight:700 900;size-adjust:107%;ascent-override:101%;descent-override:23%;line-gap-override:0%;}
+:root,html,body,#es-popup-container,.es-popup-wrapper{--es-primary-color:var(--cor-principal-lp)!important;--es-color:var(--cor-principal-lp)!important;--primary-color:var(--cor-principal-lp)!important}
+button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-popup-container button[type="submit"],button.es-accept-offer,#es-popup-button{background-color:var(--cor-principal-lp)!important;background:var(--cor-principal-lp)!important;border-color:var(--cor-principal-lp)!important;color:#fff!important}
+.es-offer-modal button:nth-of-type(2),.es-discount-modal button:nth-of-type(2){background-color:#f1f3f5!important;border:1px solid #ced4da!important;color:#6c757d!important;opacity:.85!important}
+.es-button-title{color:#fff!important}
 
 #pc-lp{
   --fs:1;
   --fs-ui:1;
   --bg:#0D0D0D;
-  --bg2:#1C1C1C;
-  --bg3:#F5F0E8;
+  --bg2:#1A1814;
+  --bg3:#24211B;
   --ink:#F5F0E8;
-  --ink2:#C8BFA8;
-  --ink3:#0D0D0D;
-  --brand:#B8944A;
-  --brand2:#8C6E30;
+  --ink-2:#C8BFA8;
   --muted:#7A7060;
+  --brand:#C9A45C;
+  --brand-dk:#8C6E30;
   --line:#2E2A22;
-  --line2:#3A3428;
-  --star:#B8944A;
+  --star:#C9A45C;
   --r:10px;
-  --r2:16px;
-  --r3:24px;
+  --r-lg:16px;
+  --display:"Barlow Condensed","Roboto Condensed","sans-serif-condensed","Avenir Next Condensed","Bahnschrift Condensed","Arial Narrow",system-ui,-apple-system,sans-serif;
+  --sans:"DM Sans",system-ui,-apple-system,sans-serif;
   --ease:cubic-bezier(.16,1,.3,1);
-  --display:"Playfair Display","pc-titulo-reserva","pc-titulo-reserva-2",Georgia,"Times New Roman",serif;
-  --sans:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-family:var(--sans);
   color:var(--ink);
-  background-color:var(--bg)!important;
+  background:var(--bg)!important;
 }
-#pc-lp *{box-sizing:border-box;}
-#pc-lp img{display:block!important;max-width:100%!important;border:0!important;margin:0!important;}
-#pc-lp h1,#pc-lp h2,#pc-lp h3{font-family:var(--display)!important;margin:0!important;line-height:1.08!important;}
-#pc-lp p{margin:0;text-align:left!important;}
-#pc-lp .wrap{max-width:1060px;margin:0 auto;padding:0 20px;}
-#pc-lp .sec{padding:clamp(44px,7vw,88px) 0;}
-#pc-lp .sec:not(.hero){content-visibility:auto;contain-intrinsic-size:auto 600px;}
+#pc-lp *{box-sizing:border-box}
+#pc-lp img{display:block!important;max-width:100%!important;height:auto;margin:0!important;border:0!important}
+#pc-lp h1,#pc-lp h2,#pc-lp h3,#pc-lp h4{font-family:var(--display)!important;margin:0!important;color:var(--ink)!important;line-height:1.02!important;letter-spacing:-.01em;text-transform:uppercase}
+#pc-lp p{margin:0;text-align:left!important;color:var(--ink-2);font-size:calc(1rem*var(--fs));line-height:1.6}
+#pc-lp .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+#pc-lp .sec{padding:clamp(44px,7vw,88px) 0;background:var(--bg)!important;color:var(--ink)!important}
+#pc-lp .sec:not(.hero){content-visibility:auto;contain-intrinsic-size:auto 600px}
+#pc-lp .sec-alt{background:var(--bg2)!important}
 
-#pc-lp .pc-h1{font-size:calc(clamp(3.2rem,8vw,5rem)*var(--fs))!important;line-height:1.06!important;color:var(--ink)!important;text-wrap:balance;}
-#pc-lp .pc-h2{font-size:calc(clamp(2.4rem,5.4vw,3.6rem)*var(--fs))!important;color:var(--ink)!important;text-wrap:balance;}
-#pc-lp .pc-h3{font-size:calc(clamp(1.7rem,3.4vw,2.2rem)*var(--fs))!important;color:var(--ink)!important;}
-#pc-lp .body-p{font-size:calc(1.45rem*var(--fs));line-height:1.58;color:var(--ink2);}
-#pc-lp .head{text-align:center!important;margin:0 auto 32px!important;width:100%;}
-#pc-lp .hl{color:var(--brand);}
-#pc-lp .eyebrow{display:inline-block;font-family:var(--sans);font-size:calc(.95rem*var(--fs));font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);margin-bottom:14px;}
-#pc-lp .hair-rule-sm{display:block;width:60px;height:2px;background:var(--brand);margin:12px auto 0;}
+#pc-lp .h2{font-size:calc(clamp(2.6rem,7vw,4.4rem)*var(--fs))!important;text-wrap:balance}
+#pc-lp .h3{font-size:calc(clamp(1.6rem,3.6vw,2.1rem)*var(--fs))!important}
+#pc-lp .eyebrow{font-family:var(--display)!important;font-size:calc(.95rem*var(--fs));font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--brand);display:block;margin-bottom:10px}
+#pc-lp .hl{color:var(--brand)}
+#pc-lp .head{text-align:center!important;margin:0 auto 36px!important;width:100%}
+#pc-lp .head p{text-align:center!important;max-width:48ch;margin:14px auto 0}
 
-#pc-lp .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--sans)!important;font-weight:600;color:#fff!important;background:linear-gradient(160deg,#C9A45C,#B8944A 55%,#8C6E30);border:0;border-radius:var(--r2);cursor:pointer;min-height:56px;padding:16px 28px;font-size:calc(1.22rem*var(--fs));width:100%;text-decoration:none!important;transition:opacity .2s;letter-spacing:.01em;}
-#pc-lp .btn:hover{opacity:.9;}
-
-#pc-lp .hero{background-color:var(--bg)!important;padding:clamp(20px,4vw,36px) 0 clamp(32px,6vw,52px);}
-
-#pc-lp .hero-top-text{text-align:center;}
-#pc-lp .hero-rating{display:inline-flex;align-items:center;justify-content:center;gap:9px;margin-bottom:12px;}
-#pc-lp .hero-rating .st{color:var(--star);font-size:calc(1.2rem*var(--fs));letter-spacing:2px;}
-#pc-lp .hero-rating .rn{font-family:var(--display);font-weight:700;font-size:calc(1.18rem*var(--fs));color:var(--ink);}
-#pc-lp .hero-rating .rc{color:var(--ink2);font-weight:600;font-size:calc(1rem*var(--fs));}
-
-#pc-lp .hero-media{margin:20px auto 22px;width:min(100%,80vw,480px);}
-#pc-lp .hero-media .photo{border-radius:var(--r3);overflow:hidden;border:1px solid var(--line2);aspect-ratio:1/1;background:var(--bg2);}
-#pc-lp .hero-media .photo img{width:100%!important;height:100%!important;object-fit:cover;}
-
-#pc-lp .hero-bottom{text-align:center;max-width:560px;margin:0 auto;}
-#pc-lp .hero-bottom .hero-sub{font-size:calc(clamp(1.4rem,3vw,1.7rem)*var(--fs));line-height:1.52;color:var(--ink2);margin-bottom:16px;text-align:center!important;}
-#pc-lp .hero-price-row{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:0 0 8px;}
-#pc-lp .hero-price-row .now{font-family:var(--display);font-weight:800;font-size:calc(clamp(2.6rem,6vw,3.6rem)*var(--fs-ui));color:var(--brand);line-height:1;}
-#pc-lp .hero-price-row .was{color:var(--muted);text-decoration:line-through;font-size:calc(1.3rem*var(--fs-ui));}
-#pc-lp .hero-price-row .off-badge{background:var(--brand);color:#fff;font-weight:700;font-size:calc(.9rem*var(--fs-ui));padding:6px 12px;border-radius:6px;white-space:nowrap;}
-#pc-lp .hero-save{font-size:calc(1rem*var(--fs));color:var(--brand);font-weight:600;text-align:center!important;margin-bottom:14px;}
-#pc-lp .hero-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 14px;margin-top:14px;font-size:calc(1.05rem*var(--fs));color:var(--ink2);font-weight:600;}
-#pc-lp .hero-trust span{display:inline-flex;align-items:center;gap:6px;}
+#pc-lp .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--display)!important;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#0D0D0D!important;background:linear-gradient(160deg,#D9B76E,#C9A45C 55%,#A9853F);border:0;border-radius:var(--r);cursor:pointer;min-height:56px;padding:16px 28px;font-size:calc(1.45rem*var(--fs));width:100%;text-decoration:none!important;transition:filter .2s}
+#pc-lp .btn:hover{filter:brightness(1.08)}
 
 /* HERO COMPACTO — tamanhos em px (independem do rem do tema) para caber tudo na 1a dobra */
-#pc-lp .hero{padding:12px 0 24px;}
-#pc-lp .hero-rating{gap:7px;margin-bottom:6px;}
-#pc-lp .hero-rating .st{font-size:14px;letter-spacing:1px;}
-#pc-lp .hero-rating .rn{font-size:15px;}
-#pc-lp .hero-rating .rc{font-size:12px;}
-#pc-lp .hero .eyebrow{font-size:11px;margin-bottom:6px;}
-#pc-lp .hero .pc-h1{font-size:clamp(28px,8vw,46px)!important;line-height:1.06!important;}
-#pc-lp .hero-media{margin:12px auto;width:min(100%,80vw,480px,34vh);width:min(100%,80vw,480px,34svh);}
-#pc-lp .hero-bottom .hero-sub{font-size:clamp(14px,3.9vw,17px);line-height:1.45;margin-bottom:10px;}
-#pc-lp .hero-price-row{gap:10px;margin:0 0 4px;}
-#pc-lp .hero-price-row .now{font-size:clamp(32px,9vw,44px);}
-#pc-lp .hero-price-row .was{font-size:15px;}
-#pc-lp .hero-price-row .off-badge{font-size:12px;padding:4px 10px;}
-#pc-lp .hero-save{font-size:13px;margin-bottom:10px;}
-#pc-lp .hero .btn{min-height:50px;padding:11px 22px;font-size:17px;}
-#pc-lp .hero-trust{margin-top:10px;gap:4px 14px;font-size:12px;}
+#pc-lp .hero{padding:12px 0 24px;background:var(--bg)!important;text-align:center}
+#pc-lp .hero-copy{display:flex;flex-direction:column;align-items:center;max-width:620px;margin:0 auto}
+#pc-lp .hero-rating{display:inline-flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:100px;padding:5px 12px;margin-bottom:10px}
+#pc-lp .hero-rating .st{color:var(--star);font-size:14px;letter-spacing:1px}
+#pc-lp .hero-rating .rn{font-family:var(--display);font-weight:800;font-size:15px;color:var(--ink)}
+#pc-lp .hero-rating .rc{color:var(--ink-2);font-size:12px}
+#pc-lp .hero h1{font-size:clamp(31px,8.6vw,50px)!important;line-height:1!important;text-align:center!important;text-wrap:balance}
+#pc-lp .hero-sub{font-size:clamp(15px,4.1vw,18px);line-height:1.4;margin-top:8px;max-width:40ch;text-align:center!important}
+#pc-lp .hero-media{margin:12px auto;width:min(100%,80vw,480px,30vh);width:min(100%,80vw,480px,30svh)}
+#pc-lp .hero-media .photo{border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);aspect-ratio:1/1;background:var(--bg2)}
+#pc-lp .hero-media .photo img{width:100%!important;height:100%!important;object-fit:cover}
+#pc-lp .hero-price-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+#pc-lp .hero-price-row .now{font-family:var(--display);font-weight:800;font-size:clamp(38px,10vw,54px);color:var(--brand);line-height:1}
+#pc-lp .hero-price-row .was{color:var(--muted);text-decoration:line-through;font-size:15px}
+#pc-lp .hero-price-row .off{background:var(--brand);color:#0D0D0D;font-family:var(--display);font-weight:800;font-size:13px;padding:4px 10px;border-radius:6px}
+#pc-lp .hero-save{font-size:13px;color:var(--brand);font-weight:600;margin-bottom:10px;text-align:center!important}
+#pc-lp .hero .btn{min-height:52px;padding:11px 22px;font-size:19px;max-width:480px}
+#pc-lp .hero-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin-top:10px;font-size:12px;color:var(--ink-2);font-weight:600}
+#pc-lp .hero-trust span{display:flex;align-items:center;gap:5px}
 @media (min-width:820px){
-  #pc-lp .hero-media{width:min(100%,480px,40vh);width:min(100%,480px,40svh);}
+  #pc-lp .hero-media{width:min(100%,480px,34vh);width:min(100%,480px,34svh)}
 }
 
-#pc-lp .marquee-band{background-color:var(--brand)!important;padding:11px 0;overflow:hidden;}
-#pc-lp .marquee-inner{display:flex;gap:0;white-space:nowrap;animation:pc-scroll 26s linear infinite;}
-#pc-lp .marquee-inner span{display:inline-flex;align-items:center;gap:10px;padding:0 26px;font-size:calc(1rem*var(--fs));font-weight:600;color:#fff;letter-spacing:.06em;text-transform:uppercase;}
-#pc-lp .marquee-inner .dot{width:5px;height:5px;padding:0;border-radius:50%;background:#fff;opacity:.6;flex-shrink:0;}
-@keyframes pc-scroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
-@media(prefers-reduced-motion:reduce){#pc-lp .marquee-inner{animation:none;}}
+#pc-lp .marquee-band{background:var(--brand)!important;padding:12px 0;overflow:hidden}
+#pc-lp .marquee-track{display:flex;width:max-content;white-space:nowrap;animation:pc-scroll 26s linear infinite}
+#pc-lp .marquee-item{display:inline-flex;align-items:center;gap:12px;padding:0 22px;font-family:var(--display);font-weight:700;font-size:calc(1.1rem*var(--fs));color:#0D0D0D;text-transform:uppercase;letter-spacing:.06em}
+#pc-lp .marquee-dot{width:6px;height:6px;border-radius:50%;background:#0D0D0D;opacity:.55;flex-shrink:0}
+@keyframes pc-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
-#pc-lp .benefits-sec{background-color:var(--bg)!important;}
-#pc-lp .ben-grid{display:grid;gap:20px;}
-@media (min-width:640px){#pc-lp .ben-grid{grid-template-columns:repeat(3,1fr);}}
-#pc-lp .ben-card{border-left:3px solid var(--brand);padding:20px 18px;background:var(--bg2);border-radius:0 var(--r2) var(--r2) 0;}
-#pc-lp .ben-icon{width:36px;height:36px;margin-bottom:12px;}
-#pc-lp .ben-title{font-family:var(--display);font-weight:700;font-size:calc(1.25rem*var(--fs));color:var(--ink);margin-bottom:7px;}
-#pc-lp .ben-desc{font-size:calc(1rem*var(--fs));color:var(--ink2);line-height:1.5;}
+#pc-lp .dolor-grid{display:grid;gap:32px;align-items:center}
+@media (min-width:840px){
+  #pc-lp .dolor-grid{grid-template-columns:1fr 1fr;column-gap:52px}
+}
+#pc-lp .dolor-img{border-radius:var(--r-lg);overflow:hidden;aspect-ratio:4/3;background:var(--bg3);border:1px solid var(--line)}
+#pc-lp .dolor-img img{width:100%!important;height:100%!important;object-fit:cover}
+#pc-lp .dolor-list{list-style:none;padding:0;margin:20px 0 0;display:flex;flex-direction:column;gap:12px}
+#pc-lp .dolor-list li{display:flex;align-items:flex-start;gap:12px;font-size:calc(1.05rem*var(--fs));color:var(--ink-2);line-height:1.5}
+#pc-lp .dolor-list li svg{flex-shrink:0;margin-top:3px}
+#pc-lp .dolor-out{margin-top:20px!important;font-family:var(--display);font-weight:700;font-size:calc(1.35rem*var(--fs))!important;color:var(--ink)!important;text-transform:uppercase;line-height:1.2!important}
 
-#pc-lp .steps-sec{background-color:var(--bg2)!important;}
-#pc-lp .steps-grid{display:grid;gap:28px;}
-@media (min-width:680px){#pc-lp .steps-grid{grid-template-columns:repeat(3,1fr);gap:22px;}}
-#pc-lp .step-card{display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 20px;border:1px solid var(--line2);border-radius:var(--r2);background:var(--bg);}
-#pc-lp .step-num{font-family:var(--display);font-weight:800;font-size:calc(2.6rem*var(--fs));color:var(--brand);line-height:1;margin-bottom:10px;}
-#pc-lp .step-img-wrap{width:100%;aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;background:var(--bg2);margin-bottom:14px;}
-#pc-lp .step-img-wrap img{width:100%!important;height:100%!important;object-fit:cover;}
-#pc-lp .step-title{font-family:var(--display);font-weight:700;font-size:calc(1.25rem*var(--fs));color:var(--ink);margin-bottom:8px;}
-#pc-lp .step-desc{font-size:calc(1.02rem*var(--fs));color:var(--ink2);line-height:1.5;}
+#pc-lp .steps-grid{display:grid;grid-template-columns:1fr;gap:20px}
+@media (min-width:640px){
+  #pc-lp .steps-grid{grid-template-columns:repeat(3,1fr);gap:24px}
+}
+#pc-lp .step-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 22px;text-align:center}
+#pc-lp .step-num{font-family:var(--display);font-weight:800;font-size:3.2rem;color:var(--brand);line-height:1;display:block;margin-bottom:12px}
+#pc-lp .step-img{border-radius:var(--r);overflow:hidden;aspect-ratio:4/3;margin-bottom:16px;background:var(--bg3)}
+#pc-lp .step-img img{width:100%!important;height:100%!important;object-fit:cover}
+#pc-lp .step-card h3{margin-bottom:8px!important}
+#pc-lp .step-card p{text-align:center!important}
 
-#pc-lp .kit-sec{background-color:var(--bg)!important;}
-#pc-lp .kit-card{border:1px solid var(--brand);border-radius:var(--r3);background:var(--bg2);padding:28px 24px;}
-#pc-lp .kit-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
-#pc-lp .kit-row:last-child{border-bottom:0;}
-#pc-lp .kit-label{font-size:calc(1.05rem*var(--fs));color:var(--ink2);}
-#pc-lp .kit-val{font-size:calc(1.08rem*var(--fs));font-weight:600;color:var(--ink);}
-#pc-lp .kit-total-label{font-family:var(--display);font-weight:700;font-size:calc(1.2rem*var(--fs));color:var(--ink);}
-#pc-lp .kit-total-val{font-family:var(--display);font-weight:800;font-size:calc(1.5rem*var(--fs-ui));color:var(--brand);}
+#pc-lp .feats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media (min-width:840px){
+  #pc-lp .feats-grid{grid-template-columns:repeat(3,1fr);gap:16px}
+}
+#pc-lp .feat-card{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 18px}
+#pc-lp .feat-icon{width:44px;height:44px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;background:rgba(201,164,92,.12);border-radius:10px}
+#pc-lp .feat-card h3{margin-bottom:8px!important;font-size:calc(1.35rem*var(--fs))!important}
+#pc-lp .feat-card p{font-size:calc(.92rem*var(--fs));line-height:1.5}
 
-#pc-lp .offer-sec{background-color:var(--bg)!important;}
-#pc-lp .offer-card{border:1px solid var(--brand);border-radius:var(--r3);overflow:hidden;background:var(--bg2);}
-#pc-lp .offer-photo{width:100%;aspect-ratio:16/10;background:var(--bg);}
-#pc-lp .offer-photo img{width:100%!important;height:100%!important;object-fit:cover;}
-#pc-lp .offer-body{padding:28px 24px 24px;}
-#pc-lp .offer-compare{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
-#pc-lp .offer-compare .oc-now{font-family:var(--display);font-weight:800;font-size:calc(clamp(2.4rem,5.8vw,3.2rem)*var(--fs-ui));color:var(--brand);line-height:1;}
-#pc-lp .offer-compare .oc-was{color:var(--muted);text-decoration:line-through;font-size:calc(1.35rem*var(--fs-ui));}
-#pc-lp .offer-compare .oc-badge{background:var(--brand);color:#fff;font-weight:700;font-size:calc(.88rem*var(--fs-ui));padding:6px 12px;border-radius:6px;}
-#pc-lp .offer-save{font-size:calc(1.05rem*var(--fs));color:var(--brand);font-weight:600;margin-bottom:18px;}
-#pc-lp .offer-includes ul{list-style:none;margin:0 0 20px;padding:0;}
-#pc-lp .offer-includes li{font-size:calc(1.05rem*var(--fs));color:var(--ink2);padding:7px 0;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;line-height:1.4;}
-#pc-lp .offer-includes li:last-child{border-bottom:0;}
-#pc-lp .micro-seals{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px;}
-#pc-lp .micro-seals span{font-size:calc(.95rem*var(--fs));color:var(--ink2);font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+#pc-lp .statement{text-align:center;padding:clamp(56px,8vw,96px) 0;background:var(--bg2)!important;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#pc-lp .statement h2{max-width:20ch;margin:0 auto!important;text-align:center!important}
+#pc-lp .statement p{text-align:center!important;max-width:46ch;margin:16px auto 0}
+#pc-lp .statement .btn{max-width:420px;margin-top:28px}
 
-#pc-lp .testi-sec{background-color:var(--bg2)!important;}
-#pc-lp .testi-grid{display:grid;gap:18px;}
-@media (min-width:640px){#pc-lp .testi-grid{grid-template-columns:repeat(3,1fr);}}
-#pc-lp .testi-card{background:var(--bg);border:1px solid var(--line2);border-radius:var(--r2);padding:22px 18px;}
-#pc-lp .testi-stars{color:var(--star);font-size:calc(1.1rem*var(--fs));letter-spacing:2px;margin-bottom:10px;}
-#pc-lp .testi-text{font-size:calc(1.05rem*var(--fs));color:var(--ink2);line-height:1.55;margin-bottom:14px;}
-#pc-lp .testi-author{display:flex;align-items:center;gap:12px;}
-#pc-lp .testi-author img{width:44px!important;height:44px!important;border-radius:50%;object-fit:cover;border:2px solid var(--line2);flex-shrink:0;}
-#pc-lp .testi-name{font-weight:600;font-size:calc(1rem*var(--fs));color:var(--ink);}
-#pc-lp .testi-city{font-size:calc(.9rem*var(--fs));color:var(--muted);}
+#pc-lp .offer-card{background:var(--bg2);border:2px solid var(--brand);border-radius:var(--r-lg);padding:clamp(24px,5vw,48px);max-width:640px;margin:0 auto;text-align:center}
+#pc-lp .offer-photo{border-radius:var(--r-lg);overflow:hidden;aspect-ratio:16/10;margin:0 auto 24px;background:var(--bg3);border:1px solid var(--line);max-width:520px}
+#pc-lp .offer-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#pc-lp .kit-list{list-style:none;padding:0;margin:0 auto 8px;display:flex;flex-direction:column;gap:10px;max-width:440px;text-align:left}
+#pc-lp .kit-list li{display:flex;align-items:center;gap:12px;font-size:calc(1rem*var(--fs));color:var(--ink-2);border-bottom:1px solid var(--line);padding-bottom:10px}
+#pc-lp .kit-list li:last-child{border-bottom:0;padding-bottom:0}
+#pc-lp .kit-list li svg{flex-shrink:0}
+#pc-lp .offer-price{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:18px 0 8px}
+#pc-lp .offer-price .now{font-family:var(--display);font-weight:800;font-size:calc(clamp(3.2rem,8vw,4.4rem)*var(--fs-ui));color:var(--brand);line-height:1}
+#pc-lp .offer-price .was{color:var(--muted);text-decoration:line-through;font-size:calc(1.3rem*var(--fs-ui))}
+#pc-lp .offer-price .off{background:var(--brand);color:#0D0D0D;font-family:var(--display);font-weight:800;font-size:calc(1rem*var(--fs-ui));padding:6px 14px;border-radius:6px}
+#pc-lp .offer-save{font-family:var(--display);font-weight:700;font-size:calc(1.15rem*var(--fs));color:var(--brand);margin-bottom:20px;display:block;text-transform:uppercase}
+#pc-lp .offer-seals{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 20px;margin-top:18px;font-size:calc(.88rem*var(--fs));color:var(--ink-2);font-weight:600}
+#pc-lp .offer-seals span{display:flex;align-items:center;gap:5px}
+#pc-lp .offer-note{text-align:center!important;font-size:calc(.88rem*var(--fs))!important;color:var(--muted)!important;margin-top:10px!important}
 
-#pc-lp .guar-band{background-color:var(--bg2)!important;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
-#pc-lp .guar-inner{display:flex;align-items:center;gap:24px;padding:clamp(28px,5vw,48px) 0;flex-wrap:wrap;justify-content:center;text-align:center;}
-#pc-lp .guar-icon{width:52px;height:52px;flex-shrink:0;}
-#pc-lp .guar-text h3{font-family:var(--display)!important;font-weight:700!important;font-size:calc(1.5rem*var(--fs))!important;color:var(--ink)!important;margin-bottom:8px!important;}
-#pc-lp .guar-text p{font-size:calc(1.1rem*var(--fs));color:var(--ink2);max-width:52ch;margin:0 auto;}
+#pc-lp .testi-summary{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 auto 28px}
+#pc-lp .testi-summary .score{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1;color:var(--ink)}
+#pc-lp .testi-summary .stars{color:var(--star);letter-spacing:3px;font-size:1.1rem}
+#pc-lp .testi-summary .count{color:var(--ink-2);font-size:.95rem}
+#pc-lp .testi-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:640px){
+  #pc-lp .testi-grid{grid-template-columns:repeat(3,1fr)}
+}
+#pc-lp .testi-card{display:flex;flex-direction:column;gap:14px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:22px 20px}
+#pc-lp .testi-stars{color:var(--star);font-size:1rem;letter-spacing:2px}
+#pc-lp .testi-card p.testi-q{flex:1;font-size:1rem;line-height:1.55;color:var(--ink)}
+#pc-lp .testi-author{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px}
+#pc-lp .testi-av{width:48px;height:48px;border-radius:50%;background:var(--bg3);border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--brand)}
+#pc-lp .testi-name{font-family:var(--display);font-weight:700;font-size:1.15rem;color:var(--ink);display:block;line-height:1.1;text-transform:uppercase}
+#pc-lp .testi-city{font-size:.82rem;color:var(--muted);display:block;margin-top:2px}
 
-#pc-lp .faq-sec{background-color:var(--bg)!important;}
-#pc-lp details.pc-faq{border-bottom:1px solid var(--line);}
-#pc-lp details.pc-faq summary{display:flex;justify-content:space-between;align-items:center;padding:18px 4px;cursor:pointer;list-style:none;font-size:calc(1.12rem*var(--fs));font-weight:600;color:var(--ink);gap:12px;line-height:1.35;}
-#pc-lp details.pc-faq summary::-webkit-details-marker{display:none;}
-#pc-lp details.pc-faq summary .faq-ico{width:20px;height:20px;flex-shrink:0;transition:transform .25s;}
-#pc-lp details.pc-faq[open] summary .faq-ico{transform:rotate(45deg);}
-#pc-lp details.pc-faq .faq-body{font-size:calc(1.05rem*var(--fs));color:var(--ink2);line-height:1.6;padding:0 4px 18px;max-width:64ch;}
+#pc-lp .guar-band{background:var(--bg2)!important;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#pc-lp .guar-inner{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;text-align:center;padding:clamp(32px,5vw,56px) 20px;max-width:760px;margin:0 auto}
+#pc-lp .guar-icon{width:60px;height:60px;flex-shrink:0}
+#pc-lp .guar-inner h3{margin-bottom:8px!important;font-size:calc(1.6rem*var(--fs))!important}
+#pc-lp .guar-inner p{text-align:center!important;max-width:52ch}
 
-#pc-lp .disclaimer-band{background-color:var(--bg2)!important;padding:22px 0;}
-#pc-lp .disclaimer-text{font-size:.88rem;color:var(--muted);line-height:1.5;text-align:center!important;}
+#pc-lp .faq-list{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+#pc-lp .faq-item{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r)}
+#pc-lp details.faq-item>summary{font-family:var(--display);font-weight:700;font-size:calc(1.2rem*var(--fs));color:var(--ink);padding:16px 20px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:44px;text-transform:uppercase}
+#pc-lp details.faq-item>summary::-webkit-details-marker{display:none}
+#pc-lp details.faq-item>summary::after{content:'+';font-family:var(--display);font-size:1.5rem;color:var(--brand);flex-shrink:0}
+#pc-lp details.faq-item[open]>summary::after{content:'−'}
+#pc-lp .faq-ans{padding:0 20px 18px;font-size:calc(.95rem*var(--fs));color:var(--ink-2);line-height:1.6}
 
-#pc-lp .sticky{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;background:rgba(13,13,13,.97);border-top:1px solid var(--line2);transform:translateY(110%);transition:transform .3s var(--ease);padding:11px 16px calc(11px + env(safe-area-inset-bottom));}
-#pc-lp .sticky.show{transform:translateY(0);}
-#pc-lp .sticky .in{max-width:1060px;margin:0 auto;display:flex;align-items:center;gap:14px;justify-content:space-between;}
-#pc-lp .sticky .n{font-family:var(--display);font-weight:800;font-size:calc(1.5rem*var(--fs-ui));color:var(--brand);}
-#pc-lp .sticky .w{color:var(--muted);text-decoration:line-through;font-size:calc(.9rem*var(--fs-ui));}
-#pc-lp .sticky .sbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--sans)!important;font-weight:600;color:#fff!important;background:linear-gradient(160deg,#C9A45C,#B8944A 55%,#8C6E30);border:0;border-radius:var(--r2);cursor:pointer;min-height:48px;padding:12px 22px;font-size:calc(1.06rem*var(--fs-ui));text-decoration:none!important;white-space:nowrap;}
+#pc-lp .cta-final{text-align:center}
+#pc-lp .cta-final p{max-width:46ch;margin:16px auto 28px;text-align:center!important}
+#pc-lp .cta-final-wrap{max-width:460px;margin:0 auto}
 
-#pc-lp.js .reveal{opacity:0;transform:translateY(20px);transition:opacity .6s var(--ease),transform .6s var(--ease);}
-#pc-lp.js .reveal.in{opacity:1;transform:none;}
+#pc-lp .disclaimer{background:var(--bg2)!important;padding:22px 0}
+#pc-lp .disclaimer p{font-size:.82rem;color:var(--muted);line-height:1.5;text-align:center!important}
+
+#pc-lp .sticky{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;background:rgba(13,13,13,.97);border-top:1px solid var(--line);transform:translateY(110%);transition:transform .3s var(--ease);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+#pc-lp .sticky.show{transform:translateY(0)}
+#pc-lp .sticky .in{max-width:1040px;margin:0 auto;display:flex;align-items:center;gap:14px;justify-content:space-between}
+#pc-lp .sticky .pr{display:flex;flex-direction:column;gap:2px}
+#pc-lp .sticky .n{font-family:var(--display);font-weight:800;font-size:calc(1.5rem*var(--fs-ui));color:var(--brand);line-height:1}
+#pc-lp .sticky .w{color:var(--muted);text-decoration:line-through;font-size:calc(.82rem*var(--fs-ui))}
+#pc-lp .sticky .btn{width:auto;min-height:48px;padding:13px 22px;font-size:calc(1.1rem*var(--fs-ui));flex-shrink:0}
+
+#pc-lp.js .reveal{opacity:0;transform:translateY(20px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+#pc-lp.js .reveal.in{opacity:1;transform:none}
 @media(prefers-reduced-motion:reduce){
-  #pc-lp *{animation:none!important;transition:none!important;}
-  #pc-lp.js .reveal{opacity:1!important;transform:none!important;}
+  #pc-lp *{animation:none!important;transition:none!important}
+  #pc-lp.js .reveal{opacity:1!important;transform:none!important}
 }
-#pc-lp[id]{background-color:var(--bg)!important;color:var(--ink)!important;}
-#pc-lp[id] h1,#pc-lp[id] h2,#pc-lp[id] h3{color:var(--ink)!important;text-transform:none!important;}
+#pc-lp[id]{background:var(--bg)!important;color:var(--ink)!important}
+#pc-lp[id] h1,#pc-lp[id] h2,#pc-lp[id] h3{color:var(--ink)!important}
 </style>
 
-<section class="hero" id="pc-hero" style="background-color:#0D0D0D!important;">
-<div class="wrap">
-
-  <div class="hero-top-text">
-    <div class="hero-rating">
-      <span class="st">★★★★★</span>
-      <span class="rn js-rating">4.9</span>
-      <span class="rc js-rating-count">+2.800 clientes</span>
-    </div>
-    <span class="eyebrow">Retoque de raíces y canas</span>
-    <h1 class="pc-h1" style="text-align:center!important;">Disimula las canas con un <span class="hl">peine aplicador</span> fácil de usar.</h1>
-  </div>
-
-  <div class="hero-media">
-    <div class="photo">
-      <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'><rect width='800' height='800' fill='%231C1C1C'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='26' fill='%23B8944A'>FOTO HERO — aplicación del peine (800×800)</text></svg>" alt="PureColor Peinador aplicado sobre raíces con canas — Negro" width="800" height="800" sizes="(min-width: 820px) min(480px, 40vh), min(80vw, 480px, 34vh)" data-placeholder>
-    </div>
-  </div>
-
-  <div class="hero-bottom">
-    <p class="hero-sub">Aplica PureColor en las zonas que quieres retocar y dale un aspecto más uniforme a tu cabello desde el primer uso.</p>
-    <div class="hero-price-row">
-      <span class="now js-price-now">$119.900</span>
-      <span class="was js-price-was">$239.900</span>
-      <span class="off-badge js-off">50% OFF</span>
-    </div>
-    <p class="hero-save js-save">Ahorras $120.000 en esta oferta</p>
-    <a href="#pc-oferta" class="btn">
-      <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="4" width="15" height="11" rx="2"/><path d="M5 4V3a3.5 3.5 0 017 0v1"/></svg>
-      Pedir mi kit ahora
-    </a>
-    <div class="hero-trust">
-      <span><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5,6.5 5,10.5 11.5,3"/></svg>Pago contra entrega</span>
-      <span><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5,6.5 5,10.5 11.5,3"/></svg>Envío gratis</span>
-      <span><svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1.5,6.5 5,10.5 11.5,3"/></svg>Entrega en 2–5 días</span>
-    </div>
-  </div>
-
-</div>
-</section>
-
-<div class="marquee-band" style="background-color:#B8944A!important;">
-  <div class="marquee-inner" aria-hidden="true">
-    <span>Cobertura visible<span class="dot"></span></span>
-    <span>Peine aplicador integrado<span class="dot"></span></span>
-    <span>Pago contra entrega<span class="dot"></span></span>
-    <span>Envío gratis a toda Colombia<span class="dot"></span></span>
-    <span>Tono Negro<span class="dot"></span></span>
-    <span>Sin desorden<span class="dot"></span></span>
-    <span>Cobertura visible<span class="dot"></span></span>
-    <span>Peine aplicador integrado<span class="dot"></span></span>
-    <span>Pago contra entrega<span class="dot"></span></span>
-    <span>Envío gratis a toda Colombia<span class="dot"></span></span>
-    <span>Tono Negro<span class="dot"></span></span>
-    <span>Sin desorden<span class="dot"></span></span>
-  </div>
-</div>
-
-<section class="sec benefits-sec" style="background-color:#0D0D0D!important;">
+<section class="hero" id="pc-hero">
   <div class="wrap">
-    <div class="head reveal">
-      <span class="eyebrow">Por qué PureColor</span>
-      <h2 class="pc-h2">El retoque de tus raíces empieza con <span class="hl">una pasada de peine.</span></h2>
-      <span class="hair-rule-sm"></span>
-    </div>
-    <div class="ben-grid">
-      <div class="ben-card reveal">
-        <svg class="ben-icon" viewBox="0 0 36 36" fill="none" stroke="#B8944A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 4c-5.5 0-10 4.5-10 10 0 4 2.3 7.4 5.7 9.1L12 30h12l-1.7-6.9C25.7 21.4 28 18 28 14c0-5.5-4.5-10-10-10z"/><line x1="14" y1="30" x2="22" y2="30"/></svg>
-        <h3 class="ben-title">Aplicador integrado</h3>
-        <p class="ben-desc">El peine distribuye el producto directamente sobre el cabello, facilitando el retoque en las zonas deseadas.</p>
+    <div class="hero-copy">
+      <div class="hero-rating">
+        <span class="st">★★★★★</span>
+        <span class="rn js-rating">4.9</span>
+        <span class="rc js-rating-count">+2.800 clientes</span>
       </div>
-      <div class="ben-card reveal">
-        <svg class="ben-icon" viewBox="0 0 36 36" fill="none" stroke="#B8944A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="12"/><path d="M13 18l3.5 3.5L23 14"/></svg>
-        <h3 class="ben-title">Aplicación dirigida</h3>
-        <p class="ben-desc">Lleva el color exactamente donde quieres: raíces, sienes o mechones, sin manchar el resto del cabello.</p>
+      <h1>Disimula las canas con un <span class="hl">peine aplicador</span> fácil de usar</h1>
+      <p class="hero-sub">Aplica PureColor solo donde lo necesitas — raíces y sienes — y dale un aspecto más uniforme a tu cabello desde el primer uso.</p>
+      <div class="hero-media">
+        <div class="photo">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'><rect width='800' height='800' fill='%231A1814'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='26' fill='%23C9A45C'>FOTO HERO — aplicación del peine (800×800)</text></svg>" alt="PureColor peine aplicador sobre raíces con canas — tono Negro" width="800" height="800" sizes="(min-width: 820px) min(480px, 34vh), min(80vw, 480px, 30vh)" data-placeholder>
+        </div>
       </div>
-      <div class="ben-card reveal">
-        <svg class="ben-icon" viewBox="0 0 36 36" fill="none" stroke="#B8944A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="10" y="6" width="16" height="24" rx="3"/><line x1="14" y1="12" x2="22" y2="12"/><line x1="14" y1="17" x2="22" y2="17"/><line x1="14" y1="22" x2="19" y2="22"/></svg>
-        <h3 class="ben-title">Formato de bolsillo</h3>
-        <p class="ben-desc">Compacto y portátil: cabe en el bolso, listo para el retoque rápido en casa o en cualquier lugar.</p>
+      <div class="hero-price-row">
+        <span class="now js-price-now">$119.900</span>
+        <span class="was js-price-was">$239.900</span>
+        <span class="off js-off">50% OFF</span>
+      </div>
+      <p class="hero-save js-save">Ahorras $120.000 en esta oferta</p>
+      <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir mi kit ahora</a>
+      <div class="hero-trust">
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Pago contra entrega</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Envío gratis</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Entrega en 2–5 días</span>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sec steps-sec" style="background-color:#1C1C1C!important;">
+<div class="marquee-band" aria-hidden="true">
+  <div class="marquee-track">
+    <span class="marquee-item">Peine aplicador integrado<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Raíces y sienes<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Pago contra entrega<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Envío gratis a toda Colombia<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Tono Negro<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Peine aplicador integrado<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Raíces y sienes<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Pago contra entrega<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Envío gratis a toda Colombia<span class="marquee-dot"></span></span>
+    <span class="marquee-item">Tono Negro<span class="marquee-dot"></span></span>
+  </div>
+</div>
+
+<section class="sec" id="pc-dolor">
+  <div class="wrap">
+    <div class="dolor-grid">
+      <div class="dolor-img reveal">
+        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%231A1814'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%23C9A45C'>FOTO — mujer notando canas en el espejo (800×600)</text></svg>" alt="Mujer notando canas en las raíces frente al espejo" width="800" height="600" sizes="(min-width: 1040px) 474px, (min-width: 840px) calc(50vw - 46px), calc(100vw - 40px)" data-placeholder>
+      </div>
+      <div class="reveal">
+        <span class="eyebrow">¿Te pasa esto?</span>
+        <h2 class="h2">Las canas vuelven <span class="hl">antes que el próximo tinte</span></h2>
+        <ul class="dolor-list">
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>A las pocas semanas la raíz blanca ya se nota en la raya.</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Las sienes son lo primero que se ve en las fotos.</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Teñir todo el cabello cada vez cuesta tiempo, dinero y deja manchas.</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Ir al salón solo para un retoque no siempre es posible.</li>
+        </ul>
+        <p class="dolor-out">Con PureColor retocas solo la raíz, en casa, cuando la necesitas.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="pc-pasos">
   <div class="wrap">
     <div class="head reveal">
       <span class="eyebrow">Cómo se aplica</span>
-      <h2 class="pc-h2">Mira cómo se aplica <span class="hl">sobre las canas.</span></h2>
-      <span class="hair-rule-sm"></span>
-      <p class="body-p" style="text-align:center!important;margin-top:14px;max-width:48ch;margin-left:auto;margin-right:auto;">Sigue estos pasos con el cabello seco y bien peinado. Los resultados pueden variar según el tipo y color original del cabello.</p>
+      <h2 class="h2">Tres pasos, <span class="hl">sin complicaciones</span></h2>
+      <p>Con el cabello seco y bien peinado. Los resultados pueden variar según el tipo y color original del cabello.</p>
     </div>
     <div class="steps-grid">
       <div class="step-card reveal">
-        <div class="step-num">01</div>
-        <div class="step-img-wrap">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%231C1C1C'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23B8944A'>FOTO PASO 1 — Cabello seco (400×400)</text></svg>" alt="Cabello seco y peinado listo para aplicar PureColor" width="400" height="400" sizes="(min-width: 1060px) 284px, (min-width: 680px) calc((100vw - 84px) / 3 - 42px), calc(100vw - 82px)" data-placeholder>
+        <span class="step-num">01</span>
+        <div class="step-img">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'><rect width='600' height='450' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23C9A45C'>FOTO PASO 1 — cabello seco (600×450)</text></svg>" alt="Cabello seco y peinado listo para aplicar PureColor" width="600" height="450" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)" data-placeholder>
         </div>
-        <h3 class="step-title">Peina en seco</h3>
-        <p class="step-desc">Asegúrate de que tu cabello esté limpio, seco y sin nudos antes de comenzar.</p>
+        <h3 class="h3">Peina en seco</h3>
+        <p>Cabello limpio, seco y sin nudos antes de comenzar.</p>
       </div>
       <div class="step-card reveal">
-        <div class="step-num">02</div>
-        <div class="step-img-wrap">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%231C1C1C'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23B8944A'>FOTO PASO 2 — Aplicación del peine (400×400)</text></svg>" alt="Aplicando PureColor con el peine sobre las raíces" width="400" height="400" sizes="(min-width: 1060px) 284px, (min-width: 680px) calc((100vw - 84px) / 3 - 42px), calc(100vw - 82px)" data-placeholder>
+        <span class="step-num">02</span>
+        <div class="step-img">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'><rect width='600' height='450' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23C9A45C'>FOTO PASO 2 — aplicación del peine (600×450)</text></svg>" alt="Aplicando PureColor con el peine sobre las raíces" width="600" height="450" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)" data-placeholder>
         </div>
-        <h3 class="step-title">Aplica con el peine</h3>
-        <p class="step-desc">Desliza el peine aplicador sobre las zonas con canas. La fórmula se distribuye al peinar.</p>
+        <h3 class="h3">Aplica con el peine</h3>
+        <p>Desliza el peine sobre las zonas con canas. La fórmula se distribuye al peinar.</p>
       </div>
       <div class="step-card reveal">
-        <div class="step-num">03</div>
-        <div class="step-img-wrap">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='400' height='400' fill='%231C1C1C'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23B8944A'>FOTO PASO 3 — Resultado retoque (400×400)</text></svg>" alt="Resultado del retoque con PureColor canas disimuladas" width="400" height="400" sizes="(min-width: 1060px) 284px, (min-width: 680px) calc((100vw - 84px) / 3 - 42px), calc(100vw - 82px)" data-placeholder>
+        <span class="step-num">03</span>
+        <div class="step-img">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'><rect width='600' height='450' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23C9A45C'>FOTO PASO 3 — resultado (600×450)</text></svg>" alt="Raíces retocadas con PureColor" width="600" height="450" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)" data-placeholder>
         </div>
-        <h3 class="step-title">Listo en instantes</h3>
-        <p class="step-desc">Observa un aspecto más uniforme en las zonas tratadas. Deja secar antes de tocar el cabello.</p>
+        <h3 class="h3">Deja secar y listo</h3>
+        <p>Un aspecto más uniforme en las zonas tratadas. Deja secar antes de tocar el cabello.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sec kit-sec" style="background-color:#0D0D0D!important;" id="pc-oferta">
+<section class="sec" id="pc-beneficios">
   <div class="wrap">
     <div class="head reveal">
-      <span class="eyebrow">Tu kit</span>
-      <h2 class="pc-h2">Kit 2×1 — <span class="hl">Tono Negro.</span></h2>
-      <span class="hair-rule-sm"></span>
-      <p class="body-p" style="text-align:center!important;margin-top:14px;max-width:50ch;margin-left:auto;margin-right:auto;">Recibes 2 unidades de PureColor en tono Negro — el mismo de ambas para mayor cobertura y rendimiento.</p>
+      <span class="eyebrow">Por qué PureColor</span>
+      <h2 class="h2">El retoque empieza con <span class="hl">una pasada de peine</span></h2>
     </div>
-    <div class="kit-card reveal">
-      <div class="kit-row">
-        <span class="kit-label">Unidad 1</span>
-        <span class="kit-val">PureColor Tono Negro</span>
+    <div class="feats-grid">
+      <div class="feat-card reveal">
+        <div class="feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M6 20V9M10 20V9M14 20V9M18 20V9"/><path d="M4 9h16"/></svg></div>
+        <h3>Aplicador integrado</h3>
+        <p>El peine distribuye el producto directamente sobre el cabello.</p>
       </div>
-      <div class="kit-row">
-        <span class="kit-label">Unidad 2</span>
-        <span class="kit-val">PureColor Tono Negro</span>
+      <div class="feat-card reveal">
+        <div class="feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/></svg></div>
+        <h3>Solo donde quieres</h3>
+        <p>Raíces, sienes o mechones, sin manchar el resto del cabello.</p>
       </div>
-      <div class="kit-row">
-        <span class="kit-label">Cantidad</span>
-        <span class="kit-val">2 unidades</span>
+      <div class="feat-card reveal">
+        <div class="feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="10" y1="7" x2="14" y2="7"/></svg></div>
+        <h3>Formato de bolsillo</h3>
+        <p>Cabe en el bolso: retoque rápido en casa o donde estés.</p>
       </div>
-      <div class="kit-row">
-        <span class="kit-label">Envío</span>
-        <span class="kit-val" style="color:#B8944A;">Gratis</span>
+      <div class="feat-card reveal">
+        <div class="feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
+        <h3>En minutos</h3>
+        <p>Sin citas ni esperas: lo aplicas cuando lo necesitas.</p>
       </div>
-      <div class="kit-row">
-        <span class="kit-label">Precio anterior</span>
-        <span class="kit-val js-price-was" style="text-decoration:line-through;color:#7A7060;">$239.900</span>
+      <div class="feat-card reveal">
+        <div class="feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z"/></svg></div>
+        <h3>Tono Negro</h3>
+        <p>Para cabello negro o castaño muy oscuro.</p>
       </div>
-      <div class="kit-row" style="border-bottom:0;">
-        <span class="kit-total-label">Total hoy</span>
-        <span class="kit-total-val js-price-now">$119.900</span>
+      <div class="feat-card reveal">
+        <div class="feat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="12" rx="2"/><circle cx="12" cy="13" r="2.5"/></svg></div>
+        <h3>Pagas al recibir</h3>
+        <p>Sin tarjeta: pagas en efectivo cuando el paquete llega.</p>
       </div>
-      <a href="javascript:void(0)" class="btn es-popup-button-overwrite" style="margin-top:22px;">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="3" width="14" height="11" rx="2"/><path d="M5 3V2a3 3 0 016 0v1"/></svg>
-        Confirmar pedido — pago al recibir
-      </a>
-      <p style="font-size:.9rem;color:var(--muted);text-align:center!important;margin-top:10px;">Pagas solo cuando el producto llega a tu puerta.</p>
     </div>
   </div>
 </section>
 
-<section class="sec offer-sec reveal" style="background-color:#1C1C1C!important;">
+<section class="sec statement" id="pc-frase">
+  <div class="wrap reveal">
+    <h2 class="h2">Tu cabello, <span class="hl">sin raíces blancas</span> a la vista</h2>
+    <p>Un retoque discreto entre un tinte y otro, hecho por ti, en minutos.</p>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Quiero mi kit</a>
+  </div>
+</section>
+
+<section class="sec" id="pc-oferta">
   <div class="wrap">
-    <div class="head">
-      <span class="eyebrow">Oferta especial</span>
-      <h2 class="pc-h2">Aprovecha el precio <span class="hl">de hoy.</span></h2>
-      <span class="hair-rule-sm"></span>
+    <div class="head reveal">
+      <span class="eyebrow">Oferta de hoy</span>
+      <h2 class="h2">Kit 2×1 — <span class="hl">Tono Negro</span></h2>
+      <p>Recibes 2 unidades de PureColor en tono Negro para más retoques y mayor rendimiento.</p>
     </div>
-    <div class="offer-card">
+    <div class="offer-card reveal">
       <div class="offer-photo">
-        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500'><rect width='800' height='500' fill='%230D0D0D'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='22' fill='%23B8944A'>FOTO OFERTA — 2 unidades PureColor Negro (800×500)</text></svg>" alt="Kit 2 unidades PureColor Tono Negro Peinador Cubridor de Canas" width="800" height="500" sizes="(min-width: 1060px) 1018px, calc(100vw - 42px)" data-placeholder>
+        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500'><rect width='800' height='500' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='22' fill='%23C9A45C'>FOTO OFERTA — 2 unidades PureColor Negro (800×500)</text></svg>" alt="Kit 2 unidades PureColor Tono Negro" width="800" height="500" sizes="min(520px, calc(100vw - 100px))" data-placeholder>
       </div>
-      <div class="offer-body">
-        <div class="offer-compare">
-          <span class="oc-now js-price-now">$119.900</span>
-          <span class="oc-was js-price-was">$239.900</span>
-          <span class="oc-badge js-off">50% OFF</span>
-        </div>
-        <p class="offer-save js-save">Ahorras $120.000 · Envío gratis incluido</p>
-        <div class="offer-includes">
-          <ul>
-            <li>
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7.5 5.5,11.5 13,3.5"/></svg>
-              2 unidades PureColor Peinador y Cubridor — Tono Negro
-            </li>
-            <li>
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7.5 5.5,11.5 13,3.5"/></svg>
-              Envío gratis a todo el territorio colombiano
-            </li>
-            <li>
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7.5 5.5,11.5 13,3.5"/></svg>
-              Pago contra entrega — pagas solo cuando llega
-            </li>
-            <li>
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7.5 5.5,11.5 13,3.5"/></svg>
-              Entrega estimada en 2–5 días hábiles
-            </li>
-          </ul>
-        </div>
-        <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir mi kit — pago al recibir</a>
-        <div class="micro-seals">
-          <span>
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="4" width="11" height="8" rx="2"/><path d="M4 4V3a3 3 0 016 0v1"/></svg>
-            Compra segura
-          </span>
-          <span>
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5"/><path d="M6.5 4v2.5l1.5 1.5"/></svg>
-            Entrega 2–5 días
-          </span>
-          <span>
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 1L8 4.2l3.5.5-2.5 2.4.6 3.4-3.1-1.6-3.1 1.6.6-3.4L1.5 4.7l3.5-.5L6.5 1z"/></svg>
-            Calidad verificada
-          </span>
-        </div>
+      <ul class="kit-list">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>2 unidades PureColor Peinador y Cubridor — Tono Negro</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Envío gratis a toda Colombia</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Pago contra entrega — pagas solo cuando llega</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Entrega estimada en 2–5 días hábiles</li>
+      </ul>
+      <div class="offer-price">
+        <span class="now js-price-now">$119.900</span>
+        <span class="was js-price-was">$239.900</span>
+        <span class="off js-off">50% OFF</span>
+      </div>
+      <span class="offer-save js-save">Ahorras $120.000 en esta oferta</span>
+      <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Confirmar pedido — pago al recibir</a>
+      <p class="offer-note">Pagas solo cuando el producto llega a tu puerta.</p>
+      <div class="offer-seals">
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Compra segura</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Envío gratis</span>
+        <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Entrega 2–5 días</span>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sec testi-sec" style="background-color:#1C1C1C!important;">
+<section class="sec sec-alt" id="pc-opiniones">
   <div class="wrap">
     <div class="head reveal">
       <span class="eyebrow">Lo que dicen nuestras clientes</span>
-      <h2 class="pc-h2">Resultados reales, <span class="hl">palabras reales.</span></h2>
-      <span class="hair-rule-sm"></span>
+      <h2 class="h2">Resultados reales, <span class="hl">palabras reales</span></h2>
+    </div>
+    <div class="testi-summary reveal">
+      <span class="score js-rating">4.9</span>
+      <span class="stars">★★★★★</span>
+      <span class="count js-rating-count">+2.800 clientes</span>
     </div>
     <div class="testi-grid">
       <div class="testi-card reveal">
-        <div class="testi-stars">★★★★★</div>
-        <p class="testi-text">"Lo uso en las raíces antes de salir. El peine lo hace muy fácil y el tono negro se ve muy natural en mi cabello. Llegó en 3 días a Bogotá."</p>
+        <span class="testi-stars">★★★★★</span>
+        <p class="testi-q">"Lo uso en las raíces antes de salir. El peine lo hace muy fácil y el tono negro se ve natural en mi cabello. Llegó en 3 días a Bogotá."</p>
         <div class="testi-author">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'><rect width='80' height='80' fill='%231C1C1C'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='30' fill='%23B8944A'>M</text></svg>" alt="Foto de cliente María T." width="80" height="80" sizes="44px" data-placeholder>
-          <div>
-            <div class="testi-name">María T.</div>
-            <div class="testi-city">Bogotá, Cundinamarca</div>
-          </div>
+          <span class="testi-av">M</span>
+          <div><span class="testi-name">María T.</span><span class="testi-city">Bogotá, Cundinamarca</span></div>
         </div>
       </div>
       <div class="testi-card reveal">
-        <div class="testi-stars">★★★★★</div>
-        <p class="testi-text">"Pedí el kit de 2 en negro. Con la oferta 2×1 quedé muy contenta. El pago al recibir me dio confianza para probarlo por primera vez."</p>
+        <span class="testi-stars">★★★★★</span>
+        <p class="testi-q">"Pedí el kit de 2 en negro y quedé muy contenta. El pago al recibir me dio confianza para probarlo por primera vez."</p>
         <div class="testi-author">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'><rect width='80' height='80' fill='%231C1C1C'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='30' fill='%23B8944A'>C</text></svg>" alt="Foto de cliente Carolina R." width="80" height="80" sizes="44px" data-placeholder>
-          <div>
-            <div class="testi-name">Carolina R.</div>
-            <div class="testi-city">Medellín, Antioquia</div>
-          </div>
+          <span class="testi-av">C</span>
+          <div><span class="testi-name">Carolina R.</span><span class="testi-city">Medellín, Antioquia</span></div>
         </div>
       </div>
       <div class="testi-card reveal">
-        <div class="testi-stars">★★★★★</div>
-        <p class="testi-text">"Me llegan las canas en las sienes. Con el peine aplico solo donde necesito, sin ensuciar el resto. Muy práctico y llegó antes de lo esperado."</p>
+        <span class="testi-stars">★★★★★</span>
+        <p class="testi-q">"Las canas me salen en las sienes. Con el peine aplico solo donde necesito, sin ensuciar el resto. Muy práctico."</p>
         <div class="testi-author">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'><rect width='80' height='80' fill='%231C1C1C'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='30' fill='%23B8944A'>L</text></svg>" alt="Foto de cliente Lucía P." width="80" height="80" sizes="44px" data-placeholder>
-          <div>
-            <div class="testi-name">Lucía P.</div>
-            <div class="testi-city">Cali, Valle del Cauca</div>
-          </div>
+          <span class="testi-av">L</span>
+          <div><span class="testi-name">Lucía P.</span><span class="testi-city">Cali, Valle del Cauca</span></div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<div class="guar-band reveal" style="background-color:#1C1C1C!important;">
-  <div class="wrap">
-    <div class="guar-inner">
-      <svg class="guar-icon" viewBox="0 0 52 52" fill="none" stroke="#B8944A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M26 4L8 12v14c0 11 8 20 18 24 10-4 18-13 18-24V12L26 4z"/><polyline points="18,26 23,31 34,20"/></svg>
-      <div class="guar-text">
-        <h3>Pagas solo cuando el producto llega a tu puerta</h3>
-        <p>Con el pago contra entrega, tienes la tranquilidad de revisar tu pedido antes de pagar. Si hay algún problema con tu entrega, contáctanos de inmediato.</p>
-      </div>
+<div class="guar-band">
+  <div class="guar-inner reveal">
+    <svg class="guar-icon" viewBox="0 0 52 52" fill="none" stroke="#C9A45C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M26 4L8 12v14c0 11 8 20 18 24 10-4 18-13 18-24V12L26 4z"/><polyline points="18,26 23,31 34,20"/></svg>
+    <div>
+      <h3>Pagas solo cuando llega a tu puerta</h3>
+      <p>Con el pago contra entrega revisas tu pedido antes de pagar. Si hay algún problema con tu entrega, contáctanos de inmediato.</p>
     </div>
   </div>
 </div>
 
-<section class="sec faq-sec" style="background-color:#0D0D0D!important;">
+<section class="sec" id="pc-faq">
   <div class="wrap">
     <div class="head reveal">
       <span class="eyebrow">Preguntas frecuentes</span>
-      <h2 class="pc-h2">Todo lo que necesitas <span class="hl">saber.</span></h2>
-      <span class="hair-rule-sm"></span>
+      <h2 class="h2">Todo lo que necesitas <span class="hl">saber</span></h2>
     </div>
-    <details class="pc-faq">
-      <summary>¿Qué incluye la oferta de 2 unidades?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">Recibes 2 unidades del PureColor Peinador y Cubridor de Canas en tono Negro al precio total de $119.900, con envío gratis incluido. El pago se realiza al recibir el paquete.</div>
-    </details>
-    <details class="pc-faq">
-      <summary>¿Cómo se aplica el producto?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">Aplica sobre cabello seco y peinado. Desliza el peine aplicador sobre las zonas que deseas retocar. Deja secar antes de tocar el cabello o la ropa. Sigue siempre las instrucciones del fabricante incluidas en el empaque.</div>
-    </details>
-    <details class="pc-faq">
-      <summary>¿Se retira con el lavado?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">El producto está formulado para resistir el día a día. La duración puede variar según el tipo de cabello, la frecuencia de lavado y las condiciones de aplicación. Consulta el empaque para las instrucciones específicas.</div>
-    </details>
-    <details class="pc-faq">
-      <summary>¿Puede transferirse a la ropa o a la almohada?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">Es posible que haya transferencia si el producto no ha secado completamente antes del contacto con telas. Deja secar bien antes de apoyar el cabello sobre ropa o almohadas.</div>
-    </details>
-    <details class="pc-faq">
-      <summary>¿Qué precauciones de uso debo seguir?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">Realiza una prueba en una pequeña zona antes del primer uso completo. Evita el contacto con ojos y mucosas. No apliques sobre cuero cabelludo irritado o con heridas. Si presentas alguna reacción, suspende el uso y consulta a un profesional de la salud.</div>
-    </details>
-    <details class="pc-faq">
-      <summary>¿Cuánto tarda la entrega en mi ciudad?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">El tiempo estimado de entrega es de 2 a 5 días hábiles según tu ubicación en Colombia. Para Bogotá, Medellín y Cali los tiempos suelen ser menores.</div>
-    </details>
-    <details class="pc-faq">
-      <summary>¿Cómo funciona el pago contra entrega?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">Haces tu pedido aquí y nosotros lo enviamos sin cobro previo. Al momento de la entrega, pagas directamente al mensajero el valor total de $119.900. No necesitas tarjeta de crédito ni cuenta bancaria.</div>
-    </details>
-    <details class="pc-faq">
-      <summary>¿Cuáles son las condiciones de cambios y devoluciones?<svg class="faq-ico" viewBox="0 0 20 20" fill="none" stroke="#B8944A" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg></summary>
-      <div class="faq-body">Si recibes un producto defectuoso o diferente al pedido, contáctanos de inmediato con tu número de pedido y fotos del problema. Gestionamos el cambio sin costo adicional. Las políticas completas están disponibles en nuestra tienda.</div>
-    </details>
+    <div class="faq-list">
+      <details class="faq-item"><summary>¿Qué incluye la oferta?</summary><div class="faq-ans">2 unidades del PureColor Peinador y Cubridor de Canas en tono Negro por $119.900, con envío gratis. Pagas al recibir el paquete.</div></details>
+      <details class="faq-item"><summary>¿Cómo se aplica?</summary><div class="faq-ans">Sobre cabello seco y peinado, desliza el peine aplicador por las zonas que quieres retocar. Deja secar antes de tocar el cabello o la ropa. Sigue siempre las instrucciones del empaque.</div></details>
+      <details class="faq-item"><summary>¿Se retira con el lavado?</summary><div class="faq-ans">La duración varía según el tipo de cabello, la frecuencia de lavado y la aplicación. Consulta el empaque para las instrucciones específicas.</div></details>
+      <details class="faq-item"><summary>¿Mancha la ropa o la almohada?</summary><div class="faq-ans">Puede transferir si el producto no ha secado por completo. Deja secar bien antes de apoyar el cabello sobre ropa o almohadas.</div></details>
+      <details class="faq-item"><summary>¿Qué precauciones debo tener?</summary><div class="faq-ans">Haz una prueba en una zona pequeña 24 horas antes del primer uso. Evita el contacto con ojos y mucosas. No apliques sobre cuero cabelludo irritado o con heridas. Si presentas alguna reacción, suspende el uso y consulta a un profesional de la salud.</div></details>
+      <details class="faq-item"><summary>¿Cuánto tarda la entrega?</summary><div class="faq-ans">De 2 a 5 días hábiles según tu ubicación en Colombia. En Bogotá, Medellín y Cali suele ser menos.</div></details>
+      <details class="faq-item"><summary>¿Cómo funciona el pago contra entrega?</summary><div class="faq-ans">Haces tu pedido aquí y lo enviamos sin cobro previo. Pagas $119.900 al mensajero cuando recibes. No necesitas tarjeta ni cuenta bancaria.</div></details>
+      <details class="faq-item"><summary>¿Y si llega con algún problema?</summary><div class="faq-ans">Si recibes un producto defectuoso o diferente al pedido, escríbenos con tu número de pedido y fotos. Gestionamos el cambio sin costo adicional.</div></details>
+    </div>
   </div>
 </section>
 
-<div class="disclaimer-band" style="background-color:#1C1C1C!important;">
+<section class="sec sec-alt cta-final" id="pc-cta">
+  <div class="wrap reveal">
+    <h2 class="h2">Retoca tus raíces <span class="hl">hoy mismo</span></h2>
+    <p>Kit 2×1 en tono Negro, envío gratis y pago contra entrega.</p>
+    <div class="cta-final-wrap">
+      <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir mi kit ahora</a>
+    </div>
+  </div>
+</section>
+
+<div class="disclaimer">
   <div class="wrap">
-    <p class="disclaimer-text">PureColor Peinador y Cubridor de Canas es un producto cosmético de uso externo. Solo para cabello. Realice prueba de parche 24 horas antes del primer uso. Suspenda el uso ante cualquier reacción. Mantenga fuera del alcance de los niños. Los resultados pueden variar según el tipo de cabello y las condiciones de aplicación. Las descripciones corresponden a las características indicadas por el fabricante y no constituyen garantía de resultados idénticos para todas las personas. El tiempo de entrega es estimado y puede variar según la ubicación y el operador logístico.</p>
+    <p>PureColor Peinador y Cubridor de Canas es un producto cosmético de uso externo. Solo para cabello. Realice prueba de parche 24 horas antes del primer uso. Suspenda el uso ante cualquier reacción. Mantenga fuera del alcance de los niños. Los resultados pueden variar según el tipo de cabello y las condiciones de aplicación. El tiempo de entrega es estimado y puede variar según la ubicación y el operador logístico.</p>
   </div>
 </div>
 
 <div class="sticky" id="pc-sticky">
   <div class="in">
-    <div>
+    <div class="pr">
       <span class="n js-price-now">$119.900</span>
-      <span class="w js-price-was" style="display:block;">antes $239.900</span>
+      <span class="w js-price-was">$239.900</span>
     </div>
-    <a href="javascript:void(0)" class="sbtn es-popup-button-overwrite">Pedir ahora</a>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir ahora</a>
   </div>
 </div>
 
 <script>
 (function(){
-  var root=document.getElementById('pc-lp');
-  if(!root)return;
-  root.className+=' js';
+  var root=document.getElementById('pc-lp'); if(!root) return; root.className+=' js';
 
   var LP_CONFIG={
-    priceNow:'$119.900',
-    priceWas:'$239.900',
-    off:'50% OFF',
-    save:'Ahorras $120.000 en esta oferta',
-    rating:'4.9',
-    ratingCount:'+2.800 clientes'
+    priceNow:"$119.900",
+    priceWas:"$239.900",
+    off:"50% OFF",
+    save:"Ahorras $120.000 en esta oferta",
+    rating:"4.9",
+    ratingCount:"+2.800 clientes"
   };
 
   function lpApply(){
-    var m={
-      'js-price-now':LP_CONFIG.priceNow,
-      'js-price-was':LP_CONFIG.priceWas,
-      'js-off':LP_CONFIG.off,
-      'js-save':LP_CONFIG.save,
-      'js-rating':LP_CONFIG.rating,
-      'js-rating-count':LP_CONFIG.ratingCount
-    };
+    var m={'js-price-now':LP_CONFIG.priceNow,'js-price-was':LP_CONFIG.priceWas,'js-off':LP_CONFIG.off,'js-save':LP_CONFIG.save,'js-rating':LP_CONFIG.rating,'js-rating-count':LP_CONFIG.ratingCount};
     Object.keys(m).forEach(function(k){
       root.querySelectorAll('.'+k).forEach(function(el){
         if(m[k]===''){el.style.display='none';}else{el.textContent=m[k];}
@@ -581,66 +493,59 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   }
   lpApply();
 
-  var sticky=document.getElementById('pc-sticky');
+  var stk=document.getElementById('pc-sticky');
   var heroBtn=root.querySelector('#pc-hero .btn');
   var ticking=false;
   function onScroll(){
     ticking=false;
     var past=heroBtn?heroBtn.getBoundingClientRect().bottom<0:window.scrollY>520;
-    sticky.classList.toggle('show',past);
+    stk.classList.toggle('show',past);
   }
   function queueScroll(){
-    if(ticking)return;
+    if(ticking) return;
     ticking=true;
     requestAnimationFrame(onScroll);
   }
   window.addEventListener('scroll',queueScroll,{passive:true});
   requestAnimationFrame(function(){requestAnimationFrame(onScroll);});
 
-  var revEls=root.querySelectorAll('.reveal');
-  if('IntersectionObserver' in window&&revEls.length>0){
+  var revs=root.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window && revs.length>0){
     var io=new IntersectionObserver(function(es){
       es.forEach(function(e){
         if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
       });
     },{threshold:.07});
-    revEls.forEach(function(el){io.observe(el);});
-  }else{
-    revEls.forEach(function(el){el.classList.add('in');});
+    revs.forEach(function(el){io.observe(el);});
+  } else {
+    revs.forEach(function(el){el.classList.add('in');});
   }
 
-  var c='#B8944A';
+  var COR='#C9A45C';
+  var pending=false;
   function fixEasySellColors(){
     pending=false;
-    var orange=[];
-    root.querySelectorAll('[class*="es-"] svg path').forEach(function(p){
-      var f=getComputedStyle(p).fill.replace(/\s/g,'');
-      if(/^rgba?\((234,88|249,115),/.test(f)){orange.push(p);}
-    });
     var btns=document.querySelectorAll('button,input[type="submit"]');
     for(var i=0;i<btns.length;i++){
       var el=btns[i];
       var txt=el.textContent?el.textContent.toUpperCase():'';
       if(txt.indexOf('CONFIRMA')!==-1||txt.indexOf('COMPLETAR')!==-1||el.classList.contains('es-submit-form-button')){
-        el.style.setProperty('background-color',c,'important');
-        el.style.setProperty('background',c,'important');
-        el.style.setProperty('border-color',c,'important');
-        el.style.setProperty('color','#ffffff','important');
-      }else if(txt.indexOf('NO QUIERO')!==-1){
+        el.style.setProperty('background-color',COR,'important');
+        el.style.setProperty('background',COR,'important');
+        el.style.setProperty('border-color',COR,'important');
+        el.style.setProperty('color','#0D0D0D','important');
+      } else if(txt.indexOf('NO QUIERO')!==-1){
         el.style.setProperty('background-color','#f1f3f5','important');
         el.style.setProperty('border','1px solid #ced4da','important');
         el.style.setProperty('color','#6c757d','important');
       }
     }
-    orange.forEach(function(p){p.style.setProperty('fill',c,'important');});
   }
-  var pending=false;
   function queueFix(){
-    if(pending)return;
+    if(pending) return;
     pending=true;
     requestAnimationFrame(fixEasySellColors);
   }
-
   if('MutationObserver' in window){
     var obs=new MutationObserver(function(muts){
       for(var i=0;i<muts.length;i++){

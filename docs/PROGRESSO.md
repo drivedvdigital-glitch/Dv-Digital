@@ -3354,6 +3354,21 @@ Não provado: a nota do PageSpeed (só depois de colar e publicar) e o `local()`
 (o Chrome do Android procura fontes do sistema pelo nome; o teste aqui foi com a mesma fonte instalada
 no Linux). As 8 fotos continuam de exemplo (`data-placeholder`).
 
+**Refeita no visual da câmera/pelador (27/10, depois).** O Miguel olhou e disse que estava "do mesmo
+jeito": o que eu tinha feito era quase todo invisível (desempenho, fonte, tamanhos). O "formato padrão"
+dele é o **visual** das outras LPs. Reescrita em `docs/lps/purecolor-lp.html`:
+- fundo escuro e dourado, títulos em Barlow Condensed MAIÚSCULA (com a pilha estreita de reserva das
+  outras LPs; a Playfair e as `@font-face` ajustadas saíram);
+- herói na ordem pedida: nota → título → subtítulo → foto → preço → botão → selos;
+- seções da câmera: dor ("¿Te pasa esto?"), 3 passos com foto, 6 benefícios, frase com botão, oferta 2×1
+  com lista + preço, opiniões com iniciais (sem foto de rosto inventada), garantia, FAQ, chamada final,
+  aviso legal e barra fixa;
+- botões de compra todos `es-popup-button-overwrite`; o do herói abre o EasySell direto, como na câmera.
+
+Medido (Chromium, Barlow carregada): botão do herói na primeira tela de 360×640 a 1920×947 (557 px
+em 360×640; 636 px em 412×823); barra fixa, 24/24 animações, sem rolagem horizontal, 0 erro de script.
+A lição: perguntar o que "padrão" quer dizer antes de entregar 300 linhas de otimização invisível.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
