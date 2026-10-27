@@ -99,7 +99,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
 }
 #pc-lp .step-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-lg);padding:26px 22px;text-align:center}
 #pc-lp .step-num{font-family:var(--display);font-weight:800;font-size:3.2rem;color:var(--brand);line-height:1;display:block;margin-bottom:12px}
-#pc-lp .step-img{border-radius:var(--r);overflow:hidden;aspect-ratio:4/3;margin-bottom:16px;background:var(--bg3)}
+#pc-lp .step-img{border-radius:var(--r);overflow:hidden;aspect-ratio:1/1;margin-bottom:16px;background:var(--bg3)}
 #pc-lp .step-img img{width:100%!important;height:100%!important;object-fit:cover}
 #pc-lp .step-card h3{margin-bottom:8px!important}
 #pc-lp .step-card p{text-align:center!important}
@@ -112,6 +112,16 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
 #pc-lp .feat-icon{width:44px;height:44px;margin-bottom:14px;display:flex;align-items:center;justify-content:center;background:rgba(201,164,92,.12);border-radius:10px}
 #pc-lp .feat-card h3{margin-bottom:8px!important;font-size:calc(1.35rem*var(--fs))!important}
 #pc-lp .feat-card p{font-size:calc(.92rem*var(--fs));line-height:1.5}
+
+#pc-lp .obj-grid{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:640px){
+  #pc-lp .obj-grid{grid-template-columns:repeat(3,1fr);gap:20px}
+}
+#pc-lp .obj-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+#pc-lp .obj-img{aspect-ratio:4/3;background:var(--bg3)}
+#pc-lp .obj-img img{width:100%!important;height:100%!important;object-fit:cover}
+#pc-lp .obj-body{padding:18px 20px 22px}
+#pc-lp .obj-body h3{margin-bottom:6px!important;font-size:calc(1.45rem*var(--fs))!important}
 
 #pc-lp .statement{text-align:center;padding:clamp(56px,8vw,96px) 0;background:var(--bg2)!important;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 #pc-lp .statement h2{max-width:20ch;margin:0 auto!important;text-align:center!important}
@@ -146,7 +156,8 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
 #pc-lp .testi-stars{color:var(--star);font-size:1rem;letter-spacing:2px}
 #pc-lp .testi-card p.testi-q{flex:1;font-size:1rem;line-height:1.55;color:var(--ink)}
 #pc-lp .testi-author{display:flex;align-items:center;gap:12px;border-top:1px solid var(--line);padding-top:14px}
-#pc-lp .testi-av{width:48px;height:48px;border-radius:50%;background:var(--bg3);border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--brand)}
+#pc-lp .testi-av{width:48px;height:48px;border-radius:50%;overflow:hidden;background:var(--bg3);border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--brand)}
+#pc-lp .testi-av img{width:48px!important;height:48px!important;object-fit:cover;object-position:center 22%}
 #pc-lp .testi-name{font-family:var(--display);font-weight:700;font-size:1.15rem;color:var(--ink);display:block;line-height:1.1;text-transform:uppercase}
 #pc-lp .testi-city{font-size:.82rem;color:var(--muted);display:block;margin-top:2px}
 
@@ -201,7 +212,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       <p class="hero-sub">Aplica PureColor solo donde lo necesitas — raíces y sienes — y dale un aspecto más uniforme a tu cabello desde el primer uso.</p>
       <div class="hero-media">
         <div class="photo">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'><rect width='800' height='800' fill='%231A1814'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='26' fill='%23C9A45C'>FOTO HERO — aplicación del peine (800×800)</text></svg>" alt="PureColor peine aplicador sobre raíces con canas — tono Negro" width="800" height="800" sizes="(min-width: 820px) min(480px, 34vh), min(80vw, 480px, 30vh)" data-placeholder>
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/01-heroi-mujer.png?v=1793105493" alt="PureColor peine aplicador sobre raíces con canas — tono Negro" width="800" height="800" sizes="(min-width: 820px) min(480px, 34vh), min(80vw, 480px, 30vh)">
         </div>
       </div>
       <div class="hero-price-row">
@@ -239,7 +250,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
   <div class="wrap">
     <div class="dolor-grid">
       <div class="dolor-img reveal">
-        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><rect width='800' height='600' fill='%231A1814'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%23C9A45C'>FOTO — mujer notando canas en el espejo (800×600)</text></svg>" alt="Mujer notando canas en las raíces frente al espejo" width="800" height="600" sizes="(min-width: 1040px) 474px, (min-width: 840px) calc(50vw - 46px), calc(100vw - 40px)" data-placeholder>
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-raices-blancas-hombre.png?v=1793105493" alt="Mujer notando canas en las raíces frente al espejo" width="1200" height="900" sizes="(min-width: 1040px) 474px, (min-width: 840px) calc(50vw - 46px), calc(100vw - 40px)">
       </div>
       <div class="reveal">
         <span class="eyebrow">¿Te pasa esto?</span>
@@ -267,7 +278,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       <div class="step-card reveal">
         <span class="step-num">01</span>
         <div class="step-img">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'><rect width='600' height='450' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23C9A45C'>FOTO PASO 1 — cabello seco (600×450)</text></svg>" alt="Cabello seco y peinado listo para aplicar PureColor" width="600" height="450" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)" data-placeholder>
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/02-paso-1-peinar-hombre.png?v=1793105492" alt="Cabello seco y peinado listo para aplicar PureColor" width="400" height="400" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)">
         </div>
         <h3 class="h3">Peina en seco</h3>
         <p>Cabello limpio, seco y sin nudos antes de comenzar.</p>
@@ -275,7 +286,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       <div class="step-card reveal">
         <span class="step-num">02</span>
         <div class="step-img">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'><rect width='600' height='450' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23C9A45C'>FOTO PASO 2 — aplicación del peine (600×450)</text></svg>" alt="Aplicando PureColor con el peine sobre las raíces" width="600" height="450" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)" data-placeholder>
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/03-paso-2-aplicar-hombre.png?v=1793105492" alt="Aplicando PureColor con el peine sobre las raíces" width="400" height="400" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)">
         </div>
         <h3 class="h3">Aplica con el peine</h3>
         <p>Desliza el peine sobre las zonas con canas. La fórmula se distribuye al peinar.</p>
@@ -283,7 +294,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       <div class="step-card reveal">
         <span class="step-num">03</span>
         <div class="step-img">
-          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='450' viewBox='0 0 600 450'><rect width='600' height='450' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%23C9A45C'>FOTO PASO 3 — resultado (600×450)</text></svg>" alt="Raíces retocadas con PureColor" width="600" height="450" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)" data-placeholder>
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/04-paso-3-listo-hombre.png?v=1793105491" alt="Raíces retocadas con PureColor" width="400" height="400" sizes="(min-width: 1040px) 272px, (min-width: 640px) calc((100vw - 88px) / 3 - 46px), calc(100vw - 86px)">
         </div>
         <h3 class="h3">Deja secar y listo</h3>
         <p>Un aspecto más uniforme en las zonas tratadas. Deja secar antes de tocar el cabello.</p>
@@ -333,6 +344,29 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
   </div>
 </section>
 
+<section class="sec sec-alt" id="pc-dia">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Pensado para tu día a día</span>
+      <h2 class="h2">Práctico de verdad, <span class="hl">sin complicaciones</span></h2>
+    </div>
+    <div class="obj-grid">
+      <div class="obj-card reveal">
+        <div class="obj-img"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/07-formato-de-bolsillo-mujer.png?v=1793105493" alt="Mujer guardando PureColor en su bolso" width="1200" height="900" sizes="(min-width: 1040px) 318px, (min-width: 640px) calc((100vw - 80px) / 3 - 2px), calc(100vw - 42px)"></div>
+        <div class="obj-body"><h3>Cabe en tu bolso</h3><p>Llévalo contigo y retoca las raíces donde estés, sin cargar kits ni mezclas.</p></div>
+      </div>
+      <div class="obj-card reveal">
+        <div class="obj-img"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/08-pago-contra-entrega-mujer.png?v=1793105493" alt="Mujer recibiendo su pedido en la puerta de su casa" width="1200" height="900" sizes="(min-width: 1040px) 318px, (min-width: 640px) calc((100vw - 80px) / 3 - 2px), calc(100vw - 42px)"></div>
+        <div class="obj-body"><h3>Pagas cuando llega</h3><p>Recibes el paquete en tu puerta y pagas en efectivo al mensajero. Sin tarjeta.</p></div>
+      </div>
+      <div class="obj-card reveal">
+        <div class="obj-img"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/09-blusa-blanca-mujer.png?v=1793105493" alt="Mujer con blusa blanca lista para salir" width="1200" height="900" sizes="(min-width: 1040px) 318px, (min-width: 640px) calc((100vw - 80px) / 3 - 2px), calc(100vw - 42px)"></div>
+        <div class="obj-body"><h3>Seca y sigue tu día</h3><p>Deja secar unos minutos y vístete tranquila para salir.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="sec statement" id="pc-frase">
   <div class="wrap reveal">
     <h2 class="h2">Tu cabello, <span class="hl">sin raíces blancas</span> a la vista</h2>
@@ -350,7 +384,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
     </div>
     <div class="offer-card reveal">
       <div class="offer-photo">
-        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500'><rect width='800' height='500' fill='%2324211B'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='22' fill='%23C9A45C'>FOTO OFERTA — 2 unidades PureColor Negro (800×500)</text></svg>" alt="Kit 2 unidades PureColor Tono Negro" width="800" height="500" sizes="min(520px, calc(100vw - 100px))" data-placeholder>
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-kit-2-unidades.png?v=1793105492" alt="Kit 2 unidades PureColor Tono Negro" width="800" height="500" sizes="min(520px, calc(100vw - 100px))">
       </div>
       <ul class="kit-list">
         <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A45C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>2 unidades PureColor Peinador y Cubridor — Tono Negro</li>
@@ -391,7 +425,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
         <span class="testi-stars">★★★★★</span>
         <p class="testi-q">"Lo uso en las raíces antes de salir. El peine lo hace muy fácil y el tono negro se ve natural en mi cabello. Llegó en 3 días a Bogotá."</p>
         <div class="testi-author">
-          <span class="testi-av">M</span>
+          <span class="testi-av"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/Captura_de_tela_2026-07-03_103852_68d65990-122b-4fa5-b47d-71361828c6a0.png?v=1793105623" alt="Foto de María T." width="128" height="130" sizes="48px"></span>
           <div><span class="testi-name">María T.</span><span class="testi-city">Bogotá, Cundinamarca</span></div>
         </div>
       </div>
@@ -399,7 +433,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
         <span class="testi-stars">★★★★★</span>
         <p class="testi-q">"Pedí el kit de 2 en negro y quedé muy contenta. El pago al recibir me dio confianza para probarlo por primera vez."</p>
         <div class="testi-author">
-          <span class="testi-av">C</span>
+          <span class="testi-av"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/Captura_de_tela_2026-08-21_100857.png?v=1793105623" alt="Foto de Carolina R." width="91" height="146" sizes="48px"></span>
           <div><span class="testi-name">Carolina R.</span><span class="testi-city">Medellín, Antioquia</span></div>
         </div>
       </div>
@@ -407,7 +441,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
         <span class="testi-stars">★★★★★</span>
         <p class="testi-q">"Las canas me salen en las sienes. Con el peine aplico solo donde necesito, sin ensuciar el resto. Muy práctico."</p>
         <div class="testi-author">
-          <span class="testi-av">L</span>
+          <span class="testi-av"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/Captura_de_tela_2026-07-06_145220_bf1726ee-615a-4a63-be7b-00faa180ebba.png?v=1793105623" alt="Foto de Lucía P." width="259" height="236" sizes="48px"></span>
           <div><span class="testi-name">Lucía P.</span><span class="testi-city">Cali, Valle del Cauca</span></div>
         </div>
       </div>
