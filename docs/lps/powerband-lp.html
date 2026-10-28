@@ -595,6 +595,7 @@
     offerWas.textContent=was;
     offerWas.style.display=was?'':'none';
     offerSave.textContent=b.getAttribute('data-save')||'';
+    syncOffer();
   }
   bundles.forEach(function(b){
     var input=b.querySelector('input');
@@ -602,29 +603,26 @@
     if(b.classList.contains('active')) units=parseInt(b.getAttribute('data-units'),10)||1;
   });
 
-  /* When the EasySell popup opens, select its quantity offer with the same
-     number of units ("1 Unidad" / "2 Unidades"). Only right after a buy
-     button is clicked, so the visitor can still change it inside the popup. */
-  var syncUntil=0;
-  root.querySelectorAll('.es-popup-button-overwrite').forEach(function(btn){
-    btn.addEventListener('click',function(){ syncUntil=Date.now()+5000; queueFix(); });
-  });
+  /* EasySell keeps its quantity offers ("1 Unidad" / "2 Unidades") hidden
+     on the page and redraws them when the popup opens, keeping the one that
+     was selected. So the matching offer is selected while they are still
+     hidden: when they appear, when the bundle changes, and on the buy click
+     (window capture, before EasySell's own handler). Offers on screen are
+     never touched: inside the popup the visitor can still change it. */
   function syncOffer(){
-    if(!syncUntil) return;
-    if(Date.now()>syncUntil){ syncUntil=0; return; }
     var boxes=document.querySelectorAll('.es-qo-container');
-    var visible=[];
-    for(var i=0;i<boxes.length;i++){ if(boxes[i].offsetParent!==null) visible.push(boxes[i]); }
-    if(!visible.length){ requestAnimationFrame(syncOffer); return; }
-    for(var j=0;j<visible.length;j++){
-      var m=/(\d+)\s*unidad/i.exec(visible[j].textContent||'');
+    for(var i=0;i<boxes.length;i++){
+      if(boxes[i].offsetParent!==null) continue;
+      var m=/(\d+)\s*unidad/i.exec(boxes[i].textContent||'');
       if(m && parseInt(m[1],10)===units){
-        if(visible[j].getAttribute('offer-selected')!=='true') visible[j].click();
-        break;
+        if(boxes[i].getAttribute('offer-selected')!=='true') boxes[i].click();
+        return;
       }
     }
-    syncUntil=0;
   }
+  window.addEventListener('click',function(e){
+    if(e.target && e.target.closest && e.target.closest('#ppb-lp .es-popup-button-overwrite')) syncOffer();
+  },true);
 
   /* Reveal below the fold */
   if('IntersectionObserver' in window){
