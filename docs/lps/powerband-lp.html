@@ -590,31 +590,41 @@
     if(b.classList.contains('active')) units=parseInt(b.getAttribute('data-units'),10)||1;
   });
 
-  /* EasySell keeps its quantity offers ("1 Unidad" / "2 Unidades") hidden
+  /* EasySell keeps its quantity offers hidden
      on the page and redraws them when the popup opens, keeping the one that
      was selected. Only the offer section's button carries the 1/2 kit choice
      into the popup; every other button opens it on EasySell's own default
      offer. Done on the click (window capture, before EasySell's handler),
      on the hidden offers only: inside the popup the visitor can change it. */
   var defaultUnits=0;
-  function unitsOf(box){
-    var m=/(\d+)\s*unidad/i.exec(box.textContent||'');
-    return m?parseInt(m[1],10):0;
+  /* Offer boxes still hidden on the page, in EasySell's order, each with
+     the quantity EasySell itself sells in it (from its own data, so the
+     offer names can say anything: "Solo quiero 1", "2x1", "4x2"…). */
+  function hiddenOffers(){
+    var boxes=[],all=document.querySelectorAll('.es-qo-container');
+    for(var i=0;i<all.length;i++){ if(all[i].offsetParent===null) boxes.push(all[i]); }
+    var offers=null;
+    if(boxes.length){
+      var vm=boxes[0].__vue__;
+      while(vm && !(vm.$store && vm.$store.state && vm.$store.state.offer)) vm=vm.$parent;
+      if(vm && vm.$store.state.offer.offers && vm.$store.state.offer.offers.length===boxes.length) offers=vm.$store.state.offer.offers;
+    }
+    return boxes.map(function(box,i){
+      var q=offers?parseInt(offers[i].quantity,10):0;
+      if(!q){ var m=/(\d+)\s*(?:unidad|und|x)/i.exec(box.textContent||''); q=m?parseInt(m[1],10):0; }
+      return {box:box,units:q};
+    });
   }
   function rememberDefault(){
     if(defaultUnits) return;
-    var boxes=document.querySelectorAll('.es-qo-container');
-    for(var i=0;i<boxes.length;i++){
-      if(boxes[i].offsetParent===null && boxes[i].getAttribute('offer-selected')==='true'){ defaultUnits=unitsOf(boxes[i]); return; }
-    }
+    hiddenOffers().forEach(function(o){ if(!defaultUnits && o.box.getAttribute('offer-selected')==='true') defaultUnits=o.units; });
   }
   function selectOffer(n){
     if(!n) return;
-    var boxes=document.querySelectorAll('.es-qo-container');
-    for(var i=0;i<boxes.length;i++){
-      if(boxes[i].offsetParent!==null) continue;
-      if(unitsOf(boxes[i])===n){
-        if(boxes[i].getAttribute('offer-selected')!=='true') boxes[i].click();
+    var list=hiddenOffers();
+    for(var i=0;i<list.length;i++){
+      if(list[i].units===n){
+        if(list[i].box.getAttribute('offer-selected')!=='true') list[i].box.click();
         return;
       }
     }

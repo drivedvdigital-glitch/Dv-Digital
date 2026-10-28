@@ -209,10 +209,10 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       </div>
       <div class="price-row">
         <span class="now js-price-now">$99.900</span>
-        <span class="was js-price-was">$134.900</span>
-        <span class="off-badge js-off">26% OFF</span>
+        <span class="was js-price-was">$199.800</span>
+        <span class="off-badge js-off">50% OFF</span>
       </div>
-      <p class="hero-save js-save">Ahorras $35.000 hoy</p>
+      <p class="hero-save js-save">Ahorras $99.900 hoy</p>
       <a href="javascript:void(0)" class="btn es-popup-button-overwrite">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         Pedir mi TitanGrip
@@ -420,11 +420,11 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
             <div class="b-label">1 unidad<small>Un punto de apoyo</small></div>
             <div class="b-price">$99.900</div>
           </label>
-          <label class="bundle" data-units="2" data-total="$134.900" data-qty="2 unidades">
+          <label class="bundle" data-units="2" data-total="$149.900" data-qty="2 unidades">
             <div class="pop-badge">Más popular</div>
             <input type="radio" name="tgc-bundle" value="2">
             <div class="b-label">2 unidades<small>Ducha y bañera — dos puntos del baño</small></div>
-            <div class="b-price">$134.900</div>
+            <div class="b-price">$149.900</div>
           </label>
           <label class="bundle" data-units="4" data-total="$199.900" data-qty="4 unidades">
             <input type="radio" name="tgc-bundle" value="4">
@@ -527,7 +527,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       </details>
       <details class="faq-item">
         <summary>¿Qué incluye el paquete y cuál es el precio?</summary>
-        <div class="faq-body">Cada unidad es una barra TitanGrip completa con sus dos ventosas y palancas de traba. Precios en pesos colombianos (COP): 1 unidad $99.900 · 2 unidades $134.900 · 4 unidades $199.900. Todos los precios incluyen envío gratis y pago contra entrega.</div>
+        <div class="faq-body">Cada unidad es una barra TitanGrip completa con sus dos ventosas y palancas de traba. Precios en pesos colombianos (COP): 1 unidad $99.900 · 2 unidades $149.900 · 4 unidades $199.900. Todos los precios incluyen envío gratis y pago contra entrega.</div>
       </details>
     </div>
   </div>
@@ -537,7 +537,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
   <div class="in">
     <div class="sp">
       <span class="n js-price-now">$99.900</span>
-      <span class="w js-price-was">$134.900</span>
+      <span class="w js-price-was">$199.800</span>
     </div>
     <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir ahora</a>
   </div>
@@ -551,9 +551,9 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
 
   var LP_CONFIG={
     priceNow:"$99.900",
-    priceWas:"$134.900",
-    off:"26% OFF",
-    save:"Ahorras $35.000 hoy",
+    priceWas:"$199.800",
+    off:"50% OFF",
+    save:"Ahorras $99.900 hoy",
     rating:"4.9",
     ratingCount:"+1.800 pedidos"
   };
@@ -586,31 +586,41 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
     });
   });
 
-  /* EasySell keeps its quantity offers ("1 Unidad" / "2 Unidades") hidden
+  /* EasySell keeps its quantity offers hidden
      on the page and redraws them when the popup opens, keeping the one that
      was selected. Only the offer section's button carries the bundle choice
      into the popup; every other button opens it on EasySell's own default
      offer. Done on the click (window capture, before EasySell's handler),
      on the hidden offers only: inside the popup the visitor can change it. */
   var defaultUnits=0;
-  function unitsOf(box){
-    var m=/(\d+)\s*unidad/i.exec(box.textContent||'');
-    return m?parseInt(m[1],10):0;
+  /* Offer boxes still hidden on the page, in EasySell's order, each with
+     the quantity EasySell itself sells in it (from its own data, so the
+     offer names can say anything: "Solo quiero 1", "2x1", "4x2"…). */
+  function hiddenOffers(){
+    var boxes=[],all=document.querySelectorAll('.es-qo-container');
+    for(var i=0;i<all.length;i++){ if(all[i].offsetParent===null) boxes.push(all[i]); }
+    var offers=null;
+    if(boxes.length){
+      var vm=boxes[0].__vue__;
+      while(vm && !(vm.$store && vm.$store.state && vm.$store.state.offer)) vm=vm.$parent;
+      if(vm && vm.$store.state.offer.offers && vm.$store.state.offer.offers.length===boxes.length) offers=vm.$store.state.offer.offers;
+    }
+    return boxes.map(function(box,i){
+      var q=offers?parseInt(offers[i].quantity,10):0;
+      if(!q){ var m=/(\d+)\s*(?:unidad|und|x)/i.exec(box.textContent||''); q=m?parseInt(m[1],10):0; }
+      return {box:box,units:q};
+    });
   }
   function rememberDefault(){
     if(defaultUnits) return;
-    var boxes=document.querySelectorAll('.es-qo-container');
-    for(var i=0;i<boxes.length;i++){
-      if(boxes[i].offsetParent===null && boxes[i].getAttribute('offer-selected')==='true'){ defaultUnits=unitsOf(boxes[i]); return; }
-    }
+    hiddenOffers().forEach(function(o){ if(!defaultUnits && o.box.getAttribute('offer-selected')==='true') defaultUnits=o.units; });
   }
   function selectOffer(n){
     if(!n) return;
-    var boxes=document.querySelectorAll('.es-qo-container');
-    for(var i=0;i<boxes.length;i++){
-      if(boxes[i].offsetParent!==null) continue;
-      if(unitsOf(boxes[i])===n){
-        if(boxes[i].getAttribute('offer-selected')!=='true') boxes[i].click();
+    var list=hiddenOffers();
+    for(var i=0;i<list.length;i++){
+      if(list[i].units===n){
+        if(list[i].box.getAttribute('offer-selected')!=='true') list[i].box.click();
         return;
       }
     }
