@@ -458,14 +458,14 @@
 
       <!-- BUNDLES: data-units = quantidade da oferta do EasySell que abre no popup -->
       <div class="bundles" id="ppb-bundles">
-        <label class="bundle" data-units="1" data-now="$99.900" data-was="$199.900" data-save="Ahorras $100.000 hoy">
-          <input type="radio" name="ppb-bundle">
+        <label class="bundle active" data-units="1" data-now="$99.900" data-was="$199.900" data-save="Ahorras $100.000 hoy">
+          <input type="radio" name="ppb-bundle" checked>
           <div class="qty">1 KIT</div>
           <div class="now">$99.900</div>
           <div class="was">$199.900</div>
         </label>
-        <label class="bundle active" data-units="2" data-now="$139.900" data-was="" data-save="Ahorra entrenando acompañado">
-          <input type="radio" name="ppb-bundle" checked>
+        <label class="bundle" data-units="2" data-now="$139.900" data-was="" data-save="Ahorra entrenando acompañado">
+          <input type="radio" name="ppb-bundle">
           <span class="badge">Más popular</span>
           <div class="qty">2 KIT</div>
           <div class="now">$139.900</div>
@@ -473,10 +473,10 @@
       </div>
 
       <div class="offer-summary">
-        <span class="now" id="ppb-offer-now">$139.900</span>
-        <span class="was" id="ppb-offer-was" style="display:none"></span>
+        <span class="now" id="ppb-offer-now">$99.900</span>
+        <span class="was" id="ppb-offer-was">$199.900</span>
       </div>
-      <p class="offer-save" id="ppb-offer-save">Ahorra entrenando acompañado</p>
+      <p class="offer-save" id="ppb-offer-save">Ahorras $100.000 hoy</p>
 
       <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Confirmar pedido — Pago al recibir</a>
       <div class="offer-micro">
@@ -569,7 +569,7 @@
 
 
   /* Bundles: summary on the page + which EasySell offer the popup opens on */
-  var units=2;
+  var units=1;
   var bundles=root.querySelectorAll('#ppb-bundles .bundle');
   var offerNow=document.getElementById('ppb-offer-now');
   var offerWas=document.getElementById('ppb-offer-was');
