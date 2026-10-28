@@ -15,6 +15,7 @@ resto na publicação (srcset, preload da primeira imagem, lazy nas outras).
 | `pelador-lp.html` | Pelador automático | 07/10/2026 — fonte de reserva estreita nos títulos |
 | `purecolor-lp.html` | PureColor Peinador y Cubridor de Canas | 27/10/2026 — ver `docs/PROGRESSO.md`, "LP da PureColor no formato padrão" |
 | `powerband-lp.html` | PowerBand Pro (bandas de resistencia) | 27/10/2026 — kit escolhido na LP (1 ou 2) abre o popup do EasySell na mesma oferta |
+| `titangrip-lp.html` | TitanGrip (barra con ventosas) | 28/10/2026 — formato padrão; o botão da oferta leva 1/2/4 unidades ao EasySell |
 
 Como usar: abrir o arquivo no GitHub → botão **Raw** → selecionar tudo (Ctrl+A) → copiar → no
 editor, selecionar o bloco de HTML → apagar o conteúdo → colar → Publicar.

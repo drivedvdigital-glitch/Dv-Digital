@@ -1,0 +1,683 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Source+Sans+3:wght@400;600&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Source+Sans+3:wght@400;600&display=optional"></noscript>
+
+<div id="tgc-lp" style="background:#F8F9F7;color:#1E2921">
+<style>
+:root{--cor-principal-lp:#5C7E72}
+:root,html,body,#es-popup-container,.es-popup-wrapper{--es-primary-color:var(--cor-principal-lp,#5C7E72)!important;--es-color:var(--cor-principal-lp,#5C7E72)!important;--primary-color:var(--cor-principal-lp,#5C7E72)!important}
+button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-popup-container button[type="submit"],button.es-accept-offer,#es-popup-button{background-color:var(--cor-principal-lp,#5C7E72)!important;background:var(--cor-principal-lp,#5C7E72)!important;border-color:var(--cor-principal-lp,#5C7E72)!important;color:#fff!important}
+.es-offer-modal button:nth-of-type(2),.es-discount-modal button:nth-of-type(2){background-color:#f1f3f5!important;border:1px solid #ced4da!important;color:#6c757d!important;opacity:.85!important}
+.es-button-title{color:#fff!important}
+
+@font-face{font-family:"tgc-t1";src:local("Roboto Condensed Bold"),local("RobotoCondensed-Bold");font-weight:700 900;size-adjust:85%}
+@font-face{font-family:"tgc-t2";src:local("Roboto Bold"),local("Roboto-Bold");font-weight:700 900;size-adjust:75%}
+@font-face{font-family:"tgc-t3";src:local("Arial Bold"),local("Arial-BoldMT"),local("Liberation Sans Bold"),local("LiberationSans-Bold");font-weight:700 900;size-adjust:68%}
+
+#tgc-lp{
+  --fs:1;
+  --fs-ui:1;
+  --bg:#F8F9F7;--card:#fff;--ink:#1E2921;--ink2:#3D5049;--muted:#7A8F88;
+  --brand:#5C7E72;--brand2:#3D5C52;--accent:#D4872A;--soft:#D6E8E2;--line:#C8DDD8;--star:#E0A21A;
+  --grid-bg:repeating-linear-gradient(0deg,transparent,transparent 39px,#D6E8E2 39px,#D6E8E2 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,#D6E8E2 39px,#D6E8E2 40px);
+  --display:"Barlow Condensed","tgc-t1","tgc-t2","tgc-t3","Roboto Condensed","sans-serif-condensed","Arial Narrow",system-ui,-apple-system,sans-serif;
+  --sans:"Source Sans 3",system-ui,-apple-system,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--r:12px;--r-lg:20px;
+  font-family:var(--sans);color:var(--ink);background:var(--bg)
+}
+#tgc-lp *{box-sizing:border-box}
+#tgc-lp img{display:block!important;max-width:100%!important;height:auto;margin:0!important;border:0!important}
+#tgc-lp h1,#tgc-lp h2,#tgc-lp h3{font-family:var(--display)!important;margin:0!important;color:var(--ink)!important;line-height:1.05!important;letter-spacing:-.01em}
+#tgc-lp p{margin:0;text-align:left!important;color:var(--ink2)}
+#tgc-lp .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+#tgc-lp .sec{padding:clamp(40px,6vw,80px) 0}
+#tgc-lp .sec:not(.hero){content-visibility:auto;contain-intrinsic-size:auto 700px}
+#tgc-lp .head{text-align:center!important;margin:0 auto 32px!important;width:100%}
+#tgc-lp .head h2{font-size:calc(clamp(2.8rem,6.2vw,4rem) * var(--fs))!important}
+#tgc-lp .head p{font-size:calc(1.38rem * var(--fs));color:var(--ink2);margin-top:10px;text-align:center!important;max-width:52ch;margin-left:auto;margin-right:auto}
+#tgc-lp .eyebrow{font-family:var(--display)!important;font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:calc(1rem * var(--fs));color:var(--brand);margin-bottom:10px;display:block}
+
+#tgc-lp .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--display)!important;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#fff!important;background:linear-gradient(175deg,var(--brand),var(--brand2));border:0;border-radius:var(--r);cursor:pointer;min-height:56px;padding:15px 28px;font-size:calc(1.25rem * var(--fs-ui));width:100%;text-decoration:none;transition:filter .2s}
+#tgc-lp .btn:hover{filter:brightness(1.08)}
+
+#tgc-lp[id]{background:var(--bg)!important;color:var(--ink)!important}
+#tgc-lp[id] h1,#tgc-lp[id] h2,#tgc-lp[id] h3{color:var(--ink)!important;text-transform:none!important}
+
+/* HERO COMPACTO — tamanhos em px para caber tudo na 1a dobra */
+#tgc-lp .hero{padding:8px 0 24px;background:var(--card)!important;text-align:center}
+#tgc-lp .hero-copy{display:flex;flex-direction:column;align-items:center;max-width:620px;margin:0 auto}
+#tgc-lp .tgc-rating{display:inline-flex;align-items:center;gap:8px;background:var(--soft);border-radius:100px;padding:4px 12px;margin-bottom:6px}
+#tgc-lp .tgc-rating .st{color:var(--star);letter-spacing:1px;font-size:14px}
+#tgc-lp .tgc-rating .rn{font-family:var(--display);font-weight:700;font-size:15px;color:var(--ink)}
+#tgc-lp .tgc-rating .rc{font-size:12px;color:var(--ink2)}
+#tgc-lp .hero h1{font-size:clamp(24px,calc((100vw - 40px) / 12.4),50px)!important;line-height:1!important;text-align:center!important}
+#tgc-lp .hero h1 .hl{color:var(--brand)}
+#tgc-lp .hero .subhead{font-size:clamp(14px,3.8vw,17px);line-height:1.35;margin-top:6px;max-width:40ch;text-align:center!important}
+#tgc-lp .hero-media{margin:10px auto;width:min(100%,480px)}
+#tgc-lp .hero-media .photo{aspect-ratio:1/1;border-radius:var(--r-lg);overflow:hidden;background:var(--grid-bg),var(--soft);border:1px solid var(--line)}
+#tgc-lp .hero-media .photo img{width:100%!important;height:100%!important;object-fit:contain}
+#tgc-lp .price-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 0 4px}
+#tgc-lp .price-row .now{font-family:var(--display);font-weight:800;font-size:clamp(38px,10vw,54px);color:var(--accent);line-height:1}
+#tgc-lp .price-row .was{color:var(--muted);text-decoration:line-through;font-size:15px}
+#tgc-lp .price-row .off-badge{background:var(--accent);color:#fff;font-family:var(--display);font-weight:700;font-size:13px;padding:4px 10px;border-radius:6px;letter-spacing:.04em}
+#tgc-lp .hero-save{font-size:13px;color:var(--brand2);font-weight:600;margin-bottom:8px;text-align:center!important}
+#tgc-lp .hero .btn{min-height:52px;padding:11px 22px;font-size:19px;max-width:480px}
+#tgc-lp .trust{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;margin-top:10px;font-size:12px;color:var(--ink2);font-weight:600}
+#tgc-lp .trust span{display:flex;align-items:center;gap:5px}
+#tgc-lp .trust .dot{width:7px;height:7px;border-radius:50%;background:var(--brand);flex-shrink:0}
+@media (min-width:820px){
+  #tgc-lp .hero-media{width:min(100%,480px,38vh);width:min(100%,480px,38svh)}
+}
+
+#tgc-lp .marquee-wrap{overflow:hidden;background:var(--brand);padding:11px 0}
+#tgc-lp .marquee-track{display:flex;gap:0;width:max-content;animation:tgc-scroll 28s linear infinite}
+#tgc-lp .marquee-track span{white-space:nowrap;font-family:var(--display);font-weight:700;font-size:calc(1.1rem * var(--fs));color:#fff;letter-spacing:.08em;padding:0 28px}
+#tgc-lp .marquee-track span::after{content:"·";margin-left:28px;opacity:.6}
+@keyframes tgc-scroll{to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){#tgc-lp .marquee-track{animation:none}}
+
+#tgc-lp .pain-sec{background:var(--bg)}
+#tgc-lp .pain-grid{display:grid;gap:28px;align-items:center}
+@media (min-width:860px){#tgc-lp .pain-grid{grid-template-columns:1fr 1fr;column-gap:48px}}
+#tgc-lp .pain-photo{border-radius:var(--r-lg);overflow:hidden;aspect-ratio:4/3;background:var(--soft);border:1.5px solid var(--line)}
+#tgc-lp .pain-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#tgc-lp .pain-sec h2{font-size:calc(clamp(2.6rem,6vw,3.6rem) * var(--fs))!important}
+#tgc-lp .pain-list{list-style:none;padding:0;margin:18px 0 0;display:flex;flex-direction:column;gap:12px}
+#tgc-lp .pain-list li{display:flex;align-items:flex-start;gap:12px;font-size:calc(1.2rem * var(--fs));color:var(--ink2);line-height:1.5}
+#tgc-lp .pain-list li svg{flex-shrink:0;margin-top:3px}
+#tgc-lp .pain-turn{margin-top:18px;background:var(--soft);border-left:4px solid var(--brand);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;font-size:calc(1.2rem * var(--fs));color:var(--ink)!important;font-weight:600}
+
+#tgc-lp .verify-sec{background:var(--card)}
+#tgc-lp .verify-steps{display:grid;gap:0;border:2px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin:0 auto;max-width:820px}
+@media (min-width:640px){#tgc-lp .verify-steps{grid-template-columns:1fr 1fr 1fr}}
+#tgc-lp .vstep{padding:24px 22px;display:flex;flex-direction:column;gap:10px;border-bottom:2px solid var(--line);background:var(--card)}
+@media (min-width:640px){
+  #tgc-lp .vstep{border-bottom:0;border-right:2px solid var(--line)}
+  #tgc-lp .vstep:last-child{border-right:0}
+}
+#tgc-lp .vstep:last-child{border-bottom:0}
+#tgc-lp .vstep .vs-num{font-family:var(--display);font-weight:800;font-size:calc(3.2rem * var(--fs));color:var(--soft);line-height:1;display:block}
+#tgc-lp .vstep .vs-photo{aspect-ratio:1/1;border-radius:var(--r);overflow:hidden;background:var(--soft)}
+#tgc-lp .vstep .vs-photo img{width:100%!important;height:100%!important;object-fit:cover}
+#tgc-lp .vstep h3{font-size:calc(1.6rem * var(--fs))!important;line-height:1.2!important;color:var(--ink)!important}
+#tgc-lp .vstep p{font-size:calc(1.18rem * var(--fs));line-height:1.6;color:var(--ink2);text-align:left!important}
+#tgc-lp .vstep .vs-check{display:inline-flex;align-items:center;gap:6px;font-size:calc(1rem * var(--fs));font-weight:600;color:var(--brand);margin-top:4px}
+#tgc-lp .verify-warn{background:var(--soft);border-left:4px solid var(--brand);border-radius:0 var(--r) var(--r) 0;padding:14px 18px;font-size:calc(1.1rem * var(--fs));color:var(--ink2);margin:20px auto 0;max-width:820px;line-height:1.5}
+
+#tgc-lp .compat-sec{background:var(--bg)}
+#tgc-lp .compat-table{max-width:820px;margin:0 auto;border-radius:var(--r-lg);overflow:hidden;border:2px solid var(--line)}
+#tgc-lp .compat-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:0;border-bottom:1px solid var(--line);background:var(--card)}
+#tgc-lp .compat-row:last-child{border-bottom:0}
+#tgc-lp .compat-row.header{background:var(--ink);padding:12px 20px}
+#tgc-lp .compat-row.header .cr-surface,#tgc-lp .compat-row.header .cr-ok,#tgc-lp .compat-row.header .cr-no{font-family:var(--display);font-weight:700;font-size:calc(1.05rem * var(--fs));color:#fff;letter-spacing:.08em;text-transform:uppercase}
+#tgc-lp .compat-row.header .cr-ok,#tgc-lp .compat-row.header .cr-no{text-align:center;min-width:80px;padding:0 12px}
+#tgc-lp .compat-row.header .cr-surface{padding:0}
+#tgc-lp .compat-row.no{background:#fff9f9}
+#tgc-lp .cr-surface{padding:14px 20px;font-family:var(--sans);font-size:calc(1.15rem * var(--fs));color:var(--ink);font-weight:600;line-height:1.3}
+#tgc-lp .cr-surface small{display:block;font-weight:400;font-size:calc(1rem * var(--fs));color:var(--ink2);margin-top:2px}
+#tgc-lp .cr-ok,#tgc-lp .cr-no{min-width:80px;text-align:center;padding:14px 12px;font-size:calc(1.3rem * var(--fs))}
+#tgc-lp .cr-ok svg,#tgc-lp .cr-no svg{margin:0 auto}
+
+#tgc-lp .chars-sec{background:var(--card)}
+#tgc-lp .chars-grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:560px){#tgc-lp .chars-grid{grid-template-columns:1fr 1fr}}
+@media (min-width:860px){#tgc-lp .chars-grid{grid-template-columns:1fr 1fr 1fr}}
+#tgc-lp .char-card{background:var(--bg);border:1.5px solid var(--line);border-radius:var(--r);padding:22px 20px;display:flex;flex-direction:column;gap:10px}
+#tgc-lp .char-card .cc-hd{display:flex;align-items:center;gap:12px}
+#tgc-lp .char-card svg{flex-shrink:0;color:var(--brand)}
+#tgc-lp .char-card h3{font-size:calc(1.55rem * var(--fs))!important;line-height:1.2!important}
+#tgc-lp .char-card p{font-size:calc(1.2rem * var(--fs));line-height:1.55;color:var(--ink2);text-align:left!important}
+
+#tgc-lp .offer-sec{background:var(--grid-bg),var(--soft)}
+#tgc-lp .offer-card{background:var(--card);border-radius:var(--r-lg);overflow:hidden;border:2px solid var(--brand);max-width:760px;margin:0 auto}
+#tgc-lp .offer-card .ophoto{aspect-ratio:16/10;overflow:hidden;background:var(--soft)}
+#tgc-lp .offer-card .ophoto img{width:100%!important;height:100%!important;object-fit:contain;padding:16px}
+#tgc-lp .offer-card .offer-body{padding:clamp(20px,4vw,36px)}
+#tgc-lp .offer-card .offer-eyebrow{font-family:var(--display);font-weight:700;font-size:calc(1.05rem * var(--fs));color:var(--brand);letter-spacing:.12em;text-transform:uppercase;text-align:center!important;margin-bottom:8px;display:block}
+#tgc-lp .offer-card h2{font-size:calc(clamp(2.4rem,5.5vw,3.2rem) * var(--fs))!important;text-align:center!important;color:var(--ink)!important}
+
+#tgc-lp .bundles{display:flex;flex-direction:column;gap:10px;margin:22px 0}
+#tgc-lp .bundle{display:flex;align-items:center;gap:14px;border:2px solid var(--line);border-radius:var(--r);padding:15px 18px;cursor:pointer;transition:border-color .2s,background .2s;position:relative;background:var(--card)}
+#tgc-lp .bundle input[type=radio]{width:20px;height:20px;accent-color:var(--brand);flex-shrink:0;cursor:pointer}
+#tgc-lp .bundle.sel{border-color:var(--brand);background:var(--soft)}
+#tgc-lp .bundle .b-label{font-family:var(--display);font-weight:700;font-size:calc(1.2rem * var(--fs-ui));color:var(--ink);flex:1;line-height:1.2}
+#tgc-lp .bundle .b-label small{display:block;font-family:var(--sans)!important;font-weight:400;font-size:calc(1rem * var(--fs-ui));color:var(--ink2)}
+#tgc-lp .bundle .b-price{font-family:var(--display);font-weight:800;font-size:calc(1.35rem * var(--fs-ui));color:var(--accent)}
+#tgc-lp .bundle .pop-badge{position:absolute;top:-11px;right:14px;background:var(--accent);color:#fff;font-family:var(--display);font-weight:700;font-size:calc(.88rem * var(--fs-ui));padding:3px 10px;border-radius:100px}
+
+#tgc-lp .offer-summary{background:var(--soft);border-radius:var(--r);padding:14px 18px;margin:4px 0 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+#tgc-lp .offer-summary .os-label{font-size:calc(1.1rem * var(--fs-ui));color:var(--ink2);font-weight:600}
+#tgc-lp .offer-summary .os-total{font-family:var(--display);font-weight:800;font-size:calc(1.7rem * var(--fs-ui));color:var(--accent)}
+#tgc-lp .offer-summary .os-qty{font-size:calc(1rem * var(--fs-ui));color:var(--ink2)}
+
+#tgc-lp .micro-seals{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin-top:14px;font-size:calc(1.05rem * var(--fs));color:var(--ink2);font-weight:600}
+#tgc-lp .micro-seals span{display:flex;align-items:center;gap:5px}
+
+#tgc-lp .testimonios-sec{background:var(--bg)}
+#tgc-lp .test-grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media (min-width:600px){#tgc-lp .test-grid{grid-template-columns:1fr 1fr}}
+@media (min-width:900px){#tgc-lp .test-grid{grid-template-columns:1fr 1fr 1fr}}
+#tgc-lp .test-card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);padding:22px 20px;display:flex;flex-direction:column;gap:12px}
+#tgc-lp .test-card .tc-top{display:flex;align-items:center;gap:12px}
+#tgc-lp .test-card .av{width:52px;height:52px;border-radius:50%;background:var(--soft);border:2px solid var(--soft);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:20px;color:var(--brand);overflow:hidden}
+#tgc-lp .test-card .av img{width:52px!important;height:52px!important;object-fit:cover;object-position:center 20%}
+#tgc-lp .test-card .tc-name{font-family:var(--display);font-weight:700;font-size:calc(1.2rem * var(--fs));color:var(--ink);line-height:1.2}
+#tgc-lp .test-card .tc-city{font-size:calc(.98rem * var(--fs));color:var(--muted)}
+#tgc-lp .test-card .tc-stars{color:var(--star);font-size:calc(1.1rem * var(--fs));letter-spacing:2px}
+#tgc-lp .test-card .tc-text{font-size:calc(1.2rem * var(--fs));line-height:1.6;color:var(--ink2);text-align:left!important}
+
+#tgc-lp .guar-sec{background:var(--brand);padding:clamp(36px,5vw,64px) 0}
+#tgc-lp .guar-inner{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;max-width:600px;margin:0 auto}
+#tgc-lp .guar-icon{width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#tgc-lp .guar-text{font-size:calc(1.3rem * var(--fs));color:rgba(255,255,255,.9)!important;line-height:1.65;text-align:center!important}
+#tgc-lp .guar-cta{margin-top:8px;max-width:380px;width:100%;background:linear-gradient(175deg,#fff,#e8f0ed);color:var(--brand)!important;border-color:transparent}
+
+#tgc-lp .faq-sec{background:var(--card)}
+#tgc-lp .faq-list{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+#tgc-lp details.faq-item{border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden}
+#tgc-lp details.faq-item summary{font-family:var(--display)!important;font-weight:700;font-size:calc(1.35rem * var(--fs));padding:17px 20px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px;color:var(--ink);line-height:1.3}
+#tgc-lp details.faq-item summary::-webkit-details-marker{display:none}
+#tgc-lp details.faq-item summary::after{content:"+";font-size:1.6em;color:var(--brand);flex-shrink:0;transition:transform .25s;line-height:1}
+#tgc-lp details.faq-item[open] summary::after{transform:rotate(45deg)}
+#tgc-lp details.faq-item .faq-body{padding:0 20px 18px;font-size:calc(1.2rem * var(--fs));color:var(--ink2);line-height:1.65;text-align:left!important}
+#tgc-lp details.faq-item[open]{background:var(--soft)}
+
+#tgc-lp .sticky{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;background:rgba(255,255,255,.97);border-top:2px solid var(--brand);transform:translateY(110%);transition:transform .3s var(--ease);padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
+#tgc-lp .sticky.show{transform:translateY(0)}
+#tgc-lp .sticky .in{max-width:1060px;margin:0 auto;display:flex;align-items:center;gap:14px;justify-content:space-between}
+#tgc-lp .sticky .sp{display:flex;flex-direction:column;gap:2px}
+#tgc-lp .sticky .n{font-family:var(--display);font-weight:800;font-size:calc(1.55rem * var(--fs-ui));color:var(--accent);line-height:1}
+#tgc-lp .sticky .w{color:var(--muted);text-decoration:line-through;font-size:calc(.92rem * var(--fs-ui))}
+#tgc-lp .sticky .btn{width:auto;min-height:48px;padding:12px 22px;font-size:calc(1.08rem * var(--fs-ui));flex-shrink:0}
+
+#tgc-lp.js .reveal{opacity:0;transform:translateY(16px);transition:opacity .55s var(--ease),transform .55s var(--ease)}
+#tgc-lp.js .reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){#tgc-lp *{animation:none!important;transition:none!important}#tgc-lp.js .reveal{opacity:1!important;transform:none!important}}
+</style>
+
+<section class="hero" id="tgc-hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <div class="tgc-rating"><span class="st">★★★★★</span><span class="rn js-rating">4.9</span><span class="rc js-rating-count">+1.800 pedidos</span></div>
+      <h1>TitanGrip: <span class="hl">agarre con ventosas,</span><br>sin perforar la pared.</h1>
+      <p class="subhead">Se instala en segundos sobre cerámica lisa, vidrio o acrílico. Sin taladro, sin tornillos. Portátil y reposicionable según instrucciones del fabricante.</p>
+      <div class="hero-media">
+        <div class="photo">
+          <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/clean-2_galeria_1_1790691993.webp?v=1790691997" alt="TitanGrip — dos barras portátiles con ventosas en blanco y verde salvia" width="1241" height="1241" sizes="(min-width: 820px) min(480px, 38vh), min(calc(100vw - 40px), 480px)">
+        </div>
+      </div>
+      <div class="price-row">
+        <span class="now js-price-now">$99.900</span>
+        <span class="was js-price-was">$134.900</span>
+        <span class="off-badge js-off">26% OFF</span>
+      </div>
+      <p class="hero-save js-save">Ahorras $35.000 hoy</p>
+      <a href="javascript:void(0)" class="btn es-popup-button-overwrite">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        Pedir mi TitanGrip
+      </a>
+      <div class="trust">
+        <span><span class="dot"></span>Pago contra entrega</span>
+        <span><span class="dot"></span>Envío gratis</span>
+        <span><span class="dot"></span>Entrega en 24–48h</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="marquee-wrap" aria-hidden="true">
+  <div class="marquee-track">
+    <span>Sin taladro</span><span>Cerámica lisa</span><span>Portátil</span><span>Pago contra entrega</span><span>Fácil instalación</span><span>Envío gratis</span><span>Reposicionable</span><span>Sin herramientas</span>
+    <span>Sin taladro</span><span>Cerámica lisa</span><span>Portátil</span><span>Pago contra entrega</span><span>Fácil instalación</span><span>Envío gratis</span><span>Reposicionable</span><span>Sin herramientas</span>
+  </div>
+</div>
+
+<section class="sec pain-sec" id="tgc-dolor">
+  <div class="wrap">
+    <div class="pain-grid">
+      <div class="pain-photo reveal">
+        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='900' viewBox='0 0 1200 900'><rect width='1200' height='900' fill='%23D6E8E2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='30' fill='%235C7E72'>FOTO — apoyarse en la pared mojada de la ducha (1200×900)</text></svg>" alt="Mujer mayor apoyándose con la mano en la pared mojada de la ducha" width="1200" height="900" sizes="(min-width: 1060px) 486px, (min-width: 860px) calc(50vw - 44px), calc(100vw - 40px)" data-placeholder>
+      </div>
+      <div class="reveal">
+        <span class="eyebrow">¿Te pasa esto?</span>
+        <h2>En la ducha no hay de dónde agarrarse</h2>
+        <ul class="pain-list">
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C7E72" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Al entrar o salir de la ducha, la mano termina en la pared mojada o en la cortina.</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C7E72" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Instalar una barra fija exige taladro, tornillos y romper la cerámica.</li>
+          <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C7E72" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Si vives en arriendo, no puedes perforar la pared.</li>
+        </ul>
+        <p class="pain-turn">Con TitanGrip pones un punto de agarre sobre la cerámica lisa en segundos, y lo quitas cuando quieras.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec verify-sec">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Cómo se instala</span>
+      <h2>3 pasos — verifica cada uno</h2>
+      <p>El fabricante indica este procedimiento para una fijación correcta en superficies compatibles.</p>
+    </div>
+    <div class="verify-steps">
+      <div class="vstep">
+        <span class="vs-num">01</span>
+        <div class="vs-photo"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'><rect width='800' height='800' fill='%23D6E8E2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='26' fill='%235C7E72'>FOTO PASO 1 — limpiar la cerámica (800×800)</text></svg>" alt="Mano limpiando y secando la cerámica lisa con un paño" width="800" height="800" sizes="(min-width: 860px) 226px, (min-width: 640px) calc((100vw - 52px) / 3 - 48px), calc(100vw - 88px)" data-placeholder></div>
+        <h3>Limpia y seca</h3>
+        <p>La cerámica, el vidrio o el acrílico debe estar completamente limpio, seco y libre de jabón o residuos. No instales sobre superficies mojadas ni con grasa.</p>
+        <span class="vs-check">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Solo superficies lisas y no porosas
+        </span>
+      </div>
+      <div class="vstep">
+        <span class="vs-num">02</span>
+        <div class="vs-photo"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'><rect width='800' height='800' fill='%23D6E8E2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='26' fill='%235C7E72'>FOTO PASO 2 — presionar las ventosas (800×800)</text></svg>" alt="Manos presionando las ventosas del TitanGrip contra la cerámica" width="800" height="800" sizes="(min-width: 860px) 226px, (min-width: 640px) calc((100vw - 52px) / 3 - 48px), calc(100vw - 88px)" data-placeholder></div>
+        <h3>Presiona las ventosas</h3>
+        <p>Coloca las dos ventosas planas contra la superficie. Empuja con firmeza hacia la pared asegurándote de que todo el borde de la ventosa haga contacto completo.</p>
+        <span class="vs-check">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Contacto completo en todo el borde
+        </span>
+      </div>
+      <div class="vstep">
+        <span class="vs-num">03</span>
+        <div class="vs-photo"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'><rect width='800' height='800' fill='%23D6E8E2'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='26' fill='%235C7E72'>FOTO PASO 3 — bajar la palanca y probar (800×800)</text></svg>" alt="Mano bajando la palanca de traba y probando la barra" width="800" height="800" sizes="(min-width: 860px) 226px, (min-width: 640px) calc((100vw - 52px) / 3 - 48px), calc(100vw - 88px)" data-placeholder></div>
+        <h3>Activa y verifica</h3>
+        <p>Gira la palanca de traba en cada ventosa hasta escuchar el clic de fijación. Jala suavemente la barra para confirmar que no cede antes de apoyarte.</p>
+        <span class="vs-check">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+          Verifica la fijación en cada instalación
+        </span>
+      </div>
+    </div>
+    <div class="verify-warn reveal">
+      <strong>Importante:</strong> Repite la verificación de fijación cada vez que instales o muevas el TitanGrip. Si notas movimiento, retira el producto, limpia la superficie y vuelve a instalar. El producto no funciona sobre pintura, madera, azulejos con relieve, rejuntes ni superficies rugosas.
+    </div>
+  </div>
+</section>
+
+<section class="sec compat-sec">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Compatibilidad de superficies</span>
+      <h2>¿Dónde funciona y dónde no?</h2>
+      <p>El sistema de vacío requiere superficies lisas, no porosas y completamente secas.</p>
+    </div>
+    <div class="compat-table reveal">
+      <div class="compat-row header">
+        <div class="cr-surface">Superficie</div>
+        <div class="cr-ok">Compatible</div>
+        <div class="cr-no">No compatible</div>
+      </div>
+      <div class="compat-row ok">
+        <div class="cr-surface">Cerámica esmaltada lisa<small>Azulejos de baño lisos, sin relieve ni texturas</small></div>
+        <div class="cr-ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5C7E72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="cr-no"></div>
+      </div>
+      <div class="compat-row ok">
+        <div class="cr-surface">Vidrio liso<small>Mamparas de ducha, espejos sin marco en la zona de fijación</small></div>
+        <div class="cr-ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5C7E72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="cr-no"></div>
+      </div>
+      <div class="compat-row ok">
+        <div class="cr-surface">Acrílico liso<small>Bañeras acrílicas de superficie uniforme y sin textura</small></div>
+        <div class="cr-ok"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5C7E72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="cr-no"></div>
+      </div>
+      <div class="compat-row no">
+        <div class="cr-surface">Pintura, estuco o yeso<small>Paredes pintadas de cualquier tipo</small></div>
+        <div class="cr-ok"></div>
+        <div class="cr-no"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+      </div>
+      <div class="compat-row no">
+        <div class="cr-surface">Madera o laminado<small>Cualquier superficie de madera, MDF o melamina</small></div>
+        <div class="cr-ok"></div>
+        <div class="cr-no"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+      </div>
+      <div class="compat-row no">
+        <div class="cr-surface">Azulejos con relieve, textura o rejunte<small>El borde de la ventosa no hace vacío en superficies irregulares</small></div>
+        <div class="cr-ok"></div>
+        <div class="cr-no"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0392b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec chars-sec">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Lo que el producto hace</span>
+      <h2>Características documentadas</h2>
+      <p>Atributos del TitanGrip confirmados por su diseño y funcionamiento.</p>
+    </div>
+    <div class="chars-grid">
+      <div class="char-card reveal">
+        <div class="cc-hd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <h3>Sin herramientas</h3>
+        </div>
+        <p>El sistema de ventosas con palanca de traba no requiere taladro, tornillos ni adhesivos. Se instala y retira sin dañar la cerámica.</p>
+      </div>
+      <div class="char-card reveal">
+        <div class="cc-hd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <h3>Portátil</h3>
+        </div>
+        <p>Puedes moverlo a otro punto del baño o llevarlo contigo a otro lugar. No deja marcas visibles en cerámica esmaltada limpia.</p>
+      </div>
+      <div class="char-card reveal">
+        <div class="cc-hd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <h3>Verificación visible</h3>
+        </div>
+        <p>La palanca de traba indica visualmente si el seguro de vacío está activado. Comprueba el estado antes de usar la barra cada vez.</p>
+      </div>
+      <div class="char-card reveal">
+        <div class="cc-hd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <h3>Apto para arriendos</h3>
+        </div>
+        <p>No perfora ni modifica la pared. Ideal cuando no puedes hacer obras: apartamentos arrendados, habitaciones de hotel, cuartos compartidos.</p>
+      </div>
+      <div class="char-card reveal">
+        <div class="cc-hd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/></svg>
+          <h3>Agarre texturizado</h3>
+        </div>
+        <p>La barra tiene superficie con textura antideslizante en la zona de agarre para ayudar a mantener la mano firme en ambientes húmedos.</p>
+      </div>
+      <div class="char-card reveal">
+        <div class="cc-hd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          <h3>Varios puntos del hogar</h3>
+        </div>
+        <p>Ducha, bañera, lavamanos o cualquier zona con cerámica lisa donde se necesite un punto de apoyo para entrar, salir o apoyarse.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec offer-sec" id="tgc-offer">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Oferta · Pago contra entrega</span>
+      <h2>Escoge tu presentación</h2>
+      <p>Cantidad y precio total juntos. Sin letra pequeña.</p>
+    </div>
+    <div class="offer-card reveal">
+      <div class="ophoto">
+        <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/clean-2_galeria_6_1790691995.webp" alt="TitanGrip — vista del kit con ventosas y palancas de traba visibles" width="1241" height="1241" sizes="(min-width: 800px) 480px, calc(62.5vw - 30px)">
+      </div>
+      <div class="offer-body">
+        <span class="offer-eyebrow">TitanGrip · Barra portátil con ventosas</span>
+        <h2>Elige tu kit</h2>
+        <!-- data-units = cantidad de la oferta del EasySell que abre el formulario -->
+        <div class="bundles" id="tgc-bundles" role="radiogroup" aria-label="Selecciona cantidad">
+          <label class="bundle sel" data-units="1" data-total="$99.900" data-qty="1 unidad">
+            <input type="radio" name="tgc-bundle" value="1" checked>
+            <div class="b-label">1 unidad<small>Un punto de apoyo</small></div>
+            <div class="b-price">$99.900</div>
+          </label>
+          <label class="bundle" data-units="2" data-total="$134.900" data-qty="2 unidades">
+            <div class="pop-badge">Más popular</div>
+            <input type="radio" name="tgc-bundle" value="2">
+            <div class="b-label">2 unidades<small>Ducha y bañera — dos puntos del baño</small></div>
+            <div class="b-price">$134.900</div>
+          </label>
+          <label class="bundle" data-units="4" data-total="$199.900" data-qty="4 unidades">
+            <input type="radio" name="tgc-bundle" value="4">
+            <div class="b-label">4 unidades<small>Varios puntos del hogar</small></div>
+            <div class="b-price">$199.900</div>
+          </label>
+        </div>
+        <div class="offer-summary">
+          <div><div class="os-label">Total a pagar al recibir:</div><div class="os-qty js-bundle-qty">1 unidad</div></div>
+          <div class="os-total js-bundle-total">$99.900</div>
+        </div>
+        <a href="javascript:void(0)" class="btn es-popup-button-overwrite">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          Confirmar pedido · Pago al recibir
+        </a>
+        <div class="micro-seals">
+          <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Pago contra entrega</span>
+          <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Envío gratis</span>
+          <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Entrega en 24–48h (ciudades principales)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec testimonios-sec">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Opiniones de clientes</span>
+      <h2>Lo que dicen quienes ya la tienen</h2>
+    </div>
+    <div class="test-grid">
+      <div class="test-card reveal">
+        <div class="tc-top">
+          <span class="av">MR</span>
+          <div><div class="tc-name">Marta Rodríguez</div><div class="tc-city">Bogotá</div></div>
+        </div>
+        <div class="tc-stars">★★★★★</div>
+        <p class="tc-text">"La instalé en el baño de mi mamá en menos de dos minutos. La cerámica es lisa y quedó fija sin problema. Era lo que necesitábamos para que tuviera dónde apoyarse cuando se baña."</p>
+      </div>
+      <div class="test-card reveal">
+        <div class="tc-top">
+          <span class="av">JV</span>
+          <div><div class="tc-name">Jorge Vargas</div><div class="tc-city">Medellín</div></div>
+        </div>
+        <div class="tc-stars">★★★★★</div>
+        <p class="tc-text">"Pedí el kit de dos. Las puse en la ducha y al lado de la bañera. Llegó rápido, pagué al recibir. Funciona exactamente como muestran: se instala sola con las ventosas y el seguro hace clic."</p>
+      </div>
+      <div class="test-card reveal">
+        <div class="tc-top">
+          <span class="av">CC</span>
+          <div><div class="tc-name">Claudia Castillo</div><div class="tc-city">Cali</div></div>
+        </div>
+        <div class="tc-stars">★★★★★</div>
+        <p class="tc-text">"Vivo en arriendo y no podía perforar la pared. La barra quedó firme en la cerámica lisa. Cuando me mudé la quité limpiamente. Muy práctica para el baño del apartamento."</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="guar-sec">
+  <div class="wrap">
+    <div class="guar-inner reveal">
+      <div class="guar-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+      </div>
+      <h2 style="color:#fff!important;font-size:calc(clamp(2.4rem,5.5vw,3.2rem) * var(--fs))!important;text-align:center!important">Pagas solo cuando el producto llega a tu puerta</h2>
+      <p class="guar-text">Con el pago contra entrega puedes ver el producto antes de pagar. Si tienes cualquier inconveniente con tu pedido, contáctanos y buscamos una solución.</p>
+      <a href="javascript:void(0)" class="btn guar-cta es-popup-button-overwrite">Pedir ahora — sin riesgo</a>
+    </div>
+  </div>
+</section>
+
+<section class="sec faq-sec">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Preguntas frecuentes</span>
+      <h2>Antes de pedir, esto debes saber</h2>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>¿En qué superficies funciona el TitanGrip?</summary>
+        <div class="faq-body">Funciona exclusivamente en superficies lisas y no porosas completamente secas: cerámica esmaltada lisa, vidrio liso y acrílico liso. No funciona sobre pintura, madera, azulejos con relieve o textura, rejuntes de cerámica ni superficies rugosas de ningún tipo.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Cómo instalo el TitanGrip correctamente?</summary>
+        <div class="faq-body">1. Limpia y seca bien la superficie. 2. Coloca las ventosas planas contra la cerámica y presiona con firmeza asegurando contacto completo en todo el borde. 3. Activa la palanca de traba en cada ventosa hasta escuchar el clic. 4. Jala suavemente la barra antes de usarla para confirmar que está fija.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Cómo verifico que la fijación es correcta?</summary>
+        <div class="faq-body">Después de activar el seguro, jala la barra hacia ti con fuerza moderada. Si no cede, la instalación es correcta. Repite esta verificación cada vez que instales o muevas el producto. Si detectas cualquier movimiento, retira, limpia la superficie y reinstala.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Cuándo debo revisar o retirar el TitanGrip?</summary>
+        <div class="faq-body">Revisa la fijación periódicamente, especialmente si la superficie ha estado expuesta a jabón, vapor o humedad acumulada, ya que esto puede reducir la efectividad del vacío. Si notas cualquier deslizamiento, retira el producto de inmediato y reinstálalo sobre la superficie limpia y seca.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Cómo es el pago y la entrega?</summary>
+        <div class="faq-body">El pago es contra entrega: pagas cuando recibes el producto en tu domicilio. El envío es gratuito. En ciudades principales (Bogotá, Medellín, Cali) la entrega tarda entre 24 y 48 horas. En municipios y zonas rurales puede tomar más días hábiles según la cobertura de la transportadora.</div>
+      </details>
+      <details class="faq-item">
+        <summary>¿Qué incluye el paquete y cuál es el precio?</summary>
+        <div class="faq-body">Cada unidad es una barra TitanGrip completa con sus dos ventosas y palancas de traba. Precios en pesos colombianos (COP): 1 unidad $99.900 · 2 unidades $134.900 · 4 unidades $199.900. Todos los precios incluyen envío gratis y pago contra entrega.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<div class="sticky" id="tgc-sticky">
+  <div class="in">
+    <div class="sp">
+      <span class="n js-price-now">$99.900</span>
+      <span class="w js-price-was">$134.900</span>
+    </div>
+    <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir ahora</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  var root=document.getElementById('tgc-lp');
+  if(!root) return;
+  root.className+=' js';
+
+  var LP_CONFIG={
+    priceNow:"$99.900",
+    priceWas:"$134.900",
+    off:"26% OFF",
+    save:"Ahorras $35.000 hoy",
+    rating:"4.9",
+    ratingCount:"+1.800 pedidos"
+  };
+
+  function lpApply(){
+    var m={'js-price-now':LP_CONFIG.priceNow,'js-price-was':LP_CONFIG.priceWas,'js-off':LP_CONFIG.off,'js-save':LP_CONFIG.save,'js-rating':LP_CONFIG.rating,'js-rating-count':LP_CONFIG.ratingCount};
+    Object.keys(m).forEach(function(k){
+      root.querySelectorAll('.'+k).forEach(function(el){
+        if(m[k]===''){el.style.display='none';}else{el.textContent=m[k];}
+      });
+    });
+  }
+  lpApply();
+
+  /* Bundles: total on the page + which EasySell offer the offer button opens */
+  var units=1;
+  var bundles=root.querySelectorAll('#tgc-bundles .bundle');
+  var totalEl=root.querySelector('.js-bundle-total');
+  var qtyEl=root.querySelector('.js-bundle-qty');
+  bundles.forEach(function(b){
+    var input=b.querySelector('input');
+    if(!input) return;
+    input.addEventListener('change',function(){
+      if(!input.checked) return;
+      bundles.forEach(function(x){x.classList.remove('sel');});
+      b.classList.add('sel');
+      units=parseInt(b.getAttribute('data-units'),10)||1;
+      if(totalEl) totalEl.textContent=b.getAttribute('data-total');
+      if(qtyEl) qtyEl.textContent=b.getAttribute('data-qty');
+    });
+  });
+
+  /* EasySell keeps its quantity offers ("1 Unidad" / "2 Unidades") hidden
+     on the page and redraws them when the popup opens, keeping the one that
+     was selected. Only the offer section's button carries the bundle choice
+     into the popup; every other button opens it on EasySell's own default
+     offer. Done on the click (window capture, before EasySell's handler),
+     on the hidden offers only: inside the popup the visitor can change it. */
+  var defaultUnits=0;
+  function unitsOf(box){
+    var m=/(\d+)\s*unidad/i.exec(box.textContent||'');
+    return m?parseInt(m[1],10):0;
+  }
+  function rememberDefault(){
+    if(defaultUnits) return;
+    var boxes=document.querySelectorAll('.es-qo-container');
+    for(var i=0;i<boxes.length;i++){
+      if(boxes[i].offsetParent===null && boxes[i].getAttribute('offer-selected')==='true'){ defaultUnits=unitsOf(boxes[i]); return; }
+    }
+  }
+  function selectOffer(n){
+    if(!n) return;
+    var boxes=document.querySelectorAll('.es-qo-container');
+    for(var i=0;i<boxes.length;i++){
+      if(boxes[i].offsetParent!==null) continue;
+      if(unitsOf(boxes[i])===n){
+        if(boxes[i].getAttribute('offer-selected')!=='true') boxes[i].click();
+        return;
+      }
+    }
+  }
+  window.addEventListener('click',function(e){
+    var btn=e.target && e.target.closest && e.target.closest('#tgc-lp .es-popup-button-overwrite');
+    if(!btn) return;
+    rememberDefault();
+    selectOffer(btn.closest('#tgc-offer')?units:defaultUnits);
+  },true);
+
+  /* Sticky bar: shown once the hero button is off screen, read once per frame */
+  var sticky=document.getElementById('tgc-sticky');
+  var heroBtn=root.querySelector('#tgc-hero .btn');
+  var ticking=false;
+  function onScroll(){
+    ticking=false;
+    var past=heroBtn?heroBtn.getBoundingClientRect().bottom<0:window.scrollY>480;
+    sticky.classList.toggle('show',past);
+  }
+  window.addEventListener('scroll',function(){
+    if(!ticking){ticking=true;requestAnimationFrame(onScroll);}
+  },{passive:true});
+  requestAnimationFrame(function(){requestAnimationFrame(onScroll);});
+
+  var revels=root.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window && revels.length>0){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+      });
+    },{threshold:.07});
+    revels.forEach(function(el){io.observe(el);});
+  } else {
+    revels.forEach(function(el){el.classList.add('in');});
+  }
+
+  /* EasySell: button colours, at most once per frame */
+  var COR='#5C7E72';
+  function fixEasySellColors(){
+    var btns=document.querySelectorAll('button,input[type="submit"]');
+    for(var i=0;i<btns.length;i++){
+      var el=btns[i];
+      var txt=el.textContent?el.textContent.toUpperCase():'';
+      if(txt.indexOf('CONFIRMA')!==-1||txt.indexOf('COMPLETAR')!==-1||el.classList.contains('es-submit-form-button')){
+        el.style.setProperty('background-color',COR,'important');
+        el.style.setProperty('background',COR,'important');
+        el.style.setProperty('border-color',COR,'important');
+        el.style.setProperty('color','#ffffff','important');
+      } else if(txt.indexOf('NO QUIERO')!==-1){
+        el.style.setProperty('background-color','#f1f3f5','important');
+        el.style.setProperty('border','1px solid #ced4da','important');
+        el.style.setProperty('color','#6c757d','important');
+      }
+    }
+  }
+  var pending=false;
+  function queueFix(){
+    if(pending) return;
+    pending=true;
+    requestAnimationFrame(function(){ pending=false; rememberDefault(); fixEasySellColors(); });
+  }
+  if('MutationObserver' in window){
+    new MutationObserver(function(muts){
+      for(var i=0;i<muts.length;i++){ if(muts[i].addedNodes.length>0){queueFix();break;} }
+    }).observe(document.body,{childList:true,subtree:true});
+  }
+})();
+</script>
+</div>
