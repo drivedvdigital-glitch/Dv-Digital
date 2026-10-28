@@ -583,7 +583,6 @@
     offerWas.textContent=was;
     offerWas.style.display=was?'':'none';
     offerSave.textContent=b.getAttribute('data-save')||'';
-    syncOffer();
   }
   bundles.forEach(function(b){
     var input=b.querySelector('input');
@@ -593,23 +592,38 @@
 
   /* EasySell keeps its quantity offers ("1 Unidad" / "2 Unidades") hidden
      on the page and redraws them when the popup opens, keeping the one that
-     was selected. So the matching offer is selected while they are still
-     hidden: when they appear, when the bundle changes, and on the buy click
-     (window capture, before EasySell's own handler). Offers on screen are
-     never touched: inside the popup the visitor can still change it. */
-  function syncOffer(){
+     was selected. Only the offer section's button carries the 1/2 kit choice
+     into the popup; every other button opens it on EasySell's own default
+     offer. Done on the click (window capture, before EasySell's handler),
+     on the hidden offers only: inside the popup the visitor can change it. */
+  var defaultUnits=0;
+  function unitsOf(box){
+    var m=/(\d+)\s*unidad/i.exec(box.textContent||'');
+    return m?parseInt(m[1],10):0;
+  }
+  function rememberDefault(){
+    if(defaultUnits) return;
+    var boxes=document.querySelectorAll('.es-qo-container');
+    for(var i=0;i<boxes.length;i++){
+      if(boxes[i].offsetParent===null && boxes[i].getAttribute('offer-selected')==='true'){ defaultUnits=unitsOf(boxes[i]); return; }
+    }
+  }
+  function selectOffer(n){
+    if(!n) return;
     var boxes=document.querySelectorAll('.es-qo-container');
     for(var i=0;i<boxes.length;i++){
       if(boxes[i].offsetParent!==null) continue;
-      var m=/(\d+)\s*unidad/i.exec(boxes[i].textContent||'');
-      if(m && parseInt(m[1],10)===units){
+      if(unitsOf(boxes[i])===n){
         if(boxes[i].getAttribute('offer-selected')!=='true') boxes[i].click();
         return;
       }
     }
   }
   window.addEventListener('click',function(e){
-    if(e.target && e.target.closest && e.target.closest('#ppb-lp .es-popup-button-overwrite')) syncOffer();
+    var btn=e.target && e.target.closest && e.target.closest('#ppb-lp .es-popup-button-overwrite');
+    if(!btn) return;
+    rememberDefault();
+    selectOffer(btn.closest('#ppb-offer')?units:defaultUnits);
   },true);
 
   /* Reveal below the fold */
@@ -658,7 +672,7 @@
   function queueFix(){
     if(pending) return;
     pending=true;
-    requestAnimationFrame(function(){ pending=false; fixEasySellColors(); syncOffer(); });
+    requestAnimationFrame(function(){ pending=false; rememberDefault(); fixEasySellColors(); });
   }
   if('MutationObserver' in window){
     new MutationObserver(function(muts){
