@@ -231,7 +231,7 @@
         <span class="off js-off">50% OFF</span>
       </div>
       <p class="hero-save js-save">Ahorras $100.000 en esta oferta</p>
-      <a href="#ppb-offer" class="btn ppb-goto">Quiero mi kit ahora</a>
+      <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Quiero mi kit ahora</a>
       <div class="hero-trust">
         <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Pago contra entrega</span>
         <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1858F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>Envío gratis</span>
@@ -431,7 +431,7 @@
       <div class="statement-copy reveal">
         <h2>Solo o en <span class="hl">pareja</span>, el resultado es el mismo: menos excusas</h2>
         <p>Dos personas pueden entrenar con el mismo kit al mismo tiempo. Más motivación, el mismo precio.</p>
-        <a href="#ppb-offer" class="btn ppb-goto">Ver la oferta</a>
+        <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Quiero mi kit</a>
       </div>
     </div>
   </div>
@@ -538,7 +538,7 @@
     <span class="sb-now js-price-now">$99.900</span>
     <span class="sb-was js-price-was">$199.900</span>
   </div>
-  <a href="#ppb-offer" class="btn ppb-goto">Ver oferta</a>
+  <a href="javascript:void(0)" class="btn es-popup-button-overwrite">Pedir ahora</a>
 </div>
 
 <script>
@@ -567,18 +567,6 @@
   }
   lpApply();
 
-  /* Buttons that go to the offer: lay out the whole page first (the
-     sections below are content-visibility:auto), then scroll. */
-  root.querySelectorAll('.ppb-goto').forEach(function(a){
-    a.addEventListener('click',function(e){
-      e.preventDefault();
-      var target=document.getElementById('ppb-offer');
-      if(!target) return;
-      root.querySelectorAll('.sec').forEach(function(s){s.style.contentVisibility='visible';});
-      var top=target.getBoundingClientRect().top+window.pageYOffset-18;
-      window.scrollTo({top:top,behavior:'smooth'});
-    });
-  });
 
   /* Bundles: summary on the page + which EasySell offer the popup opens on */
   var units=2;
