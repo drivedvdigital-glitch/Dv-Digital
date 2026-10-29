@@ -604,9 +604,21 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   var colorBox=document.getElementById('gb-color');
   var variantInput=root.querySelector('#gb-variant-form [name="id"]');
   var colorName=document.getElementById('gb-color-name');
+  /* Once the form has been opened, EasySell has already put the old color
+     in the cart; a color changed after that takes the old one out first,
+     so the order never carries both. */
+  var formOpened=false;
+  window.addEventListener('click',function(e){
+    if(e.target && e.target.closest && e.target.closest('#gb-lp .es-popup-button-overwrite')) formOpened=true;
+  },true);
   if(colorBox && variantInput){
     colorBox.addEventListener('change',function(e){
       var r=e.target; if(!r || r.name!=='gb-color' || !r.checked) return;
+      var previous=variantInput.value;
+      if(formOpened && previous && previous!==r.value){
+        var updates={}; updates[previous]=0;
+        fetch('/cart/update.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({updates:updates})}).catch(function(){});
+      }
       variantInput.value=r.value;
       if(colorName) colorName.textContent=r.getAttribute('data-name')||'';
       colorBox.querySelectorAll('.gb-copt').forEach(function(l){ l.classList.toggle('sel', l.contains(r)); });
