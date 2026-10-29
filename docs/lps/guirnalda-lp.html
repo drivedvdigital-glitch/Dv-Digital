@@ -1,0 +1,678 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;600&display=optional" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;600&display=optional"></noscript>
+
+<div id="gb-lp" style="background:#0B1B3A;color:#F8F4EC">
+<style>
+:root{
+  --cor-principal-lp:#D4A017;
+  --es-primary-color:var(--cor-principal-lp)!important;
+  --es-color:var(--cor-principal-lp)!important;
+  --primary-color:var(--cor-principal-lp)!important;
+}
+button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
+#es-popup-container button[type="submit"],button.es-accept-offer,#es-popup-button{
+  background-color:var(--cor-principal-lp,#D4A017)!important;
+  background:var(--cor-principal-lp,#D4A017)!important;
+  border-color:var(--cor-principal-lp,#D4A017)!important;
+  color:#0B1B3A!important;
+}
+.es-offer-modal button:nth-of-type(2),.es-discount-modal button:nth-of-type(2){
+  background-color:#f1f3f5!important;border:1px solid #ced4da!important;
+  color:#6c757d!important;opacity:.85!important;
+}
+.es-button-title{color:#0B1B3A!important}
+
+#gb-lp{
+  --fs:1;--fs-ui:1;
+  --bg:#0B1B3A;--card:#0F2040;--ink:#F8F4EC;--ink-2:#C8BFA8;--muted:#7A6E58;
+  --brand:#D4A017;--brand-2:#9E7210;--accent:#F0C040;--line:rgba(212,160,23,.2);--star:#D4A017;
+  --display:"Playfair Display",Georgia,"Times New Roman",serif;
+  --sans:"DM Sans",system-ui,-apple-system,sans-serif;
+  --ease:cubic-bezier(.16,1,.3,1);--r:12px;--r-lg:18px;--r-xl:26px;
+  font-family:var(--sans);color:var(--ink);background:var(--bg);
+  container-type:inline-size;
+}
+#gb-lp *{box-sizing:border-box}
+#gb-lp img{display:block!important;max-width:100%!important;height:auto;margin:0!important;border:0!important}
+#gb-lp h1,#gb-lp h2,#gb-lp h3{font-family:var(--display)!important;margin:0!important;color:var(--ink)!important;line-height:1.1!important}
+#gb-lp p{margin:0;text-align:left!important;color:var(--ink-2)}
+#gb-lp .gb-wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+#gb-lp .gb-sec{padding:clamp(44px,6vw,84px) 0;background:var(--bg)}
+
+#gb-lp .gb-h1{font-size:calc(clamp(3.4rem,8.2vw,5.2rem)*var(--fs))!important;line-height:1.08!important;text-wrap:balance}
+#gb-lp .gb-h2{font-size:calc(clamp(2.6rem,6vw,3.9rem)*var(--fs))!important;text-wrap:balance;line-height:1.12!important}
+#gb-lp .gb-h3{font-size:calc(clamp(1.8rem,3.5vw,2.3rem)*var(--fs))!important}
+#gb-lp .gb-body{font-size:calc(1.45rem*var(--fs));line-height:1.62;color:var(--ink-2)}
+#gb-lp .gb-head{margin:0 auto 34px!important;width:100%;text-align:center!important}
+#gb-lp .gb-head p{text-align:center!important}
+#gb-lp .hl{color:var(--accent);font-style:italic}
+
+#gb-lp .gb-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  font-family:var(--sans)!important;font-weight:600;
+  color:#0B1B3A!important;background:linear-gradient(155deg,var(--accent) 0%,var(--brand) 55%,var(--brand-2) 100%);
+  border:0;border-radius:var(--r-lg);cursor:pointer;min-height:56px;
+  padding:16px 28px;font-size:calc(1.25rem*var(--fs));width:100%;
+  text-decoration:none;letter-spacing:.3px;
+  box-shadow:0 4px 26px rgba(212,160,23,.38);
+}
+#gb-lp .gb-btn:hover{filter:brightness(1.07)}
+
+#gb-lp[id]{background:var(--bg)!important;color:var(--ink)!important}
+#gb-lp[id] h1,#gb-lp[id] h2,#gb-lp[id] h3{color:var(--ink)!important;text-transform:none!important}
+
+#gb-lp .gb-stars{color:var(--star);letter-spacing:2px;font-size:calc(1.22rem*var(--fs))}
+
+#gb-lp .hero{padding:clamp(28px,4vw,44px) 0 clamp(40px,6vw,64px);overflow:hidden;position:relative}
+#gb-lp .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 80% 30%,rgba(212,160,23,.07) 0%,transparent 70%);pointer-events:none}
+#gb-lp .hero-grid{display:grid;gap:16px;align-items:start;position:relative}
+@container (min-width:840px){
+  #gb-lp .hero-grid{grid-template-columns:1.1fr .9fr;column-gap:52px;grid-template-areas:"top media""bot media"}
+  #gb-lp .h-top{grid-area:top}
+  #gb-lp .h-bot{grid-area:bot}
+  #gb-lp .hero-media{grid-area:media;align-self:center}
+}
+#gb-lp .hero .gb-rating{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}
+#gb-lp .hero .gb-rating .rn{font-family:var(--sans);font-weight:700;font-size:calc(1.18rem*var(--fs));color:var(--accent)}
+#gb-lp .hero .gb-rating .rc{color:var(--ink-2);font-weight:400;font-size:calc(1.05rem*var(--fs))}
+#gb-lp .hero h1{margin-top:16px!important}
+#gb-lp .hero .gb-subhead{margin-top:14px;font-size:calc(clamp(1.45rem,3vw,1.75rem)*var(--fs))!important;line-height:1.55;max-width:44ch;color:var(--ink-2)}
+#gb-lp .hero .gb-price{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 4px}
+#gb-lp .hero .gb-price .now{font-family:var(--sans);font-weight:700;font-size:calc(clamp(2.8rem,6.5vw,3.8rem)*var(--fs-ui));line-height:1;color:var(--accent)}
+#gb-lp .hero .gb-price .was{color:var(--muted);text-decoration:line-through;font-size:calc(1.4rem*var(--fs-ui))}
+#gb-lp .hero .gb-price .off{background:var(--brand);color:#0B1B3A;font-weight:700;font-size:calc(.95rem*var(--fs-ui));padding:6px 13px;border-radius:8px;font-family:var(--sans)}
+#gb-lp .hero .gb-btn{margin-top:12px;max-width:460px}
+#gb-lp .hero .gb-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:5px 14px;margin-top:14px;font-size:calc(1.08rem*var(--fs));color:var(--ink-2);font-weight:600}
+#gb-lp .hero-media .photo{border-radius:var(--r-xl);overflow:hidden;aspect-ratio:1/1;width:min(100%,80vw,480px);max-width:100%;margin:0 auto;background:var(--card);box-shadow:0 0 60px rgba(212,160,23,.22)}
+#gb-lp .hero-media .photo img{width:100%!important;height:100%!important;object-fit:cover}
+@container (min-width:840px){#gb-lp .hero-media .photo{width:100%;max-width:520px}}
+@container (max-width:839px){
+  #gb-lp .hero .h-bot{text-align:center}
+  #gb-lp .hero .gb-price{justify-content:center;margin-top:14px}
+  #gb-lp .hero .gb-btn{margin-left:auto;margin-right:auto}
+  #gb-lp .hero .gb-subhead{max-width:100%}
+}
+
+#gb-lp .marquee-band{background:linear-gradient(90deg,var(--brand-2),var(--brand),var(--accent),var(--brand),var(--brand-2));padding:11px 0;overflow:hidden}
+#gb-lp .marquee-track{display:flex;gap:0;width:max-content;animation:gb-scroll 26s linear infinite}
+#gb-lp .marquee-track span{white-space:nowrap;font-family:var(--sans);font-weight:600;font-size:calc(1.08rem*var(--fs));color:#0B1B3A;padding:0 20px}
+#gb-lp .marquee-track .dot{color:rgba(11,27,58,.45)}
+@media(prefers-reduced-motion:reduce){#gb-lp .marquee-track{animation:none}}
+@keyframes gb-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+#gb-lp .dolor{background:var(--card)}
+#gb-lp .dolor-grid{display:grid;gap:clamp(22px,4vw,44px);align-items:center}
+@container (min-width:680px){#gb-lp .dolor-grid{grid-template-columns:1fr 1fr;column-gap:clamp(24px,5vw,52px)}}
+#gb-lp .dolor-img{border-radius:var(--r-xl);overflow:hidden;aspect-ratio:4/3;background:var(--bg)}
+#gb-lp .dolor-img img{width:100%!important;height:100%!important;object-fit:cover}
+#gb-lp .dolor-body h2{color:var(--ink)!important;margin-bottom:12px!important}
+#gb-lp .dolor-body p{font-size:calc(1.38rem*var(--fs));line-height:1.62;color:var(--ink-2);margin-top:10px}
+#gb-lp .dolor-list{list-style:none;padding:0;margin:18px 0 0;display:flex;flex-direction:column;gap:13px}
+#gb-lp .dolor-list li{display:flex;align-items:flex-start;gap:12px;font-size:calc(1.32rem*var(--fs));color:var(--ink-2);line-height:1.45}
+#gb-lp .dolor-list li .ico{flex-shrink:0;margin-top:2px}
+
+#gb-lp .modos{background:var(--bg);position:relative}
+#gb-lp .modos::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 50% 40% at 50% 0%,rgba(212,160,23,.06) 0%,transparent 70%);pointer-events:none}
+#gb-lp .modos-tabs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 auto 28px;position:relative}
+#gb-lp .modos-tabs button{font-family:var(--sans);font-weight:600;font-size:calc(.98rem*var(--fs));border:1.5px solid var(--line);border-radius:50px;padding:9px 17px;background:transparent;color:var(--ink-2);cursor:pointer;transition:border-color .22s,color .22s,background .22s;min-height:44px}
+#gb-lp .modos-tabs button.active,#gb-lp .modos-tabs button:hover{border-color:var(--brand);color:var(--accent);background:rgba(212,160,23,.1)}
+#gb-lp .modos-panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);padding:clamp(22px,4vw,36px);display:none;align-items:center;gap:clamp(18px,4vw,34px)}
+#gb-lp .modos-panel.active{display:flex}
+@container (max-width:639px){#gb-lp .modos-panel{flex-direction:column}}
+#gb-lp .modos-panel .mp-icon{flex-shrink:0;width:72px;height:72px;border-radius:50%;background:rgba(212,160,23,.12);border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center}
+#gb-lp .modos-panel .mp-icon svg{width:34px;height:34px}
+#gb-lp .modos-panel h3{color:var(--accent)!important;margin-bottom:8px!important}
+#gb-lp .modos-panel p{font-size:calc(1.32rem*var(--fs));color:var(--ink-2);line-height:1.58;text-align:left!important}
+
+#gb-lp .como{background:var(--card)}
+#gb-lp .como-steps{display:grid;gap:20px}
+@container (min-width:600px){#gb-lp .como-steps{grid-template-columns:repeat(3,1fr)}}
+#gb-lp .como-step{background:var(--bg);border-radius:var(--r-lg);padding:28px 22px;text-align:center;border:1px solid var(--line)}
+#gb-lp .como-step .cs-num{font-family:var(--display);font-weight:800;font-size:calc(3rem*var(--fs));color:var(--brand);line-height:1;margin-bottom:12px;font-style:italic}
+#gb-lp .como-step h3{font-size:calc(1.5rem*var(--fs))!important;margin-bottom:8px!important;color:var(--ink)!important}
+#gb-lp .como-step p{font-size:calc(1.25rem*var(--fs));color:var(--ink-2);text-align:center!important;line-height:1.55}
+
+#gb-lp .caract{background:var(--bg)}
+#gb-lp .caract-grid{display:grid;gap:16px}
+@container (min-width:560px){#gb-lp .caract-grid{grid-template-columns:repeat(2,1fr)}}
+@container (min-width:860px){#gb-lp .caract-grid{grid-template-columns:repeat(3,1fr)}}
+#gb-lp .caract-card{background:var(--card);border-radius:var(--r-lg);padding:24px 20px;border:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+#gb-lp .caract-card .cc-ico{width:46px;height:46px;border-radius:10px;background:rgba(212,160,23,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid var(--line)}
+#gb-lp .caract-card .cc-ico svg{width:24px;height:24px}
+#gb-lp .caract-card h3{font-size:calc(1.42rem*var(--fs))!important;color:var(--ink)!important;margin-bottom:2px!important}
+#gb-lp .caract-card p{font-size:calc(1.22rem*var(--fs));color:var(--ink-2);text-align:left!important;line-height:1.5}
+
+#gb-lp .statement{background:linear-gradient(160deg,#060E1F 0%,#0B1B3A 50%,#0A1830 100%);text-align:center;padding:clamp(52px,7vw,96px) 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+#gb-lp .statement::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(212,160,23,.08) 0%,transparent 70%);pointer-events:none}
+#gb-lp .statement h2{text-align:center!important;max-width:20ch;margin:0 auto!important;color:var(--accent)!important;font-style:italic}
+#gb-lp .statement p{text-align:center!important;font-size:calc(1.42rem*var(--fs));max-width:48ch;margin:18px auto 0;color:var(--ink-2)}
+
+#gb-lp .kit{background:var(--card)}
+#gb-lp .kit-grid{display:grid;gap:clamp(22px,4vw,44px);align-items:center}
+@container (min-width:680px){#gb-lp .kit-grid{grid-template-columns:1fr 1fr;column-gap:clamp(24px,5vw,52px)}}
+#gb-lp .kit-img{border-radius:var(--r-xl);overflow:hidden;aspect-ratio:1/1;background:var(--bg)}
+#gb-lp .kit-img img{width:100%!important;height:100%!important;object-fit:cover}
+#gb-lp .kit-list{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:13px}
+#gb-lp .kit-list li{display:flex;align-items:flex-start;gap:12px;font-size:calc(1.35rem*var(--fs));color:var(--ink-2);line-height:1.4}
+#gb-lp .kit-list li strong{color:var(--ink)}
+
+#gb-lp .oferta{background:var(--bg)}
+#gb-lp .offer-card{background:var(--card);border-radius:var(--r-xl);border:2px solid var(--brand);overflow:hidden;max-width:800px;margin:0 auto;box-shadow:0 0 60px rgba(212,160,23,.18)}
+#gb-lp .offer-top{padding:clamp(22px,4vw,36px)}
+#gb-lp .offer-eyebrow{display:inline-block;font-family:var(--sans);font-weight:700;font-size:calc(.96rem*var(--fs-ui));color:var(--accent);border:1.5px solid var(--brand);border-radius:50px;padding:5px 16px;margin-bottom:14px;letter-spacing:.5px}
+#gb-lp .offer-price-row{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-bottom:10px}
+#gb-lp .offer-price-row .now{font-family:var(--sans);font-weight:700;font-size:calc(clamp(2.8rem,6.5vw,3.8rem)*var(--fs-ui));color:var(--accent);line-height:1}
+#gb-lp .offer-price-row .was{color:var(--muted);text-decoration:line-through;font-size:calc(1.38rem*var(--fs-ui))}
+#gb-lp .offer-price-row .off{background:var(--brand);color:#0B1B3A;font-weight:700;font-size:calc(.93rem*var(--fs-ui));padding:6px 13px;border-radius:8px;font-family:var(--sans)}
+#gb-lp .offer-save{display:inline-block;background:rgba(212,160,23,.14);color:var(--accent);font-weight:600;font-size:calc(1.1rem*var(--fs));padding:8px 16px;border-radius:8px;margin-bottom:16px;border:1px solid rgba(212,160,23,.25)}
+#gb-lp .offer-selos{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+#gb-lp .offer-selos span{display:flex;align-items:center;gap:7px;font-size:calc(1.08rem*var(--fs));color:var(--ink-2);font-weight:600;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:8px;padding:7px 13px}
+#gb-lp .offer-selos svg{flex-shrink:0}
+#gb-lp .offer-stock{display:flex;align-items:center;gap:8px;font-size:calc(1.1rem*var(--fs));color:var(--ink-2);font-weight:600;margin-bottom:20px}
+#gb-lp .offer-stock .dot{width:10px;height:10px;border-radius:50%;background:#2ECC71;box-shadow:0 0 0 3px rgba(46,204,113,.22);animation:gb-pulse 1.7s ease infinite;flex-shrink:0}
+@keyframes gb-pulse{0%,100%{box-shadow:0 0 0 3px rgba(46,204,113,.22)}50%{box-shadow:0 0 0 7px rgba(46,204,113,.06)}}
+@media(prefers-reduced-motion:reduce){#gb-lp .offer-stock .dot{animation:none}}
+#gb-lp .offer-ophoto{aspect-ratio:16/10;overflow:hidden}
+#gb-lp .offer-ophoto img{width:100%!important;height:100%!important;object-fit:cover}
+#gb-lp .offer-card .gb-btn{border-radius:0;min-height:62px;font-size:calc(1.32rem*var(--fs));letter-spacing:.4px}
+
+/* Color de la luz: la variante que el formulario de EasySell va a pedir */
+#gb-lp .gb-color{margin:0 0 18px}
+#gb-lp .gb-color-t{font-weight:700;font-size:calc(1.15rem*var(--fs));color:var(--ink);margin-bottom:10px}
+#gb-lp .gb-color-t b{color:var(--accent)}
+#gb-lp .gb-color-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#gb-lp .gb-copt{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:10px 6px;border:2px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.04);cursor:pointer;font-weight:600;font-size:calc(1.02rem*var(--fs));color:var(--ink);text-align:center;line-height:1.15}
+#gb-lp .gb-copt input{position:absolute;opacity:0;width:1px;height:1px}
+#gb-lp .gb-copt .sw{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.35)}
+#gb-lp .gb-copt small{display:block;font-size:calc(.85rem*var(--fs));font-weight:600;color:var(--muted)}
+#gb-lp .gb-copt.sel{border-color:var(--brand);background:rgba(212,160,23,.14)}
+#gb-lp .gb-copt.off{opacity:.45;cursor:not-allowed}
+#gb-lp .gb-copt input:focus-visible + .sw{outline:2px solid var(--accent);outline-offset:3px}
+
+#gb-lp .testi{background:var(--card)}
+#gb-lp .testi-grid{display:grid;gap:18px}
+@container (min-width:640px){#gb-lp .testi-grid{grid-template-columns:repeat(3,1fr)}}
+#gb-lp .testi-card{background:var(--bg);border-radius:var(--r-lg);padding:24px 20px;border:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+#gb-lp .testi-card .tc-top{display:flex;align-items:center;gap:12px}
+#gb-lp .testi-card .av{width:52px!important;height:52px!important;border-radius:50%;object-fit:cover;object-position:center 20%;border:2px solid var(--brand);flex-shrink:0}
+#gb-lp .testi-card .tc-name{font-family:var(--sans);font-weight:700;font-size:calc(1.18rem*var(--fs));color:var(--ink)}
+#gb-lp .testi-card .tc-city{font-size:calc(.98rem*var(--fs));color:var(--muted)}
+#gb-lp .testi-card p{font-size:calc(1.28rem*var(--fs));color:var(--ink-2);line-height:1.56;text-align:left!important}
+
+#gb-lp .garantia{background:linear-gradient(160deg,#060E1F 0%,#0B1B3A 100%);text-align:center;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#gb-lp .garantia .gb-head h2{text-align:center!important;color:var(--accent)!important;font-style:italic}
+#gb-lp .garantia .gb-head p{text-align:center!important;max-width:52ch;margin:0 auto}
+#gb-lp .guar-badge{width:100px;height:100px;border-radius:50%;background:rgba(212,160,23,.1);border:2px solid var(--brand);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 0 30px rgba(212,160,23,.18)}
+#gb-lp .guar-badge svg{width:50px;height:50px}
+
+#gb-lp .faq{background:var(--bg)}
+#gb-lp .faq-list{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:var(--r-xl);overflow:hidden;max-width:760px;margin:0 auto}
+#gb-lp .faq-item{border-bottom:1px solid var(--line);background:var(--card)}
+#gb-lp .faq-item:last-child{border-bottom:0}
+#gb-lp .faq-item summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 22px;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:calc(1.28rem*var(--fs));color:var(--ink);list-style:none;min-height:56px}
+#gb-lp .faq-item summary::-webkit-details-marker{display:none}
+#gb-lp .faq-item summary .faq-ico{flex-shrink:0;transition:transform .28s var(--ease)}
+#gb-lp details[open] .faq-ico{transform:rotate(45deg)}
+#gb-lp .faq-item .faq-body{padding:0 22px 18px;font-size:calc(1.25rem*var(--fs));color:var(--ink-2);line-height:1.62}
+
+#gb-lp .gb-sticky{
+  position:fixed;left:0;right:0;bottom:0;z-index:2147483000;
+  background:rgba(6,14,31,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(212,160,23,.35);
+  transform:translateY(110%);transition:transform .3s var(--ease);
+  padding:11px 16px calc(11px + env(safe-area-inset-bottom));
+}
+#gb-lp .gb-sticky.show{transform:translateY(0)}
+#gb-lp .gb-sticky .in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:14px;justify-content:space-between}
+#gb-lp .gb-sticky .spr{display:flex;flex-direction:column;gap:2px}
+#gb-lp .gb-sticky .n{font-family:var(--sans);font-weight:700;font-size:calc(1.52rem*var(--fs-ui));color:var(--accent);line-height:1}
+#gb-lp .gb-sticky .w{color:var(--muted);text-decoration:line-through;font-size:calc(.88rem*var(--fs-ui))}
+#gb-lp .gb-sticky .gb-btn{width:auto;min-height:48px;padding:12px 24px;font-size:calc(1.05rem*var(--fs-ui))}
+
+#gb-lp.js .reveal{opacity:0;transform:translateY(20px);transition:opacity .65s var(--ease),transform .65s var(--ease)}
+#gb-lp.js .reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  #gb-lp *{animation:none!important;transition:none!important}
+  #gb-lp.js .reveal{opacity:1!important;transform:none!important}
+}
+</style>
+
+<section class="hero gb-sec">
+<div class="gb-wrap"><div class="hero-grid">
+  <div class="h-top">
+    <div class="gb-rating">
+      <span class="gb-stars">★★★★★</span>
+      <span class="rn js-rating">4.9</span>
+      <span class="rc js-rating-count">+2.400 clientes felices</span>
+    </div>
+    <h1 class="gb-h1">Tu hogar, convertido en<br><span class="hl">magia navideña</span><br>esta noche.</h1>
+    <p class="gb-subhead">600 LEDs dorados · 20 metros · 8 modos · Control remoto — la decoración que tu familia recordará siempre.</p>
+  </div>
+  <div class="hero-media"><div class="photo">
+    <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/1_9c54c21e-032a-488b-985c-40e7b3c54cc9.png?v=1792608212" alt="Guirnalda Brillante 600 LEDs dorados sobre árbol de Navidad colombiano" width="800" height="800">
+  </div></div>
+  <div class="h-bot">
+    <div class="gb-price">
+      <span class="now js-price-now">$149.900</span>
+      <span class="was js-price-was">$299.900</span>
+      <span class="off js-off">50% OFF</span>
+    </div>
+    <a href="#gb-oferta" class="gb-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Quiero mi Guirnalda ahora
+    </a>
+    <div class="gb-trust">
+      <span>✓ Pago contra entrega</span>
+      <span>✓ Envío gratis</span>
+      <span>✓ Entrega en 24–48h</span>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<div class="marquee-band">
+  <div class="marquee-track" aria-hidden="true">
+    <span>600 LEDs dorados</span><span class="dot">✦</span>
+    <span>20 metros</span><span class="dot">✦</span>
+    <span>8 modos de luz</span><span class="dot">✦</span>
+    <span>Control remoto</span><span class="dot">✦</span>
+    <span>Impermeable</span><span class="dot">✦</span>
+    <span>Interior y exterior</span><span class="dot">✦</span>
+    <span>Pago contra entrega</span><span class="dot">✦</span>
+    <span>Envío gratis</span><span class="dot">✦</span>
+    <span>600 LEDs dorados</span><span class="dot">✦</span>
+    <span>20 metros</span><span class="dot">✦</span>
+    <span>8 modos de luz</span><span class="dot">✦</span>
+    <span>Control remoto</span><span class="dot">✦</span>
+    <span>Impermeable</span><span class="dot">✦</span>
+    <span>Interior y exterior</span><span class="dot">✦</span>
+    <span>Pago contra entrega</span><span class="dot">✦</span>
+    <span>Envío gratis</span><span class="dot">✦</span>
+  </div>
+</div>
+
+<section class="dolor gb-sec reveal">
+<div class="gb-wrap"><div class="dolor-grid">
+  <div class="dolor-img">
+    <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/be8916fa-5ca7-405f-abc0-f4e389ef027a.jpg?v=1793123317" alt="Familia colombiana decorando su hogar con luces LED doradas en Navidad" width="800" height="600" loading="lazy">
+  </div>
+  <div class="dolor-body">
+    <h2 class="gb-h2">La Navidad que tu familia merece</h2>
+    <p class="gb-body">Ese momento en que llegas a casa y todo se ilumina — no es magia, es planificación. Este año, tú decides cómo se ve tu hogar.</p>
+    <ul class="dolor-list">
+      <li><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>20 metros cubren árbol, balcón, escalera o fachada completa</span></li>
+      <li><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>Alambre plateado flexible que mantiene cualquier forma que moldees</span></li>
+      <li><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>Lista en minutos — enchufa y el ambiente cambia al instante</span></li>
+      <li><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>Resistente a la lluvia — segura en balcón y jardín toda la temporada</span></li>
+    </ul>
+  </div>
+</div></div>
+</section>
+
+<section class="modos gb-sec reveal">
+<div class="gb-wrap">
+  <div class="gb-head">
+    <h2 class="gb-h2">8 modos de iluminación</h2>
+    <p class="gb-body" style="text-align:center!important;max-width:46ch;margin:10px auto 0">Cambia el ambiente con un solo clic desde el control remoto incluido.</p>
+  </div>
+  <div class="modos-tabs" id="gb-tabs">
+    <button class="active" data-tab="0">Continua</button>
+    <button data-tab="1">Destello</button>
+    <button data-tab="2">Degradé</button>
+    <button data-tab="3">Olas</button>
+    <button data-tab="4">Suave</button>
+    <button data-tab="5">Cascada</button>
+    <button data-tab="6">Rítmico</button>
+    <button data-tab="7">Aleatorio</button>
+  </div>
+  <div id="gb-panels">
+    <div class="modos-panel active" data-panel="0">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+      <div><h3 class="gb-h3">Luz continua</h3><p>Todas las 600 luces encendidas con intensidad plena. Ideal para cenas, reuniones familiares y la noche de Navidad.</p></div>
+    </div>
+    <div class="modos-panel" data-panel="1">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <div><h3 class="gb-h3">Destello festivo</h3><p>Destellos rápidos y sincronizados que generan un efecto dinámico y alegre. Perfecto para el árbol o una fiesta de Año Nuevo.</p></div>
+    </div>
+    <div class="modos-panel" data-panel="2">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>
+      <div><h3 class="gb-h3">Degradé suave</h3><p>La intensidad sube y baja gradualmente en olas lentas. Crea un ambiente cálido y acogedor para noches tranquilas en familia.</p></div>
+    </div>
+    <div class="modos-panel" data-panel="3">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12 Q7 4 12 12 Q17 20 22 12"/></svg></div>
+      <div><h3 class="gb-h3">Efecto olas</h3><p>Un barrido de luz recorre toda la guirnalda de extremo a extremo. Espectacular en fachadas largas y corredores.</p></div>
+    </div>
+    <div class="modos-panel" data-panel="4">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/></svg></div>
+      <div><h3 class="gb-h3">Brillo suave</h3><p>Parpadeo muy lento que simula la luz de velas. Romántico y acogedor para habitaciones y cuartos de niños en Navidad.</p></div>
+    </div>
+    <div class="modos-panel" data-panel="5">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <div><h3 class="gb-h3">Cascada de luz</h3><p>El encendido fluye de arriba hacia abajo como agua en cascada. Impresionante en árboles altos y cortinas de ventana.</p></div>
+    </div>
+    <div class="modos-panel" data-panel="6">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div><h3 class="gb-h3">Ritmo alternado</h3><p>Pulsos lentos y rápidos combinados que generan un ritmo visual sorprendente. Ideal para eventos y celebraciones especiales.</p></div>
+    </div>
+    <div class="modos-panel" data-panel="7">
+      <div class="mp-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 4l3 3-3 3"/><path d="M21 7H3"/><path d="M6 20l-3-3 3-3"/><path d="M3 17h18"/></svg></div>
+      <div><h3 class="gb-h3">Aleatorio mágico</h3><p>Alterna automáticamente entre todos los modos cada pocos minutos. Deja el control y que la magia navideña fluya sola.</p></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="como gb-sec reveal">
+<div class="gb-wrap">
+  <div class="gb-head"><h2 class="gb-h2">Lista en 3 pasos</h2><p class="gb-body" style="text-align:center!important;max-width:42ch;margin:10px auto 0">Sin herramientas, sin electricista, sin complicaciones.</p></div>
+  <div class="como-steps">
+    <div class="como-step"><div class="cs-num">I</div><h3>Elige el lugar</h3><p>Árbol, balcón, ventana, escalera o fachada — el alambre flexible se adapta a cualquier superficie.</p></div>
+    <div class="como-step"><div class="cs-num">II</div><h3>Moldea a tu gusto</h3><p>Dale la forma que imaginas: espiral, cascada o constelación. El alambre plateado mantiene la posición.</p></div>
+    <div class="como-step"><div class="cs-num">III</div><h3>Enchufa y celebra</h3><p>Conecta a la corriente y elige tu modo con el control remoto. Tu hogar se transforma en segundos.</p></div>
+  </div>
+</div>
+</section>
+
+<section class="caract gb-sec reveal">
+<div class="gb-wrap">
+  <div class="gb-head"><h2 class="gb-h2">Todo lo que incluye</h2><p class="gb-body" style="text-align:center!important;max-width:42ch;margin:10px auto 0">Diseñada para durar toda la temporada navideña y más allá.</p></div>
+  <div class="caract-grid">
+    <div class="caract-card">
+      <div class="cc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+      <h3>600 LEDs individuales</h3>
+      <p>Densidad visual que crea un efecto de constelación dorada, cubriendo cada rincón del espacio decorado.</p>
+    </div>
+    <div class="caract-card">
+      <div class="cc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg></div>
+      <h3>20 metros de cable</h3>
+      <p>Longitud generosa para cubrir árboles grandes, ventanas, balcones o toda una escalera de principio a fin.</p>
+    </div>
+    <div class="caract-card">
+      <div class="cc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div>
+      <h3>Control remoto incluido</h3>
+      <p>Cambia los 8 modos, ajusta el brillo y programa el temporizador desde el sofá, sin levantarte.</p>
+    </div>
+    <div class="caract-card">
+      <div class="cc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+      <h3>Impermeable IP44</h3>
+      <p>Resistente a la lluvia y la humedad — perfecta para balcones, jardines y fachadas exteriores durante toda la temporada.</p>
+    </div>
+    <div class="caract-card">
+      <div class="cc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+      <h3>Alambre flexible plateado</h3>
+      <p>Se dobla y mantiene la forma que elijas. Sin ganchos ni clips adicionales — se instala en cualquier superficie.</p>
+    </div>
+    <div class="caract-card">
+      <div class="cc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 9 8 12 2 12"/></svg></div>
+      <h3>8 efectos de iluminación</h3>
+      <p>Desde luz continua hasta cascada y aleatorio — un modo para cada momento y cada ambiente navideño.</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="statement reveal">
+<div class="gb-wrap">
+  <h2 class="gb-h2">La decoración que todos notarán este diciembre.</h2>
+  <p>600 puntos de luz dorada transforman cualquier espacio común en un recuerdo que tu familia llevará para siempre. No es solo una guirnalda — es el ambiente de tu Navidad.</p>
+</div>
+</section>
+
+<section class="kit gb-sec reveal">
+<div class="gb-wrap">
+  <div class="gb-head"><h2 class="gb-h2">¿Qué viene en tu caja?</h2></div>
+  <div class="kit-grid">
+    <div class="kit-img">
+      <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/4_402c6b3a-d50a-4106-a8ab-7a12b86a0e01.png?v=1792608212" alt="Kit completo Guirnalda Brillante 600 LEDs con control remoto" width="800" height="800" loading="lazy">
+    </div>
+    <div>
+      <h2 class="gb-h2" style="color:var(--accent)!important;font-style:italic">Todo listo para la magia.</h2>
+      <p class="gb-body" style="margin-top:12px">Abre la caja y en minutos tu hogar ya tiene el ambiente navideño que siempre quisiste.</p>
+      <ul class="kit-list">
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><strong>1 Guirnalda LED 600 puntos</strong> — alambre plateado flexible de 20 metros</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><strong>1 Control remoto inalámbrico</strong> — 8 modos, brillo ajustable y temporizador</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><strong>1 Adaptador de corriente estándar</strong> — conexión segura y certificada</span></li>
+        <li><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span><strong>Guía rápida de instalación</strong> — lista en menos de 10 minutos</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="oferta gb-sec reveal" id="gb-oferta">
+<div class="gb-wrap">
+  <div class="gb-head">
+    <h2 class="gb-h2">Oferta especial de temporada</h2>
+    <p class="gb-body" style="text-align:center!important;max-width:44ch;margin:10px auto 0">Disponible solo mientras dure el stock — alta demanda esta semana.</p>
+  </div>
+  <div class="offer-card">
+    <div class="offer-top">
+      <div class="offer-eyebrow">PRECIO ESPECIAL NAVIDAD</div>
+      <div class="offer-price-row">
+        <span class="now js-price-now">$149.900</span>
+        <span class="was js-price-was">$299.900</span>
+        <span class="off js-off">50% OFF</span>
+      </div>
+      <div class="offer-save js-save">Ahorras $150.000 hoy</div>
+      <div class="offer-selos">
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Pago contra entrega</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Garantía 30 días</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Entrega 24–48h</span>
+      </div>
+      <!-- COLOR: value = id de la variante en Shopify (Calido / Blanco / Multicolor) -->
+      <div class="gb-color" id="gb-color" role="radiogroup" aria-label="Color de la luz">
+        <div class="gb-color-t">Color de la luz: <b id="gb-color-name">Cálido</b></div>
+        <div class="gb-color-opts">
+          <label class="gb-copt sel"><input type="radio" name="gb-color" value="50863620063318" data-name="Cálido" checked><span class="sw" style="background:#F6C35C"></span>Cálido</label>
+          <label class="gb-copt"><input type="radio" name="gb-color" value="50863620096086" data-name="Blanco"><span class="sw" style="background:#F2F6FF"></span>Blanco</label>
+          <label class="gb-copt off"><input type="radio" name="gb-color" value="50923834474582" data-name="Multicolor" disabled><span class="sw" style="background:conic-gradient(#E8363B,#F4C430,#2BAF7A,#1858F3,#E8363B)"></span>Multicolor<small>Agotado</small></label>
+        </div>
+      </div>
+      <!-- Lo que EasySell lee para saber qué variante pedir -->
+      <form action="/cart/add" method="post" id="gb-variant-form" hidden><input type="hidden" name="id" value="50863620063318"><input type="hidden" name="quantity" value="1"></form>
+      <div class="offer-stock"><span class="dot"></span>Stock limitado — alta demanda esta semana</div>
+    </div>
+    <div class="offer-ophoto">
+      <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/2_be9cea97-913e-486c-b457-a2e31aa2d2b0.png?v=1792608213" alt="Guirnalda Brillante 600 LEDs dorados vista de cerca con control remoto" width="800" height="500" loading="lazy">
+    </div>
+    <a href="javascript:void(0)" class="gb-btn es-popup-button-overwrite">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      Pedir ahora — Pago al recibir
+    </a>
+  </div>
+</div>
+</section>
+
+<section class="testi gb-sec reveal">
+<div class="gb-wrap">
+  <div class="gb-head"><h2 class="gb-h2">Lo que dicen nuestros clientes</h2></div>
+  <div class="testi-grid">
+    <div class="testi-card">
+      <div class="tc-top">
+        <img class="av" src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.jpg?v=1793123330" alt="Foto de Valentina Ríos, cliente de Bogotá" width="52" height="52" loading="lazy">
+        <div><div class="tc-name">Valentina Ríos</div><div class="tc-city">Bogotá, Cundinamarca</div></div>
+      </div>
+      <div class="gb-stars">★★★★★</div>
+      <p>"Llegó en dos días y la calidad superó mis expectativas. Puse los 20 metros en el árbol y la escalera — quedó como en revista. Toda la familia quedó enamorada del efecto dorado."</p>
+    </div>
+    <div class="testi-card">
+      <div class="tc-top">
+        <img class="av" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='52' height='52' viewBox='0 0 52 52'><rect width='52' height='52' fill='%230F2040' rx='26'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='22' fill='%23D4A017'>CM</text></svg>" alt="Avatar Carlos Morales" width="52" height="52" data-placeholder>
+        <div><div class="tc-name">Carlos Morales</div><div class="tc-city">Medellín, Antioquia</div></div>
+      </div>
+      <div class="gb-stars">★★★★★</div>
+      <p>"El control remoto hace todo más fácil. Ponemos el modo 'olas' mientras vemos películas y el de 'destello' para la cena de Navidad. Vale cada peso, y el pago contra entrega me dio tranquilidad."</p>
+    </div>
+    <div class="testi-card">
+      <div class="tc-top">
+        <img class="av" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='52' height='52' viewBox='0 0 52 52'><rect width='52' height='52' fill='%230F2040' rx='26'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='22' fill='%23D4A017'>LG</text></svg>" alt="Avatar Lucía González" width="52" height="52" data-placeholder>
+        <div><div class="tc-name">Lucía González</div><div class="tc-city">Cali, Valle del Cauca</div></div>
+      </div>
+      <div class="gb-stars">★★★★★</div>
+      <p>"La usé en el balcón y aguantó tres noches de lluvia sin ningún problema. El alambre plateado es muy fácil de moldear. Ya pedí una segunda para el interior de la sala."</p>
+    </div>
+  </div>
+</div>
+</section>
+
+<section class="garantia gb-sec reveal">
+<div class="gb-wrap">
+  <div class="guar-badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+  </div>
+  <div class="gb-head">
+    <h2 class="gb-h2">Garantía total de 30 días</h2>
+    <p class="gb-body" style="margin-top:12px">Pagas solo cuando el producto llega a tu puerta — pago contra entrega en toda Colombia. Si no quedas satisfecho en los primeros 30 días, te devolvemos tu dinero sin preguntas. Tu tranquilidad es nuestra prioridad.</p>
+  </div>
+  <div style="text-align:center;margin-top:8px">
+    <a href="#gb-oferta" class="gb-btn" style="max-width:420px;margin:0 auto;display:inline-flex">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+      Quiero la mía con garantía
+    </a>
+  </div>
+</div>
+</section>
+
+<section class="faq gb-sec reveal">
+<div class="gb-wrap">
+  <div class="gb-head"><h2 class="gb-h2">Preguntas frecuentes</h2></div>
+  <div class="faq-list">
+    <details class="faq-item">
+      <summary>¿Cómo funciona el pago contra entrega?<span class="faq-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></summary>
+      <div class="faq-body">Haces tu pedido aquí con tus datos. El mensajero lleva la guirnalda a tu dirección y pagas en efectivo al recibirla. Sin tarjeta, sin transferencias anticipadas — cero riesgo para ti.</div>
+    </details>
+    <details class="faq-item">
+      <summary>¿Cuánto tiempo tarda en llegar?<span class="faq-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></summary>
+      <div class="faq-body">Bogotá, Medellín y Cali: 24–48 horas hábiles. Otras ciudades principales: 2–4 días hábiles. Municipios: 3–6 días hábiles. El envío es completamente gratis a toda Colombia.</div>
+    </details>
+    <details class="faq-item">
+      <summary>¿La guirnalda funciona en exterior con lluvia?<span class="faq-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></summary>
+      <div class="faq-body">Sí. El alambre plateado y el cable tienen certificación IP44 de resistencia al agua. Funciona en balcones, jardines y fachadas expuestos a la lluvia sin ningún problema durante toda la temporada.</div>
+    </details>
+    <details class="faq-item">
+      <summary>¿Cómo funciona el control remoto?<span class="faq-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></summary>
+      <div class="faq-body">El control remoto inalámbrico permite cambiar entre los 8 modos de iluminación, subir o bajar el brillo en 10 niveles y programar un temporizador automático (2h, 4h, 6h u 8h). Todo sin levantarte del sofá.</div>
+    </details>
+    <details class="faq-item">
+      <summary>¿Puedo usarla en el árbol de Navidad?<span class="faq-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></summary>
+      <div class="faq-body">Por supuesto. Los 20 metros son perfectos para árboles medianos y grandes — incluso alcanza para envolver el tronco y extenderse hacia los regalos. El alambre flexible se moldea alrededor de cualquier rama sin dañarla.</div>
+    </details>
+    <details class="faq-item">
+      <summary>¿Qué pasa si el producto llega con algún defecto?<span class="faq-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></summary>
+      <div class="faq-body">Tienes 30 días de garantía total. Si el producto presenta cualquier falla desde el primer uso, lo reemplazamos sin costo adicional. Tu satisfacción está garantizada — pagas solo cuando ves que funciona perfecto.</div>
+    </details>
+  </div>
+</div>
+</section>
+
+<div class="gb-sticky" id="gb-sticky"><div class="in">
+  <div class="spr">
+    <span class="n js-price-now">$149.900</span>
+    <span class="w js-price-was">$299.900</span>
+  </div>
+  <a href="javascript:void(0)" class="gb-btn es-popup-button-overwrite">Pedir ahora</a>
+</div></div>
+
+<script>
+(function(){
+  var root=document.getElementById('gb-lp'); if(!root) return; root.className+=' js';
+
+  var LP_CONFIG={
+    priceNow:"$149.900",
+    priceWas:"$299.900",
+    off:"50% OFF",
+    save:"Ahorras $150.000 hoy",
+    rating:"4.9",
+    ratingCount:"+2.400 clientes felices"
+  };
+
+  function lpApply(){
+    var m={'js-price-now':LP_CONFIG.priceNow,'js-price-was':LP_CONFIG.priceWas,'js-off':LP_CONFIG.off,'js-save':LP_CONFIG.save,'js-rating':LP_CONFIG.rating,'js-rating-count':LP_CONFIG.ratingCount};
+    Object.keys(m).forEach(function(k){
+      root.querySelectorAll('.'+k).forEach(function(el){
+        if(m[k]===''){el.style.display='none';}else{el.textContent=m[k];}
+      });
+    });
+  }
+  lpApply();
+
+  /* Color: EasySell orders the variant in the page's /cart/add form, so the
+     chosen color goes into that form's "id". Without it every order would
+     be the product's first variant (Calido). */
+  var colorBox=document.getElementById('gb-color');
+  var variantInput=root.querySelector('#gb-variant-form [name="id"]');
+  var colorName=document.getElementById('gb-color-name');
+  if(colorBox && variantInput){
+    colorBox.addEventListener('change',function(e){
+      var r=e.target; if(!r || r.name!=='gb-color' || !r.checked) return;
+      variantInput.value=r.value;
+      if(colorName) colorName.textContent=r.getAttribute('data-name')||'';
+      colorBox.querySelectorAll('.gb-copt').forEach(function(l){ l.classList.toggle('sel', l.contains(r)); });
+    });
+  }
+
+  var sticky=document.getElementById('gb-sticky');
+  function onScroll(){
+    if(window.scrollY>520) sticky.classList.add('show');
+    else sticky.classList.remove('show');
+  }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  onScroll();
+
+  var tabs=document.getElementById('gb-tabs');
+  var panels=document.getElementById('gb-panels');
+  if(tabs&&panels){
+    tabs.addEventListener('click',function(e){
+      var btn=e.target.closest('button[data-tab]'); if(!btn) return;
+      var idx=btn.getAttribute('data-tab');
+      tabs.querySelectorAll('button').forEach(function(b){b.classList.remove('active')});
+      panels.querySelectorAll('.modos-panel').forEach(function(p){p.classList.remove('active')});
+      btn.classList.add('active');
+      var p=panels.querySelector('[data-panel="'+idx+'"]');
+      if(p) p.classList.add('active');
+    });
+  }
+
+  var els=root.querySelectorAll('.reveal');
+  if('IntersectionObserver' in window&&els.length>0){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+      });
+    },{threshold:.07});
+    els.forEach(function(el){io.observe(el);});
+  }else{
+    els.forEach(function(el){el.classList.add('in');});
+  }
+
+  function fixEasySellColors(){
+    var c=getComputedStyle(document.documentElement).getPropertyValue('--cor-principal-lp').trim()||'#D4A017';
+    var btns=document.querySelectorAll('button,input[type="submit"]');
+    for(var i=0;i<btns.length;i++){
+      var el=btns[i];
+      var txt=el.textContent?el.textContent.toUpperCase():'';
+      if(txt.indexOf('CONFIRMA')!==-1||txt.indexOf('COMPLETAR')!==-1||el.classList.contains('es-submit-form-button')){
+        el.style.setProperty('background-color',c,'important');
+        el.style.setProperty('background',c,'important');
+        el.style.setProperty('border-color',c,'important');
+        el.style.setProperty('color','#0B1B3A','important');
+      }else if(txt.indexOf('NO QUIERO')!==-1){
+        el.style.setProperty('background-color','#f1f3f5','important');
+        el.style.setProperty('border','1px solid #ced4da','important');
+        el.style.setProperty('color','#6c757d','important');
+      }
+    }
+  }
+  if('MutationObserver' in window){
+    var obs=new MutationObserver(function(mutations){
+      for(var i=0;i<mutations.length;i++){
+        if(mutations[i].addedNodes.length>0){fixEasySellColors();break;}
+      }
+    });
+    obs.observe(document.body,{childList:true,subtree:true});
+  }
+})();
+</script>
+</div>
