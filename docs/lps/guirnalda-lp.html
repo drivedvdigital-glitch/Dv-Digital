@@ -469,8 +469,8 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
           <label class="gb-copt"><input type="radio" name="gb-color" value="50968314904662" data-name="Blanco"><span class="sw" style="background:#F2F6FF"></span>Blanco</label>
         </div>
       </div>
-      <!-- Lo que EasySell lee para saber qué variante pedir -->
-      <form action="/cart/add" method="post" id="gb-variant-form" hidden><input type="hidden" name="id" value="50968314871894"><input type="hidden" name="quantity" value="1"></form>
+      <!-- Lo que EasySell lee para saber qué variante pedir (ES_VARIANT_SELECTOR_OVERRIDE) -->
+      <input type="hidden" id="gb-variant-id" value="50968314871894">
       <div class="offer-stock"><span class="dot"></span>Stock limitado — alta demanda esta semana</div>
     </div>
     <div class="offer-ophoto">
@@ -597,11 +597,13 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   }
   lpApply();
 
-  /* Color: EasySell orders the variant in the page's /cart/add form, so the
-     chosen color goes into that form's "id". Without it every order would
-     be the product's first variant (Calido). */
+  /* Color: EasySell orders the variant its override selector points at
+     (without it, every order is the product's first variant). A plain input,
+     not a product form: EasySell puts its own buy button next to any
+     product form it finds on the page. */
+  window.ES_VARIANT_SELECTOR_OVERRIDE='#gb-variant-id';
   var colorBox=document.getElementById('gb-color');
-  var variantInput=root.querySelector('#gb-variant-form [name="id"]');
+  var variantInput=document.getElementById('gb-variant-id');
   var colorName=document.getElementById('gb-color-name');
   /* Once the form has been opened, EasySell has already put the old color
      in the cart; a color changed after that takes the old one out first,
