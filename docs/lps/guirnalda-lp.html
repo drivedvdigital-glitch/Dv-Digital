@@ -182,7 +182,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
 #gb-lp .gb-color{margin:0 0 18px}
 #gb-lp .gb-color-t{font-weight:700;font-size:calc(1.15rem*var(--fs));color:var(--ink);margin-bottom:10px}
 #gb-lp .gb-color-t b{color:var(--accent)}
-#gb-lp .gb-color-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+#gb-lp .gb-color-opts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 #gb-lp .gb-copt{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:10px 6px;border:2px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.04);cursor:pointer;font-weight:600;font-size:calc(1.02rem*var(--fs));color:var(--ink);text-align:center;line-height:1.15}
 #gb-lp .gb-copt input{position:absolute;opacity:0;width:1px;height:1px}
 #gb-lp .gb-copt .sw{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.35)}
@@ -461,17 +461,16 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
         <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Garantía 30 días</span>
         <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Entrega 24–48h</span>
       </div>
-      <!-- COLOR: value = id de la variante en Shopify (Calido / Blanco / Multicolor) -->
+      <!-- COLOR: value = id de la variante en Shopify (Calido / Blanco) -->
       <div class="gb-color" id="gb-color" role="radiogroup" aria-label="Color de la luz">
         <div class="gb-color-t">Color de la luz: <b id="gb-color-name">Cálido</b></div>
         <div class="gb-color-opts">
-          <label class="gb-copt sel"><input type="radio" name="gb-color" value="50863620063318" data-name="Cálido" checked><span class="sw" style="background:#F6C35C"></span>Cálido</label>
-          <label class="gb-copt"><input type="radio" name="gb-color" value="50863620096086" data-name="Blanco"><span class="sw" style="background:#F2F6FF"></span>Blanco</label>
-          <label class="gb-copt off"><input type="radio" name="gb-color" value="50923834474582" data-name="Multicolor" disabled><span class="sw" style="background:conic-gradient(#E8363B,#F4C430,#2BAF7A,#1858F3,#E8363B)"></span>Multicolor<small>Agotado</small></label>
+          <label class="gb-copt sel"><input type="radio" name="gb-color" value="50968314871894" data-name="Cálido" checked><span class="sw" style="background:#F6C35C"></span>Cálido</label>
+          <label class="gb-copt"><input type="radio" name="gb-color" value="50968314904662" data-name="Blanco"><span class="sw" style="background:#F2F6FF"></span>Blanco</label>
         </div>
       </div>
       <!-- Lo que EasySell lee para saber qué variante pedir -->
-      <form action="/cart/add" method="post" id="gb-variant-form" hidden><input type="hidden" name="id" value="50863620063318"><input type="hidden" name="quantity" value="1"></form>
+      <form action="/cart/add" method="post" id="gb-variant-form" hidden><input type="hidden" name="id" value="50968314871894"><input type="hidden" name="quantity" value="1"></form>
       <div class="offer-stock"><span class="dot"></span>Stock limitado — alta demanda esta semana</div>
     </div>
     <div class="offer-ophoto">
