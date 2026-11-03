@@ -464,7 +464,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
         <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Garantía 30 días</span>
         <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Entrega 24–48h</span>
       </div>
-      <!-- COLOR: value = id de la variante en Shopify (producto guirnalda-brillante) -->
+      <!-- COLOR: value = id de reserva (producto guirnalda-brillante); en la tienda el script usa el id del producto donde la página está, por el nombre del color -->
       <div class="gb-colors" id="gb-color" role="radiogroup" aria-label="Color de la luz">
         <div class="gb-colors-t">Elige el color: <b id="gb-color-name">Cálido</b></div>
         <div class="gb-colors-grid">
@@ -616,6 +616,37 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   window.addEventListener('click',function(e){
     if(e.target && e.target.closest && e.target.closest('#gb-lp .es-popup-button-overwrite')) formOpened=true;
   },true);
+  /* The same LP runs on more than one product (A/B test: the entry product
+     shows a copy of it), and each product has its own variant ids. The ids
+     written in the HTML are only the fallback: the color NAME picks the
+     variant of the product this page is actually on. */
+  function norm(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+  function useVariants(list){
+    if(!colorBox || !variantInput || !list || !list.length) return;
+    colorBox.querySelectorAll('input[name="gb-color"]').forEach(function(r){
+      var want=norm(r.getAttribute('data-name'));
+      for(var i=0;i<list.length;i++){
+        if(norm(list[i].title)===want){
+          r.value=String(list[i].id);
+          if(r.checked) variantInput.value=r.value;
+          return;
+        }
+      }
+    });
+  }
+  var meta=window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product;
+  if(meta && meta.variants && meta.variants.length){
+    useVariants(meta.variants.map(function(v){ return { id:v.id, title:v.public_title||v.name }; }));
+  }else{
+    var handle=/\/products\/([^\/?#]+)/.exec(location.pathname);
+    if(handle && window.fetch){
+      fetch('/products/'+handle[1]+'.js',{headers:{Accept:'application/json'}})
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(p){ if(p && p.variants) useVariants(p.variants.map(function(v){ return { id:v.id, title:v.title }; })); })
+        .catch(function(){});
+    }
+  }
+
   if(colorBox && variantInput){
     colorBox.addEventListener('change',function(e){
       var r=e.target; if(!r || r.name!=='gb-color' || !r.checked) return;
