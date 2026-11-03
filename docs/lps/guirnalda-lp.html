@@ -176,12 +176,18 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
 #gb-lp .offer-card .gb-btn{border-radius:0;min-height:62px;font-size:calc(1.32rem*var(--fs));letter-spacing:.4px}
 
 #gb-lp .gb-colors{margin:0 0 18px}
-#gb-lp .gb-colors-t{font-size:calc(1.08rem*var(--fs));color:var(--ink-2);margin-bottom:10px;line-height:1.4}
+#gb-lp .gb-colors-t{font-size:calc(1.15rem*var(--fs));font-weight:700;color:var(--ink);margin-bottom:10px;line-height:1.4}
 #gb-lp .gb-colors-t b{color:var(--accent)}
 #gb-lp .gb-colors-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:480px}
-#gb-lp .gb-colors figure{margin:0;border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg)}
-#gb-lp .gb-colors img{width:100%!important;aspect-ratio:1/1;object-fit:cover}
-#gb-lp .gb-colors figcaption{padding:8px 4px;text-align:center;font-weight:700;color:var(--ink);font-size:clamp(11px,3.6vw,calc(1.05rem*var(--fs)));white-space:nowrap}
+#gb-lp .gb-copt{position:relative;display:block;margin:0;border:2px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg);cursor:pointer;transition:border-color .2s,box-shadow .2s}
+#gb-lp .gb-copt input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+#gb-lp .gb-copt img{width:100%!important;aspect-ratio:1/1;object-fit:cover}
+#gb-lp .gb-copt .cn{display:block;padding:8px 4px;text-align:center;font-weight:700;color:var(--ink);font-size:clamp(11px,3.6vw,calc(1.05rem*var(--fs)));white-space:nowrap}
+#gb-lp .gb-copt .ck{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--brand);display:none;align-items:center;justify-content:center}
+#gb-lp .gb-copt.sel{border-color:var(--accent);box-shadow:0 0 0 2px rgba(240,192,64,.35)}
+#gb-lp .gb-copt.sel .cn{background:rgba(212,160,23,.18);color:var(--accent)}
+#gb-lp .gb-copt.sel .ck{display:flex}
+#gb-lp .gb-copt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 
 #gb-lp .lluvia{border-radius:var(--r-xl);overflow:hidden;border:1px solid var(--line);margin:0 0 22px;position:relative;aspect-ratio:4/3;max-height:520px;width:100%}
 #gb-lp .lluvia img{width:100%!important;height:100%!important;object-fit:cover}
@@ -458,14 +464,17 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
         <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Garantía 30 días</span>
         <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Entrega 24–48h</span>
       </div>
-      <div class="gb-colors">
-        <div class="gb-colors-t">Disponible en 3 colores — <b>eliges el color en el formulario al pedir</b></div>
+      <!-- COLOR: value = id de la variante en Shopify (producto guirnalda-brillante) -->
+      <div class="gb-colors" id="gb-color" role="radiogroup" aria-label="Color de la luz">
+        <div class="gb-colors-t">Elige el color: <b id="gb-color-name">Cálido</b></div>
         <div class="gb-colors-grid">
-          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-color-calido-400x400.png?v=1793369332" alt="Guirnalda encendida en luz cálida" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><figcaption>Cálido</figcaption></figure>
-          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><figcaption>Blanco</figcaption></figure>
-          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.webp?v=1793714553" alt="Guirnalda encendida en luces multicolor" width="600" height="600" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><figcaption>Multicolor</figcaption></figure>
+          <label class="gb-copt sel"><input type="radio" name="gb-color" value="50968314871894" data-name="Cálido" checked><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-color-calido-400x400.png?v=1793369332" alt="Guirnalda encendida en luz cálida" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Cálido</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+          <label class="gb-copt"><input type="radio" name="gb-color" value="50968314904662" data-name="Blanco"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Blanco</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+          <label class="gb-copt"><input type="radio" name="gb-color" value="50968314937430" data-name="Multicolor"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.webp?v=1793714553" alt="Guirnalda encendida en luces multicolor" width="600" height="600" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Multicolor</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
         </div>
       </div>
+      <!-- Lo que EasySell lee para saber qué variante pedir (ES_VARIANT_SELECTOR_OVERRIDE) -->
+      <input type="hidden" id="gb-variant-id" value="50968314871894">
       <div class="offer-stock"><span class="dot"></span>Stock limitado — alta demanda esta semana</div>
     </div>
     <div class="offer-ophoto">
@@ -591,6 +600,35 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
     });
   }
   lpApply();
+
+  /* Color: EasySell orders the variant its override selector points at
+     (without it, every order is the product's first variant). A plain input,
+     not a product form: EasySell puts its own buy button next to any
+     product form it finds on the page. */
+  window.ES_VARIANT_SELECTOR_OVERRIDE='#gb-variant-id';
+  var colorBox=document.getElementById('gb-color');
+  var variantInput=document.getElementById('gb-variant-id');
+  var colorName=document.getElementById('gb-color-name');
+  /* Once the form has been opened, EasySell has already put the old color
+     in the cart; a color changed after that takes the old one out first,
+     so the order never carries both. */
+  var formOpened=false;
+  window.addEventListener('click',function(e){
+    if(e.target && e.target.closest && e.target.closest('#gb-lp .es-popup-button-overwrite')) formOpened=true;
+  },true);
+  if(colorBox && variantInput){
+    colorBox.addEventListener('change',function(e){
+      var r=e.target; if(!r || r.name!=='gb-color' || !r.checked) return;
+      var previous=variantInput.value;
+      if(formOpened && previous && previous!==r.value){
+        var updates={}; updates[previous]=0;
+        fetch('/cart/update.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({updates:updates})}).catch(function(){});
+      }
+      variantInput.value=r.value;
+      if(colorName) colorName.textContent=r.getAttribute('data-name')||'';
+      colorBox.querySelectorAll('.gb-copt').forEach(function(l){ l.classList.toggle('sel', l.contains(r)); });
+    });
+  }
 
   var sticky=document.getElementById('gb-sticky');
   var heroBtn=root.querySelector('#gb-hero .gb-btn');
