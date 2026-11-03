@@ -178,10 +178,10 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
 #gb-lp .gb-colors{margin:0 0 18px}
 #gb-lp .gb-colors-t{font-size:calc(1.08rem*var(--fs));color:var(--ink-2);margin-bottom:10px;line-height:1.4}
 #gb-lp .gb-colors-t b{color:var(--accent)}
-#gb-lp .gb-colors-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:380px}
+#gb-lp .gb-colors-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:480px}
 #gb-lp .gb-colors figure{margin:0;border:1.5px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg)}
 #gb-lp .gb-colors img{width:100%!important;aspect-ratio:1/1;object-fit:cover}
-#gb-lp .gb-colors figcaption{padding:8px;text-align:center;font-weight:700;color:var(--ink);font-size:calc(1.05rem*var(--fs))}
+#gb-lp .gb-colors figcaption{padding:8px 4px;text-align:center;font-weight:700;color:var(--ink);font-size:clamp(11px,3.6vw,calc(1.05rem*var(--fs)));white-space:nowrap}
 
 #gb-lp .lluvia{border-radius:var(--r-xl);overflow:hidden;border:1px solid var(--line);margin:0 0 22px;position:relative;aspect-ratio:4/3;max-height:520px;width:100%}
 #gb-lp .lluvia img{width:100%!important;height:100%!important;object-fit:cover}
@@ -246,7 +246,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
     <span class="rc js-rating-count">+2.400 clientes felices</span>
   </div>
   <h1 class="gb-h1">Tu hogar, convertido en<br><span class="hl">magia navideña</span> esta noche.</h1>
-  <p class="gb-subhead">600 LEDs dorados · 30 metros · 8 modos · Control remoto — la decoración que tu familia recordará siempre.</p>
+  <p class="gb-subhead">600 LEDs · 30 metros · 3 colores · 8 modos · Control remoto — la decoración que tu familia recordará siempre.</p>
   <div class="hero-media"><div class="photo">
     <img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/01-principal-hogar-iluminado-800x800.png?v=1793369334" alt="Sala iluminada con la Guirnalda de 600 LEDs en el árbol de Navidad" width="800" height="800" sizes="(min-width: 820px) min(480px, 38vh), min(calc(100vw - 40px), 480px)">
   </div></div>
@@ -270,7 +270,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
 
 <div class="marquee-band">
   <div class="marquee-track" aria-hidden="true">
-    <span>600 LEDs dorados</span><span class="dot">✦</span>
+    <span>600 LEDs · 3 colores</span><span class="dot">✦</span>
     <span>30 metros</span><span class="dot">✦</span>
     <span>8 modos de luz</span><span class="dot">✦</span>
     <span>Control remoto</span><span class="dot">✦</span>
@@ -278,7 +278,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
     <span>Interior y exterior</span><span class="dot">✦</span>
     <span>Pago contra entrega</span><span class="dot">✦</span>
     <span>Envío gratis</span><span class="dot">✦</span>
-    <span>600 LEDs dorados</span><span class="dot">✦</span>
+    <span>600 LEDs · 3 colores</span><span class="dot">✦</span>
     <span>30 metros</span><span class="dot">✦</span>
     <span>8 modos de luz</span><span class="dot">✦</span>
     <span>Control remoto</span><span class="dot">✦</span>
@@ -459,10 +459,11 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
         <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4A017" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Entrega 24–48h</span>
       </div>
       <div class="gb-colors">
-        <div class="gb-colors-t">Disponible en 2 colores — <b>eliges el color en el formulario al pedir</b></div>
+        <div class="gb-colors-t">Disponible en 3 colores — <b>eliges el color en el formulario al pedir</b></div>
         <div class="gb-colors-grid">
-          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-color-calido-400x400.png?v=1793369332" alt="Guirnalda encendida en luz cálida" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 180px, calc(50vw - 50px)"><figcaption>Cálido</figcaption></figure>
-          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 180px, calc(50vw - 50px)"><figcaption>Blanco</figcaption></figure>
+          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-color-calido-400x400.png?v=1793369332" alt="Guirnalda encendida en luz cálida" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><figcaption>Cálido</figcaption></figure>
+          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><figcaption>Blanco</figcaption></figure>
+          <figure><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.webp?v=1793714553" alt="Guirnalda encendida en luces multicolor" width="600" height="600" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><figcaption>Multicolor</figcaption></figure>
         </div>
       </div>
       <div class="offer-stock"><span class="dot"></span>Stock limitado — alta demanda esta semana</div>
