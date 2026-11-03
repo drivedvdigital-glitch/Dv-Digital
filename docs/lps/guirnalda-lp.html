@@ -468,13 +468,13 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
       <div class="gb-colors" id="gb-color" role="radiogroup" aria-label="Color de la luz">
         <div class="gb-colors-t">Elige el color: <b id="gb-color-name">Multicolor</b></div>
         <div class="gb-colors-grid">
-          <label class="gb-copt sel"><input type="radio" name="gb-color" value="50968314937430" data-name="Multicolor" checked><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.webp?v=1793714553" alt="Guirnalda encendida en luces multicolor" width="600" height="600" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Multicolor</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
-          <label class="gb-copt"><input type="radio" name="gb-color" value="50968314871894" data-name="Cálido"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-color-calido-400x400.png?v=1793369332" alt="Guirnalda encendida en luz cálida" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Cálido</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
-          <label class="gb-copt"><input type="radio" name="gb-color" value="50968314904662" data-name="Blanco"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Blanco</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+          <label class="gb-copt sel"><input type="radio" name="gb-color" autocomplete="off" value="50968314937430" data-name="Multicolor" checked><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.webp?v=1793714553" alt="Guirnalda encendida en luces multicolor" width="600" height="600" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Multicolor</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+          <label class="gb-copt"><input type="radio" name="gb-color" autocomplete="off" value="50968314871894" data-name="Cálido"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-color-calido-400x400.png?v=1793369332" alt="Guirnalda encendida en luz cálida" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Cálido</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+          <label class="gb-copt"><input type="radio" name="gb-color" autocomplete="off" value="50968314904662" data-name="Blanco"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Blanco</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
         </div>
       </div>
       <!-- Lo que EasySell lee para saber qué variante pedir (ES_VARIANT_SELECTOR_OVERRIDE) -->
-      <input type="hidden" id="gb-variant-id" value="50968314937430">
+      <input type="hidden" id="gb-variant-id" value="50968314937430" autocomplete="off">
       <div class="offer-stock"><span class="dot"></span>Stock limitado — alta demanda esta semana</div>
     </div>
     <div class="offer-ophoto">
@@ -646,6 +646,20 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
         .catch(function(){});
     }
   }
+
+  /* Browsers bring back the radio a visitor ticked on an earlier visit when
+     the page is reloaded or reopened from history. The page always opens on
+     the color marked in the HTML. */
+  var defaultColor=colorBox && colorBox.querySelector('input[name="gb-color"][checked]');
+  function resetColor(){
+    if(!colorBox || !variantInput || !defaultColor) return;
+    defaultColor.checked=true;
+    variantInput.value=defaultColor.value;
+    if(colorName) colorName.textContent=defaultColor.getAttribute('data-name')||'';
+    colorBox.querySelectorAll('.gb-copt').forEach(function(l){ l.classList.toggle('sel', l.contains(defaultColor)); });
+  }
+  resetColor();
+  window.addEventListener('pageshow',function(e){ if(e.persisted) resetColor(); });
 
   if(colorBox && variantInput){
     colorBox.addEventListener('change',function(e){
