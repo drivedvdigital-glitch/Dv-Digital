@@ -242,6 +242,13 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   #gb-lp *{animation:none!important;transition:none!important}
   #gb-lp.js .reveal{opacity:1!important;transform:none!important}
 }
+
+/* Blanco is visible for reference but unavailable for selection. */
+#gb-lp .gb-copt.is-sold-out{cursor:not-allowed;border-color:rgba(200,191,168,.25);box-shadow:none}
+#gb-lp .gb-copt.is-sold-out img{filter:grayscale(1);opacity:.45}
+#gb-lp .gb-copt.is-sold-out .cn{color:var(--ink-2);background:transparent}
+#gb-lp .gb-copt.is-sold-out .ck{display:none!important}
+#gb-lp .gb-copt .gb-sold-out-badge{position:absolute;top:8px;left:6px;right:6px;display:block;z-index:1;padding:5px 3px;border-radius:5px;background:#F8F4EC;color:#0B1B3A;font-family:var(--sans);font-size:clamp(9px,2.7vw,12px);font-weight:800;line-height:1.3;text-align:center;letter-spacing:.4px;pointer-events:none}
 </style>
 
 <section class="hero gb-sec" id="gb-hero">
@@ -468,9 +475,9 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
       <div class="gb-colors" id="gb-color" role="radiogroup" aria-label="Color de la luz">
         <div class="gb-colors-t">Elige el color: <b id="gb-color-name">Multicolor</b></div>
         <div class="gb-colors-grid">
-          <label class="gb-copt sel"><input type="radio" name="gb-color" autocomplete="off" value="50968314937430" data-name="Multicolor" checked><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.webp?v=1793714553" alt="Guirnalda encendida en luces multicolor" width="600" height="600" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Multicolor</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
           <label class="gb-copt"><input type="radio" name="gb-color" autocomplete="off" value="50968314871894" data-name="Cálido"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/05-color-calido-400x400.png?v=1793369332" alt="Guirnalda encendida en luz cálida" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Cálido</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
-          <label class="gb-copt"><input type="radio" name="gb-color" autocomplete="off" value="50968314904662" data-name="Blanco"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Blanco</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+          <label class="gb-copt sel"><input type="radio" name="gb-color" autocomplete="off" value="50968314937430" data-name="Multicolor" checked><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/befb5a6b-8fc5-4ffa-883e-d4fafa1da4d5_0ca557c5-4b26-4ebb-bb39-158af52fcd97.webp?v=1793714553" alt="Guirnalda encendida en luces multicolor" width="600" height="600" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="cn">Multicolor</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
+          <label class="gb-copt is-sold-out" aria-disabled="true" title="Blanco — AGOTADO"><input type="radio" name="gb-color" autocomplete="off" value="50968314904662" data-name="Blanco" disabled aria-disabled="true" aria-label="Blanco — AGOTADO"><img src="https://cdn.shopify.com/s/files/1/0604/3985/5190/files/06-color-blanco-400x400.png?v=1793369333" alt="Guirnalda encendida en luz blanca" width="400" height="400" loading="lazy" sizes="(min-width: 840px) 154px, calc((100vw - 104px) / 3)"><span class="gb-sold-out-badge">AGOTADO</span><span class="cn">Blanco</span><span class="ck" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0B1B3A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span></label>
         </div>
       </div>
       <!-- Lo que EasySell lee para saber qué variante pedir (ES_VARIANT_SELECTOR_OVERRIDE) -->
@@ -628,7 +635,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
       for(var i=0;i<list.length;i++){
         if(norm(list[i].title)===want){
           r.value=String(list[i].id);
-          if(r.checked) variantInput.value=r.value;
+          if(r.checked && !r.disabled) variantInput.value=r.value;
           return;
         }
       }
@@ -650,7 +657,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   /* Browsers bring back the radio a visitor ticked on an earlier visit when
      the page is reloaded or reopened from history. The page always opens on
      the color marked in the HTML. */
-  var defaultColor=colorBox && colorBox.querySelector('input[name="gb-color"][checked]');
+  var defaultColor=colorBox && (colorBox.querySelector('input[name="gb-color"][checked]:not(:disabled)') || colorBox.querySelector('input[name="gb-color"]:not(:disabled)'));
   function resetColor(){
     if(!colorBox || !variantInput || !defaultColor) return;
     defaultColor.checked=true;
@@ -664,6 +671,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   if(colorBox && variantInput){
     colorBox.addEventListener('change',function(e){
       var r=e.target; if(!r || r.name!=='gb-color' || !r.checked) return;
+      if(r.disabled || norm(r.getAttribute('data-name'))==='blanco'){ r.checked=false; resetColor(); return; }
       var previous=variantInput.value;
       if(formOpened && previous && previous!==r.value){
         var updates={}; updates[previous]=0;
@@ -674,6 +682,19 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
       colorBox.querySelectorAll('.gb-copt').forEach(function(l){ l.classList.toggle('sel', l.contains(r)); });
     });
   }
+
+  // Prevent label activation and stale selections of the unavailable color.
+  if(colorBox){
+    colorBox.addEventListener('click',function(e){
+      var label=e.target && e.target.closest && e.target.closest('.gb-copt.is-sold-out');
+      if(label){e.preventDefault();e.stopPropagation();}
+    },true);
+  }
+  root.addEventListener('click',function(e){
+    if(!e.target || !e.target.closest || !e.target.closest('.es-popup-button-overwrite')) return;
+    var selected=colorBox && colorBox.querySelector('input[name="gb-color"]:checked');
+    if(!selected || selected.disabled || norm(selected.getAttribute('data-name'))==='blanco') resetColor();
+  },true);
 
   var sticky=document.getElementById('gb-sticky');
   var heroBtn=root.querySelector('#gb-hero .gb-btn');
