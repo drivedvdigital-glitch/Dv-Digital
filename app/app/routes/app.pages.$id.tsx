@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   Link,
   useActionData,
@@ -55,6 +56,7 @@ import {
 import { readThemeStyle, storeForThemeStyle } from '../lib/theme-style.server.ts';
 import { openWithToken, shopSearch } from '../ui/embedded.ts';
 import { BLOCK_ICONS, Icon, type IconName } from '../ui/icons.tsx';
+import { CodeEditor } from '../ui/CodeEditor.tsx';
 import {
   clientForStore,
   deployPage,
@@ -3084,12 +3086,72 @@ function HtmlFields({
   onChange: (patch: Record<string, unknown>) => void;
 }) {
   const html = String(p.html ?? '');
-  const temLiquid = hasLiquid(html);
-  const liquidOn = typeof p.liquid === 'boolean' ? p.liquid : temLiquid;
   const [estado, setEstado] = useState<string | null>(null);
   const [medindo, setMedindo] = useState(false);
-  const tags = html.match(/<img\b[^>]*>/gi) ?? [];
+  const [expandido, setExpandido] = useState(false);
+
+  // The text being typed lives in the code editor and in `draftRef`, and
+  // reaches the document only when the typing pauses. A pasted landing page
+  // is 60 KB: pushing it through the whole editor (tree, canvas, history, the
+  // form's hidden copy) on every key is work nobody sees. Nothing is lost on
+  // the way out — saving, leaving the field, closing the big editor or
+  // switching blocks all hand the text over at once.
+  const draftRef = useRef(html);
+  const committed = useRef(html);
+  // What the counters below read: the text as of the last pause, not per key.
+  const [draft, setDraft] = useState(html);
+  // Bumped when the text changes from outside, so the editors reload it.
+  const [versao, setVersao] = useState(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // A change that came from outside (Ctrl+Z, "Medir imagens") replaces the draft.
+  useEffect(() => {
+    if (html === committed.current) return;
+    committed.current = html;
+    draftRef.current = html;
+    setDraft(html);
+    setVersao((v) => v + 1);
+  }, [html]);
+
+  const commit = useCallback((sync = false) => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const value = draftRef.current;
+    setDraft(value);
+    if (value === committed.current) return;
+    committed.current = value;
+    const push = () => onChangeRef.current({ html: value });
+    if (sync) flushSync(push);
+    else push();
+  }, []);
+
+  // Switching to another block unmounts this one: what was typed goes with it.
+  useEffect(() => () => commit(), [commit]);
+
+  const editar = (value: string) => {
+    draftRef.current = value;
+    if (estado !== null) setEstado(null);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => commit(), 350);
+  };
+
+  const fecharGrande = () => {
+    commit();
+    setExpandido(false);
+    // The panel's editor sat still while the big one was used: reload it.
+    setVersao((v) => v + 1);
+  };
+
+  const temLiquid = useMemo(() => hasLiquid(draft), [draft]);
+  const liquidOn = typeof p.liquid === 'boolean' ? p.liquid : temLiquid;
+  const tags = useMemo(() => draft.match(/<img\b[^>]*>/gi) ?? [], [draft]);
   const semTamanho = tags.filter((t) => !/\bwidth\s*=/i.test(t) || !/\bheight\s*=/i.test(t));
+  const linhas = useMemo(() => draft.split('\n').length, [draft]);
+  const tamanho = `${linhas} ${linhas === 1 ? 'linha' : 'linhas'} · ${(new Blob([draft]).size / 1024).toFixed(1).replace('.', ',')} KB`;
 
   const srcDe = (tagText: string) => {
     const m = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tagText);
@@ -3097,6 +3159,8 @@ function HtmlFields({
   };
 
   const medir = async () => {
+    commit();
+    const base = draftRef.current;
     setMedindo(true);
     const tamanhos = new Map<string, { w: number; h: number } | null>();
     await Promise.all(
@@ -3118,18 +3182,23 @@ function HtmlFields({
     );
     let ok = 0;
     let falhou = 0;
-    const novo = html.replace(/<img\b[^>]*>/gi, (tagText) => {
+    const novo = base.replace(/<img\b[^>]*>/gi, (tagText) => {
       if (/\bwidth\s*=/i.test(tagText) && /\bheight\s*=/i.test(tagText)) return tagText;
-      const tamanho = tamanhos.get(srcDe(tagText));
-      if (!tamanho) {
+      const medida = tamanhos.get(srcDe(tagText));
+      if (!medida) {
         falhou++;
         return tagText;
       }
       ok++;
       const fecha = tagText.endsWith('/>') ? 2 : 1;
-      return `${tagText.slice(0, -fecha)} width="${tamanho.w}" height="${tamanho.h}"${tagText.slice(-fecha)}`;
+      return `${tagText.slice(0, -fecha)} width="${medida.w}" height="${medida.h}"${tagText.slice(-fecha)}`;
     });
-    if (ok > 0) onChange({ html: novo });
+    // Typed while measuring: the person's text wins, the sizes are dropped.
+    if (ok > 0 && draftRef.current === base) {
+      draftRef.current = novo;
+      commit();
+      setVersao((v) => v + 1);
+    }
     setEstado(
       `${ok} imagem(ns) medida(s)` +
         (falhou > 0 ? ` · ${falhou} não carregou (endereço quebrado ou imagem de exemplo)` : ''),
@@ -3137,20 +3206,74 @@ function HtmlFields({
     setMedindo(false);
   };
 
+  const area = (grande: boolean) => (
+    <CodeEditor
+      key={grande ? 'grande' : 'painel'}
+      testId={grande ? 'grande' : 'painel'}
+      label="Código do bloco HTML"
+      value={draftRef.current}
+      version={versao}
+      autoFocus={grande}
+      style={grande ? codeAreaBig : codeArea}
+      onChange={editar}
+      onBlur={() => commit()}
+      onSave={() => commit(true)}
+      onEscape={grande ? fecharGrande : undefined}
+    />
+  );
+
   return (
     <>
-      <label style={{ ...fieldLabel, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        Código
-        <textarea
-          style={{ ...fieldArea, flex: 1, fontFamily: 'ui-monospace, Menlo, monospace' }}
-          spellCheck={false}
-          value={html}
-          onChange={(e) => {
-            setEstado(null);
-            onChange({ html: e.target.value });
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+        <span style={{ ...fieldLabel, marginBottom: 0 }}>Código</span>
+        <button
+          type="button"
+          className="dv-btn dv-secondary"
+          data-expandir-codigo
+          title="Abre o código numa janela grande · Esc fecha"
+          onClick={() => {
+            commit();
+            setExpandido(true);
           }}
-        />
-      </label>
+        >
+          <Icon name="expand" size={14} />
+          Expandir editor
+        </button>
+      </div>
+      {area(false)}
+      <div style={{ ...metaLine, marginBottom: 8 }} data-codigo-tamanho>
+        {tamanho} · arraste o canto de baixo para aumentar
+      </div>
+      {expandido ? (
+        <div
+          style={codeOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Código do bloco HTML"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) fecharGrande();
+          }}
+        >
+          <div style={codePanel}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid var(--dv-edge)' }}>
+              <Icon name="html" />
+              <strong style={{ fontSize: 14 }}>Código do bloco HTML</strong>
+              <span style={{ ...metaLine, flex: 1 }}>{tamanho} · a pré-visualização atualiza quando você para de digitar</span>
+              <button
+                type="button"
+                className="dv-btn dv-primary"
+                data-fechar-codigo
+                title="Esc"
+                onClick={fecharGrande}
+              >
+                <Icon name="close" size={14} />
+                Fechar
+              </button>
+            </div>
+            {area(true)}
+          </div>
+        </div>
+      ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <button
           type="button"
@@ -4137,6 +4260,44 @@ const fieldArea: React.CSSProperties = {
   ...fieldInput,
   minHeight: 90,
   resize: 'vertical',
+};
+
+// The HTML block's code: tall enough to read a landing page in the panel,
+// monospaced, and resizable; the big editor takes most of the screen.
+const codeArea: React.CSSProperties = {
+  height: '46vh',
+  minHeight: 220,
+  resize: 'vertical',
+};
+
+const codeOverlay: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 1000,
+  background: 'rgba(0,0,0,.45)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 24,
+};
+
+const codePanel: React.CSSProperties = {
+  width: 'min(1200px, 100%)',
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  background: 'var(--dv-sfc)',
+  border: '1px solid var(--dv-edge)',
+  borderRadius: 12,
+  overflow: 'hidden',
+  boxShadow: '0 20px 60px rgba(0,0,0,.35)',
+};
+
+const codeAreaBig: React.CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  border: 0,
+  borderRadius: 0,
 };
 
 // ---- canvas --------------------------------------------------------------------

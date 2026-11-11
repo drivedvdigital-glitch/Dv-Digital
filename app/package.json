@@ -13,9 +13,11 @@
     "test": "node --experimental-strip-types --test \"tests/*.test.ts\""
   },
   "dependencies": {
+    "@codemirror/lang-html": "^6.4.12",
     "@prisma/client": "^6.16.3",
     "@react-router/express": "^7.18.2",
     "@react-router/node": "^7.18.2",
+    "codemirror": "^6.0.2",
     "compression": "^1.8.2",
     "express": "^4.22.3",
     "isbot": "^5.1.0",

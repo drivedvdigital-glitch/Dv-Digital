@@ -3369,6 +3369,35 @@ Medido (Chromium, Barlow carregada): botão do herói na primeira tela de 360×6
 em 360×640; 636 px em 412×823); barra fixa, 24/24 animações, sem rolagem horizontal, 0 erro de script.
 A lição: perguntar o que "padrão" quer dizer antes de entregar 300 linhas de otimização invisível.
 
+### Campo de código do bloco HTML: maior e rápido (11/11)
+
+Pedido do Miguel: o campo "Código" do bloco HTML era pequeno (90 px) e engasgava ao digitar
+numa LP colada. Medido, com a CPU 4× mais lenta (celular/PC simples), 60 KB de LP:
+
+- `<textarea>` antigo: **113 ms por tecla**. A primeira tentativa (texto local, documento só
+  na pausa) ficou em 103 ms — e a medição separada mostrou por quê: 17 ms eram React e
+  **54 ms eram o navegador redesenhando o textarea inteiro**; um textarea sem React nenhum
+  custa o mesmo. Não havia o que otimizar no React; o limite era o controle.
+- Trocado por **CodeMirror 6** (`app/app/ui/CodeEditor.tsx`), que desenha só as linhas na
+  tela: **20 ms por tecla**. De brinde: números de linha, cores do HTML, Ctrl+F, Ctrl+Z
+  próprio do campo. Carregado sob demanda (`import()`), num pedaço separado do bundle; se
+  não carregar, um textarea simples assume com as mesmas ligações.
+- O texto mora no editor e chega ao documento 350 ms depois da última tecla (antes: o editor
+  inteiro — árvore, canvas, histórico, cópia escondida do formulário — refazia a cada tecla).
+  Nada se perde na saída: Ctrl+S entrega na hora (`flushSync`, porque o salvar lê o
+  formulário no mesmo instante), sair do campo, trocar de bloco e fechar o editor grande
+  também entregam. Mudança de fora (Ctrl+Z do editor, "Medir imagens") recarrega o campo
+  por versão — um valor atrasado nunca sobrescreve o que acabou de ser digitado.
+- Campo com 46% da altura da tela (mín. 220 px, arrastável) e **"Expandir editor"**: o
+  código em tela grande, Esc fecha. Contagem de linhas e KB embaixo.
+
+Dirigido no editor real (Playwright, Shopify falsa): 13/13 — campo alto, documento não
+refeito durante a digitação, Ctrl+S logo após digitar leva o texto, trocar de bloco no meio
+não perde nada, editor grande abre com o cursor dentro e Esc fecha com o texto guardado,
+Ctrl+Z fora do campo é acompanhado pelo campo, canvas atualiza. Tropeço do próprio teste: a
+rodada anterior tinha salvo o texto de teste na página, e a checagem seguinte "achou" o texto
+— página de teste restaurada antes de cada rodada.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:
