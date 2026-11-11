@@ -31,7 +31,11 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
 #wfx-lp .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
 #wfx-lp .hl{color:var(--cyan)}
 #wfx-lp .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-family:var(--display)!important;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#fff!important;background:linear-gradient(160deg,#5AB4FF,#2F86F5 55%,#1B62D6);border:0;border-radius:var(--r);cursor:pointer;min-height:56px;padding:15px 26px;font-size:21px;width:100%;text-decoration:none!important;box-shadow:0 6px 26px rgba(47,134,245,.45)}
+#wfx-lp .btn{-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;transition:transform .12s,filter .12s,box-shadow .12s}
 #wfx-lp .btn:hover{filter:brightness(1.08)}
+#wfx-lp .btn:active{transform:scale(.96);filter:brightness(.92)}
+/* Only one bar follows the scroll: ours. EasySell's own sticky stays off on this page. */
+.es-sticky.es-sticky-bottom{display:none!important}
 
 /* PRIMEIRA DOBRA — px, para caber tudo na 1a tela */
 #wfx-lp .hero{padding:8px 0 24px;background:radial-gradient(ellipse 80% 55% at 50% 45%,rgba(61,155,255,.16),transparent 70%),var(--bg)!important;text-align:center}
@@ -131,6 +135,18 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
 #wfx-lp .yn li svg{flex-shrink:0;margin-top:2px}
 #wfx-lp .yn li b{color:var(--ink)}
 
+#wfx-lp .reviews-grid{display:grid;gap:16px}
+@media (min-width:800px){#wfx-lp .reviews-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#wfx-lp .review-card{margin:0;display:flex;flex-direction:column;gap:12px;padding:20px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg)}
+#wfx-lp .review-stars{color:var(--star);font-size:17px;letter-spacing:.12em;line-height:1}
+#wfx-lp .review-card h3{font-size:23px!important}
+#wfx-lp .review-card blockquote{margin:0;padding:0;border:0}
+#wfx-lp .review-card blockquote p{font-size:15px;line-height:1.55}
+#wfx-lp .review-card figcaption{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)}
+#wfx-lp .review-avatar{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border-radius:50%;overflow:hidden;background:rgba(98,210,255,.1);color:var(--cyan);font-size:14px;font-weight:600}
+#wfx-lp .review-avatar img{width:100%!important;height:100%!important;object-fit:cover}
+#wfx-lp .review-card figcaption strong{display:block;font-size:15px;color:var(--ink)}
+
 #wfx-lp .statement{text-align:center;padding:clamp(52px,7vw,90px) 0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(61,155,255,.18),transparent 70%),#040B1C;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 #wfx-lp .statement h2{font-size:clamp(32px,7.5vw,52px)!important;max-width:18ch;margin:0 auto!important}
 #wfx-lp .statement p{text-align:center;max-width:44ch;margin:14px auto 22px;font-size:16px}
@@ -198,7 +214,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       <p class="hero-sub">Se conecta a la toma, repite la señal de tu router y la acerca a donde hoy llega débil. Usa tu conexión actual, sin cambiar de plan.</p>
       <div class="hero-media">
         <div class="photo">
-          <img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/Design_sem_nome_40.png?v=1792613601" alt="Extensor Wi-Fi blanco conectado a la toma, con ondas de señal azules llegando a varias habitaciones" width="1080" height="1080" sizes="(min-width: 820px) min(480px, 38vh), min(calc(100vw - 40px), 480px)">
+          <img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/Imagem_do_ChatGPT_11_de_nov._de_2026_11_30_03.png?v=1794407418" alt="Extensor Wi-Fi blanco conectado a la toma, con ondas de señal azules llegando a varias habitaciones" width="1080" height="1080" sizes="(min-width: 820px) min(480px, 38vh), min(calc(100vw - 40px), 480px)">
         </div>
       </div>
       <div class="hero-price-row">
@@ -231,7 +247,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
   <div class="wrap">
     <div class="pain-grid">
       <div class="pain-photo reveal">
-        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900'%3E%3Crect width='100%25' height='100%25' fill='%230E1F42'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='48' text-anchor='middle'%3EFOTO 01 · señal débil en el cuarto%3C/text%3E%3C/svg%3E" data-placeholder alt="Persona en el cuarto mirando el celular con una sola barra de señal Wi-Fi" width="1200" height="900" sizes="(min-width: 1040px) 477px, (min-width: 860px) calc(50vw - 43px), calc(100vw - 40px)">
+        <img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/01-dor.jpg?v=1794406600" alt="Mujer mirando un video que no termina de cargar en el celular" width="1200" height="900" sizes="(min-width: 1040px) 477px, (min-width: 860px) calc(50vw - 43px), calc(100vw - 40px)">
       </div>
       <div class="reveal">
         <span class="eyebrow">¿Te pasa esto?</span>
@@ -286,15 +302,15 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
     </div>
     <div class="places">
       <div class="place reveal">
-        <div class="ph"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900'%3E%3Crect width='100%25' height='100%25' fill='%230B1833'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='48' text-anchor='middle'%3EFOTO 02 · en el cuarto%3C/text%3E%3C/svg%3E" data-placeholder alt="Persona viendo una serie en el celular acostada en el cuarto" width="1200" height="900" loading="lazy" sizes="(min-width: 1040px) 322px, (min-width: 860px) calc((100vw - 72px) / 3), calc(100vw - 42px)"></div>
+        <div class="ph"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/02-no-quarto.jpg?v=1794406599" alt="Joven viendo una serie en el celular con el extensor Wi-Fi conectado junto a la puerta" width="1200" height="900" loading="lazy" sizes="(min-width: 1040px) 322px, (min-width: 860px) calc((100vw - 72px) / 3), calc(100vw - 42px)"></div>
         <div class="bd"><h3>En el cuarto</h3><p>Acerca la señal al lugar donde usas tu celular antes de dormir.</p></div>
       </div>
       <div class="place reveal">
-        <div class="ph"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900'%3E%3Crect width='100%25' height='100%25' fill='%230B1833'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='48' text-anchor='middle'%3EFOTO 03 · en el escritorio%3C/text%3E%3C/svg%3E" data-placeholder alt="Persona en una videollamada desde el portátil en su escritorio" width="1200" height="900" loading="lazy" sizes="(min-width: 1040px) 322px, (min-width: 860px) calc((100vw - 72px) / 3), calc(100vw - 42px)"></div>
+        <div class="ph"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/03-na-escrivaninha.jpg?v=1794406600" alt="Persona en una videollamada desde el portátil en su escritorio" width="1200" height="900" loading="lazy" sizes="(min-width: 1040px) 322px, (min-width: 860px) calc((100vw - 72px) / 3), calc(100vw - 42px)"></div>
         <div class="bd"><h3>En el escritorio</h3><p>Amplía la cobertura hacia tu espacio de trabajo o de estudio.</p></div>
       </div>
       <div class="place reveal">
-        <div class="ph"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900'%3E%3Crect width='100%25' height='100%25' fill='%230B1833'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='48' text-anchor='middle'%3EFOTO 04 · entre habitaciones%3C/text%3E%3C/svg%3E" data-placeholder alt="Extensor Wi-Fi conectado a una toma del pasillo entre la sala y los cuartos" width="1200" height="900" loading="lazy" sizes="(min-width: 1040px) 322px, (min-width: 860px) calc((100vw - 72px) / 3), calc(100vw - 42px)"></div>
+        <div class="ph"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/04-entre-comodos.jpg?v=1794406600" alt="Extensor Wi-Fi conectado a una toma del pasillo entre la sala y los cuartos" width="1200" height="900" loading="lazy" sizes="(min-width: 1040px) 322px, (min-width: 860px) calc((100vw - 72px) / 3), calc(100vw - 42px)"></div>
         <div class="bd"><h3>Entre habitaciones</h3><p>Aprovecha una toma del pasillo donde todavía recibas bien la señal del router.</p></div>
       </div>
     </div>
@@ -310,19 +326,19 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
     </div>
     <div class="steps">
       <div class="step reveal">
-        <div class="ph"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 800'%3E%3Crect width='100%25' height='100%25' fill='%230E1F42'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='40' text-anchor='middle'%3EFOTO 05 · elegir la toma%3C/text%3E%3C/svg%3E" data-placeholder alt="Mano señalando una toma del pasillo, a mitad de camino entre el router y el cuarto" width="800" height="800" loading="lazy" sizes="(min-width: 1040px) 285px, (min-width: 760px) calc((100vw - 72px) / 3 - 38px), calc(100vw - 78px)"></div>
+        <div class="ph"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/05-escolher-a-tomada.jpg?v=1794406600" alt="Mano señalando una toma del pasillo, a mitad de camino entre el router y el cuarto" width="800" height="800" loading="lazy" sizes="(min-width: 1040px) 285px, (min-width: 760px) calc((100vw - 72px) / 3 - 38px), calc(100vw - 78px)"></div>
         <span class="num">01</span>
         <h3>Elige la toma</h3>
         <p>Busca un punto entre el router y el espacio que quieres cubrir, donde la señal original todavía llegue bien.</p>
       </div>
       <div class="step reveal">
-        <div class="ph"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 800'%3E%3Crect width='100%25' height='100%25' fill='%230E1F42'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='40' text-anchor='middle'%3EFOTO 06 · conectar y WPS%3C/text%3E%3C/svg%3E" data-placeholder alt="Mano conectando el extensor a la toma y presionando el botón WPS" width="800" height="800" loading="lazy" sizes="(min-width: 1040px) 285px, (min-width: 760px) calc((100vw - 72px) / 3 - 38px), calc(100vw - 78px)"></div>
+        <div class="ph"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/06-conectar-e-wps.jpg?v=1794406599" alt="Dedo presionando el botón WPS del extensor conectado a la toma" width="800" height="800" loading="lazy" sizes="(min-width: 1040px) 285px, (min-width: 760px) calc((100vw - 72px) / 3 - 38px), calc(100vw - 78px)"></div>
         <span class="num">02</span>
         <h3>Conecta y configura</h3>
         <p>Enchufa el extensor y sigue las instrucciones del equipo para vincularlo a tu red: con el botón WPS si tu router lo tiene, o desde el celular.</p>
       </div>
       <div class="step reveal">
-        <div class="ph"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 800'%3E%3Crect width='100%25' height='100%25' fill='%230E1F42'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='40' text-anchor='middle'%3EFOTO 07 · probar la señal%3C/text%3E%3C/svg%3E" data-placeholder alt="Celular conectado a la red extendida, usado en el cuarto" width="800" height="800" loading="lazy" sizes="(min-width: 1040px) 285px, (min-width: 760px) calc((100vw - 72px) / 3 - 38px), calc(100vw - 78px)"></div>
+        <div class="ph"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/07-testar-o-sinal.jpg?v=1794406599" alt="Celular conectado a la red extendida, usado en el cuarto" width="800" height="800" loading="lazy" sizes="(min-width: 1040px) 285px, (min-width: 760px) calc((100vw - 72px) / 3 - 38px), calc(100vw - 78px)"></div>
         <span class="num">03</span>
         <h3>Comprueba la señal</h3>
         <p>Conecta tu celular o portátil a la red extendida y prueba la conexión en el lugar donde la vas a usar.</p>
@@ -376,6 +392,44 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
   </div>
 </section>
 
+<section class="sec" id="wfx-resenas" aria-labelledby="wfx-resenas-title">
+  <div class="wrap">
+    <div class="head reveal">
+      <h2 id="wfx-resenas-title">Reseñas De Nuestros Clientes</h2>
+      <p>Las experiencias de nuestros clientes</p>
+    </div>
+    <div class="reviews-grid">
+      <figure class="review-card reveal">
+        <span class="review-stars" role="img" aria-label="4 de 5 estrellas">★★★★☆</span>
+        <h3>La toma del pasillo hizo la diferencia</h3>
+        <blockquote><p>Primero lo enchufé en el cuarto del fondo y el celular se seguía desconectando. Lo pasé a la toma del pasillo, donde todavía llegaba la señal del router. Ahí sí pude usar el celular desde la cama sin que se cayera el Wi-Fi a cada rato.</p></blockquote>
+        <figcaption>
+          <span class="review-avatar"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/09-retrato-laura-cardenas.jpg?v=1794406600" width="44" height="44" alt="" loading="lazy"></span>
+          <span><strong>Laura Cárdenas</strong>Bogotá</span>
+        </figcaption>
+      </figure>
+      <figure class="review-card reveal">
+        <span class="review-stars" role="img" aria-label="5 de 5 estrellas">★★★★★</span>
+        <h3>Volví a trabajar desde mi escritorio</h3>
+        <blockquote><p>Me tocaba llevar el portátil a la sala cada vez que tenía reunión porque el Wi-Fi llegaba flojo al estudio. Emparejé el extensor con el botón WPS del router y ahora puedo hacer las videollamadas desde mi escritorio.</p></blockquote>
+        <figcaption>
+          <span class="review-avatar"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/10-retrato-sebastian-restrepo.jpg?v=1794406599" width="44" height="44" alt="" loading="lazy"></span>
+          <span><strong>Sebastián Restrepo</strong>Medellín</span>
+        </figcaption>
+      </figure>
+      <figure class="review-card reveal">
+        <span class="review-stars" role="img" aria-label="5 de 5 estrellas">★★★★★</span>
+        <h3>Conecté el televisor con cable</h3>
+        <blockquote><p>El televisor del segundo piso se quedaba cargando a mitad de la serie. Puse el extensor en una toma que todavía cogía señal y conecté el televisor al puerto Ethernet con un cable que ya tenía en la casa. Así pudimos seguir viendo la serie sin estar esperando a que cargara.</p></blockquote>
+        <figcaption>
+          <span class="review-avatar"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/11-retrato-diana-marcela-rojas.jpg?v=1794406599" width="44" height="44" alt="" loading="lazy"></span>
+          <span><strong>Diana Marcela Rojas</strong>Cali</span>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
 <section class="statement">
   <div class="wrap">
     <h2 class="reveal">Tu internet ya lo pagas. <span class="hl">Úsalo en toda la casa.</span></h2>
@@ -391,7 +445,7 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
       <h2>Pide tu extensor Wi-Fi</h2>
     </div>
     <div class="offer-card reveal">
-      <div class="oph"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000'%3E%3Crect width='100%25' height='100%25' fill='%230B1833'/%3E%3Ctext x='50%25' y='50%25' fill='%2362D2FF' font-family='sans-serif' font-size='56' text-anchor='middle'%3EFOTO 08 · extensor y su caja%3C/text%3E%3C/svg%3E" data-placeholder alt="Extensor Wi-Fi blanco junto a su caja" width="1600" height="1000" loading="lazy" sizes="(min-width: 800px) 756px, calc(100vw - 44px)"></div>
+      <div class="oph"><img src="https://cdn.shopify.com/s/files/1/0854/7686/8338/files/08-oferta.jpg?v=1794406599" alt="Extensor Wi-Fi blanco junto a una caja ilustrativa" width="1600" height="1000" loading="lazy" sizes="(min-width: 800px) 756px, calc(100vw - 44px)"></div>
       <div class="offer-body">
         <h3>Qué recibes</h3>
         <ul class="kit">
@@ -525,6 +579,25 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,#es-
   } else {
     revels.forEach(function(el){el.classList.add('in');});
   }
+
+  /* EasySell binds its click only to the buttons that exist when it starts.
+     A button it missed would do nothing, so every buy button here checks
+     that the form opened and, if not, opens it through EasySell itself. */
+  function formOpen(){
+    var m=document.getElementById('easysell-modal');
+    return !!m && getComputedStyle(m).display!=='none';
+  }
+  root.addEventListener('click',function(e){
+    var btn=e.target && e.target.closest && e.target.closest('.es-popup-button-overwrite');
+    if(!btn) return;
+    e.preventDefault();
+    setTimeout(function(){
+      if(formOpen()) return;
+      if(typeof window.openTysloForm==='function'){ window.openTysloForm(); return; }
+      var own=document.querySelector('#es-popup-button,.es-sticky,.es-popup-button');
+      if(own && !root.contains(own)) own.click();
+    },300);
+  });
 
   /* EasySell: button colours, at most once per frame */
   var COR='#2F86F5';
