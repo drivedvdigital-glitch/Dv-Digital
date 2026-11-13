@@ -188,6 +188,11 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
 #gb-lp .gb-copt.sel .cn{background:rgba(212,160,23,.18);color:var(--accent)}
 #gb-lp .gb-copt.sel .ck{display:flex}
 #gb-lp .gb-copt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+#gb-lp .gb-copt.is-sold-out{cursor:not-allowed;border-color:rgba(200,191,168,.25);box-shadow:none}
+#gb-lp .gb-copt.is-sold-out img{filter:grayscale(1);opacity:.45}
+#gb-lp .gb-copt.is-sold-out .cn{color:var(--ink-2);background:transparent}
+#gb-lp .gb-copt.is-sold-out .ck{display:none!important}
+#gb-lp .gb-copt .gb-sold-out-badge{position:absolute;top:8px;left:6px;right:6px;display:block;z-index:1;padding:5px 3px;border-radius:5px;background:#F8F4EC;color:#0B1B3A;font-family:var(--sans);font-size:clamp(9px,2.7vw,12px);font-weight:800;line-height:1.3;text-align:center;letter-spacing:.4px;pointer-events:none}
 
 #gb-lp .lluvia{border-radius:var(--r-xl);overflow:hidden;border:1px solid var(--line);margin:0 0 22px;position:relative;aspect-ratio:4/3;max-height:520px;width:100%}
 #gb-lp .lluvia img{width:100%!important;height:100%!important;object-fit:cover}
@@ -620,7 +625,17 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
      shows a copy of it), and each product has its own variant ids. The ids
      written in the HTML are only the fallback: the color NAME picks the
      variant of the product this page is actually on. */
-  function norm(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+  /* "Blanco (Agotado)" in the store is still Blanco: the note in parentheses is ignored. */
+  function norm(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\(.*?\)/g,'').toLowerCase().trim(); }
+  /* A color the store says is out of stock is shown greyed out with AGOTADO and
+     cannot be picked: an order for it would be refused anyway. */
+  function markSoldOut(r){
+    var label=r.closest('.gb-copt'); if(!label || label.classList.contains('is-sold-out')) return;
+    r.disabled=true; r.checked=false;
+    label.classList.add('is-sold-out'); label.classList.remove('sel'); label.setAttribute('aria-disabled','true');
+    var badge=document.createElement('span'); badge.className='gb-sold-out-badge'; badge.textContent='AGOTADO';
+    label.insertBefore(badge,label.querySelector('.cn'));
+  }
   function useVariants(list){
     if(!colorBox || !variantInput || !list || !list.length) return;
     colorBox.querySelectorAll('input[name="gb-color"]').forEach(function(r){
@@ -628,7 +643,10 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
       for(var i=0;i<list.length;i++){
         if(norm(list[i].title)===want){
           r.value=String(list[i].id);
-          if(r.checked && !r.disabled) variantInput.value=r.value;
+          if(list[i].available===false){
+            var wasChecked=r.checked; markSoldOut(r);
+            if(wasChecked) resetColor();
+          }else if(r.checked && !r.disabled) variantInput.value=r.value;
           return;
         }
       }
@@ -637,14 +655,14 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
   var meta=window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product;
   if(meta && meta.variants && meta.variants.length){
     useVariants(meta.variants.map(function(v){ return { id:v.id, title:v.public_title||v.name }; }));
-  }else{
-    var handle=/\/products\/([^\/?#]+)/.exec(location.pathname);
-    if(handle && window.fetch){
-      fetch('/products/'+handle[1]+'.js',{headers:{Accept:'application/json'}})
-        .then(function(r){ return r.ok ? r.json() : null; })
-        .then(function(p){ if(p && p.variants) useVariants(p.variants.map(function(v){ return { id:v.id, title:v.title }; })); })
-        .catch(function(){});
-    }
+  }
+  /* The product's own data also says which colors are in stock. */
+  var handle=/\/products\/([^\/?#]+)/.exec(location.pathname);
+  if(handle && window.fetch){
+    fetch('/products/'+handle[1]+'.js',{headers:{Accept:'application/json'}})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(p){ if(p && p.variants) useVariants(p.variants.map(function(v){ return { id:v.id, title:v.title, available:v.available }; })); })
+      .catch(function(){});
   }
 
   /* Browsers bring back the radio a visitor ticked on an earlier visit when
@@ -652,11 +670,14 @@ button.es-submit-form-button,button.es-form-submit-btn,button.es-submit-btn,
      the color marked in the HTML. */
   var defaultColor=colorBox && (colorBox.querySelector('input[name="gb-color"][checked]:not(:disabled)') || colorBox.querySelector('input[name="gb-color"]:not(:disabled)'));
   function resetColor(){
-    if(!colorBox || !variantInput || !defaultColor) return;
-    defaultColor.checked=true;
-    variantInput.value=defaultColor.value;
-    if(colorName) colorName.textContent=defaultColor.getAttribute('data-name')||'';
-    colorBox.querySelectorAll('.gb-copt').forEach(function(l){ l.classList.toggle('sel', l.contains(defaultColor)); });
+    if(!colorBox || !variantInput) return;
+    // The marked color, or the first one in stock if the store sold it out.
+    var d=(defaultColor && !defaultColor.disabled) ? defaultColor : colorBox.querySelector('input[name="gb-color"]:not(:disabled)');
+    if(!d) return;
+    d.checked=true;
+    variantInput.value=d.value;
+    if(colorName) colorName.textContent=d.getAttribute('data-name')||'';
+    colorBox.querySelectorAll('.gb-copt').forEach(function(l){ l.classList.toggle('sel', l.contains(d)); });
   }
   resetColor();
   window.addEventListener('pageshow',function(e){ if(e.persisted) resetColor(); });
