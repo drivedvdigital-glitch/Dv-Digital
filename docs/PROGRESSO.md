@@ -3398,6 +3398,24 @@ Ctrl+Z fora do campo é acompanhado pelo campo, canvas atualiza. Tropeço do pr�
 rodada anterior tinha salvo o texto de teste na página, e a checagem seguinte "achou" o texto
 — página de teste restaurada antes de cada rodada.
 
+### Renomear blocos na Estrutura (17/11)
+
+Pedido do Miguel: com vários blocos HTML a Estrutura virava "HTML, HTML, HTML". O nome já
+existia (`props.name`, usado por "Cópia de …" e pelo campo da Seção/Pilha), só não havia como
+editar nos outros blocos. Agora, para qualquer bloco, três caminhos e um atalho: **duplo clique
+no nome** na Estrutura (o nome vira um campo, com o texto já selecionado), **Renomear** no
+menu do botão direito e no inspetor, e **F2**. Enter ou sair do campo guarda, Esc cancela;
+nome vazio (ou igual ao padrão) volta ao nome do tipo. O campo fica FORA do `<button>` da
+linha (input dentro de botão é HTML inválido e o Espaço clicaria a linha), e as teclas dele
+não chegam aos atalhos do editor (Delete no campo não exclui o bloco).
+
+O nome é só do editor: o compilador nunca lê `props.name` — conferido na pré-visualização,
+que é a mesma saída da publicação.
+
+Tropeço achado no teste: renomear três blocos em sequência virava UM passo do Ctrl+Z, porque o
+histórico junta mudanças a menos de 600 ms (feito para a digitação). Renomear agora é sempre um
+passo próprio. Dirigido no editor real: 12/12.
+
 ### 🔴 Dívida técnica aberta, antes de qualquer loja de produção
 
 Detalhada com desenho em `docs/CONFIGURACAO_E_MECANISMOS.md` §5:

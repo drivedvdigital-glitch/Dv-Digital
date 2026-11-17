@@ -60,6 +60,7 @@ const PATHS = {
     </>
   ),
   expand: <path d="M9.5 2.5h4v4M13.5 2.5L9 7M6.5 13.5h-4v-4M2.5 13.5L7 9" />,
+  rename: <path d="M2.5 5.5h6M2.5 10.5h4M11.5 3v10M10 3h3M10 13h3" />,
   external: <path d="M9 3h4v4M13 3L7.5 8.5M11 9.5V12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2.5" />,
   search: (
     <>

@@ -650,6 +650,7 @@ const SHORTCUTS: Array<{ keys: string[]; what: string }> = [
   { keys: ['Ctrl', 'Shift', 'Z'], what: 'Refazer' },
   { keys: ['Ctrl', 'D'], what: 'Duplicar o selecionado' },
   { keys: ['Delete'], what: 'Excluir o selecionado' },
+  { keys: ['F2'], what: 'Renomear o selecionado' },
   { keys: ['Ctrl', 'C'], what: 'Copiar estilo' },
   { keys: ['Ctrl', 'V'], what: 'Colar estilo' },
 ];
@@ -757,6 +758,9 @@ export default function PageEditor() {
   // it when it opens, so Escape and the arrow keys work wherever the click
   // came from (the canvas iframe included), and closes with it.
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  // The block whose name is being edited in the Structure tree. The name is
+  // editor-only (`props.name`): the compiler never reads it.
+  const [renaming, setRenaming] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menu) return;
@@ -781,6 +785,13 @@ export default function PageEditor() {
     };
   }, [menu]);
   const [showSettings, setShowSettings] = useState(false);
+  // Renaming happens in the tree, so the tree is brought on screen first.
+  const startRename = useCallback((id: string | null) => {
+    if (!id) return;
+    setShowSettings(false);
+    setShowHelp(false);
+    setRenaming(id);
+  }, []);
   const [paletteQuery, setPaletteQuery] = useState('');
   const [uiTheme, toggleUiTheme] = useUiTheme();
 
@@ -1029,6 +1040,15 @@ export default function PageEditor() {
           target.isContentEditable);
       if (typing) return;
 
+      if (!ctrl && event.key === 'F2') {
+        const ids = selectionRef.current;
+        if (ids.length > 0) {
+          event.preventDefault();
+          startRename(ids[ids.length - 1]);
+        }
+        return;
+      }
+
       if (!ctrl && (event.key === 'Delete' || event.key === 'Backspace')) {
         event.preventDefault();
         shortcutAction('delete');
@@ -1054,7 +1074,7 @@ export default function PageEditor() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo, shortcutAction]);
+  }, [undo, redo, shortcutAction, startRename]);
 
   // The preview is the compiler's own output, rendered in an iframe — the same
   // bytes that get published (I1). The editor build adds node id stamps and the
@@ -1215,6 +1235,21 @@ export default function PageEditor() {
   const nameOf = (node: DocNode | null | undefined) =>
     node ? String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type) : '';
   const crumbs = selected ? pathTo(doc.root, selected) : [];
+  const finishRename = (id: string, value: string | null) => {
+    setRenaming(null);
+    if (value === null) return;
+    const node = findNode(docRef.current.root, id);
+    if (!node) return;
+    const clean = value.trim();
+    // Typing the default name back (or nothing) clears the custom one.
+    const name = clean && clean !== (BLOCK_LABELS[node.type] ?? node.type) ? clean : undefined;
+    if ((node.props?.name ?? undefined) === name) return;
+    // A rename is one whole action: its own undo step, never merged with the
+    // edits around it (the 600 ms merge is for typing).
+    history.current.lastPush = 0;
+    setRoot(updateProps(docRef.current.root, id, { name }));
+    history.current.lastPush = 0;
+  };
   // The tab-items list stays on screen while editing a tab, not only when the
   // tabs container itself is selected — the row stays inverted as context.
   const parentOfSelected = crumbs.length > 1 ? crumbs[crumbs.length - 2] : null;
@@ -1246,6 +1281,7 @@ export default function PageEditor() {
         { key: 'up', label: 'Subir', icon: 'arrowUp', run: () => setRoot(moveNode(doc.root, menuNode.id, -1)) },
         { key: 'down', label: 'Descer', icon: 'arrowDown', run: () => setRoot(moveNode(doc.root, menuNode.id, 1)) },
         { key: 'duplicate', label: 'Duplicar', icon: 'duplicate', hint: 'Ctrl+D', run: () => setRoot(duplicateNode(doc.root, menuNode.id)) },
+        { key: 'rename', label: 'Renomear', icon: 'rename', hint: 'F2', run: () => startRename(menuNode.id) },
         {
           key: 'hide',
           label: menuNode.hidden ? 'Mostrar na página' : 'Esconder da página',
@@ -1537,6 +1573,9 @@ export default function PageEditor() {
                         setRoot(relocateNode(doc.root, id, targetId, position))
                       }
                       onToggleHidden={(id) => setRoot(toggleHidden(doc.root, id))}
+                      renamingId={renaming}
+                      onStartRename={startRename}
+                      onFinishRename={finishRename}
                       onContext={(id, x, y) => {
                         select(id);
                         setMenu({ id, x, y });
@@ -1745,6 +1784,17 @@ export default function PageEditor() {
                 <button type="button" className="dv-btn dv-plain" style={actionButton} title="Duplicar (Ctrl+D) — vale para todos os selecionados" onClick={() => shortcutAction('duplicate')}>
                   <Icon name="duplicate" />
                   Duplicar
+                </button>
+                <button
+                  type="button"
+                  className="dv-btn dv-plain"
+                  style={actionButton}
+                  title="Dar um nome a este bloco na Estrutura (F2). Só no editor: não vai para a página"
+                  data-action-rename
+                  onClick={() => startRename(selectedNode.id)}
+                >
+                  <Icon name="rename" />
+                  Renomear
                 </button>
                 <button
                   type="button"
@@ -2523,6 +2573,50 @@ function EyeIcon({ off }: { off: boolean }) {
   );
 }
 
+/**
+ * The name field that replaces a tree row while renaming. Enter or leaving
+ * the field keeps the text; Esc gives up. Opens with the text selected, so
+ * typing replaces it at once.
+ */
+function RenameInput({
+  initial,
+  placeholder,
+  onDone,
+}: {
+  initial: string;
+  placeholder: string;
+  onDone: (value: string | null) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const done = useRef(false);
+  const finish = (value: string | null) => {
+    if (done.current) return;
+    done.current = true;
+    onDone(value);
+  };
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+  return (
+    <input
+      ref={ref}
+      data-tree-rename
+      aria-label="Nome do bloco na Estrutura"
+      defaultValue={initial}
+      placeholder={placeholder}
+      maxLength={80}
+      style={renameInput}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Enter') finish(event.currentTarget.value);
+        if (event.key === 'Escape') finish(null);
+      }}
+      onBlur={(event) => finish(event.currentTarget.value)}
+    />
+  );
+}
+
 function Tree({
   nodes,
   depth,
@@ -2531,6 +2625,9 @@ function Tree({
   onRelocate,
   onToggleHidden,
   onContext,
+  renamingId,
+  onStartRename,
+  onFinishRename,
   parentHidden = false,
 }: {
   nodes: DocNode[];
@@ -2540,6 +2637,10 @@ function Tree({
   onRelocate: (id: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
   onToggleHidden: (id: string) => void;
   onContext: (id: string, x: number, y: number) => void;
+  renamingId: string | null;
+  onStartRename: (id: string) => void;
+  /** `null` = cancelled (Esc). */
+  onFinishRename: (id: string, value: string | null) => void;
   parentHidden?: boolean;
 }) {
   const [hint, setHint] = useState<{ id: string; position: string } | null>(null);
@@ -2563,8 +2664,30 @@ function Tree({
     <>
       {nodes.map((node) => {
         const off = Boolean(node.hidden) || parentHidden;
+        const label = String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type);
         return (
           <div key={node.id}>
+            {renamingId === node.id ? (
+              // Not inside the row's <button>: an input in a button is invalid
+              // HTML, and Space would click the row instead of typing.
+              <div
+                className="dv-tree-row"
+                data-tree-id={node.id}
+                data-tree-renaming
+                data-tree-selected={selectedIds.includes(node.id) || undefined}
+                style={{ ...treeRow, paddingLeft: 6 + depth * 14 }}
+              >
+                <span style={treeGrip} aria-hidden="true" />
+                <span style={treeIcon}>
+                  <Icon name={BLOCK_ICONS[node.type] ?? 'section'} size={14} />
+                </span>
+                <RenameInput
+                  initial={label}
+                  placeholder={BLOCK_LABELS[node.type] ?? node.type}
+                  onDone={(value) => onFinishRename(node.id, value)}
+                />
+              </div>
+            ) : (
             <button
               type="button"
               className="dv-tree-row"
@@ -2610,8 +2733,16 @@ function Tree({
               <span style={treeIcon}>
                 <Icon name={BLOCK_ICONS[node.type] ?? 'section'} size={14} />
               </span>
-              <span data-tree-label style={{ ...treeLabel, ...(off ? { textDecoration: 'line-through' } : {}) }}>
-                {String(node.props?.name ?? '') || (BLOCK_LABELS[node.type] ?? node.type)}
+              <span
+                data-tree-label
+                title="Duplo clique (ou F2): renomear"
+                style={{ ...treeLabel, ...(off ? { textDecoration: 'line-through' } : {}) }}
+                onDoubleClick={(event) => {
+                  event.stopPropagation();
+                  onStartRename(node.id);
+                }}
+              >
+                {label}
               </span>
               {node.type === 'heading' || node.type === 'text' ? (
                 <span style={treeHint}>{String(node.props?.text ?? '').slice(0, 18)}</span>
@@ -2639,6 +2770,7 @@ function Tree({
                 <Icon name={node.hidden ? 'eyeOff' : 'eye'} size={14} />
               </span>
             </button>
+            )}
             {node.children ? (
               <Tree
                 nodes={node.children}
@@ -2648,6 +2780,9 @@ function Tree({
                 onRelocate={onRelocate}
                 onToggleHidden={onToggleHidden}
                 onContext={onContext}
+                renamingId={renamingId}
+                onStartRename={onStartRename}
+                onFinishRename={onFinishRename}
                 parentHidden={off}
               />
             ) : null}
@@ -3892,6 +4027,20 @@ const treeGrip: React.CSSProperties = {
   flexShrink: 0,
 };
 const treeLabel: React.CSSProperties = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+const renameInput: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  fontSize: 13,
+  lineHeight: '20px',
+  padding: '1px 6px',
+  border: '1px solid var(--dv-accent)',
+  borderRadius: 6,
+  background: 'var(--dv-sfc)',
+  color: 'var(--dv-ink)',
+  fontFamily: 'inherit',
+  outline: 'none',
+  boxShadow: '0 0 0 2px var(--dv-accent-tint)',
+};
 const treeHint: React.CSSProperties = {
   color: 'var(--dv-ink-3)',
   fontWeight: 400,
@@ -3988,6 +4137,7 @@ const HELP = [
   { title: 'Selecionar', text: 'Clique no bloco, no canvas ou na Estrutura. Ctrl+clique soma à seleção para agir em vários de uma vez.' },
   { title: 'Mover', text: 'Arraste a linha na Estrutura (solte em cima de uma Seção para entrar nela) ou arraste pelo nome na barra do canvas. Ou use Subir / Descer no inspetor.' },
   { title: 'Duplicar e excluir', text: 'Duplicar (Ctrl+D) e Excluir (Delete) ficam no inspetor, na barra do canvas e no menu do botão direito. Ctrl+Z desfaz qualquer coisa.' },
+  { title: 'Dar nome aos blocos', text: 'Duplo clique no nome do bloco na Estrutura (ou F2, ou Renomear no inspetor e no botão direito) e escreva, por exemplo, "Pixel do Facebook" ou "LP Guirnalda". Enter guarda, Esc cancela; nome apagado volta ao padrão. O nome é só do editor: não vai para a página publicada.' },
   { title: 'Esconder sem apagar', text: 'O olho na Estrutura tira o bloco da página publicada e o mantém aqui para depois. Num bloco HTML, o código continua rodando escondido: um {% include %} ou um script de pixel funciona sem aparecer.' },
   { title: 'Salvar e publicar', text: 'Salvar guarda uma versão. Publicar coloca a página no ar nas lojas marcadas em "Publicar em". Configurações da página (no trilho à esquerda) define URL, tipo e produtos vinculados.' },
 ];
